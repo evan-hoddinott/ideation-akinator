@@ -8,6 +8,15 @@
 		type IntakeInsightsRequest
 	} from '$lib/intake-insights';
 	import {
+		createInterview,
+		makeInterviewAnswer,
+		parseInterviewNextResult,
+		type InterviewAnswer,
+		type InterviewAnswerStatus,
+		type InterviewNextRequest,
+		type InterviewQuestion
+	} from '$lib/interview';
+	import {
 		clearProject,
 		createProject,
 		createProblemCard,
@@ -45,6 +54,15 @@
 	let insightRequestSequence = 0;
 	let researchBusy = $state(false);
 	let researchMessage = $state('');
+	let interviewBusy = $state(false);
+	let interviewMessage = $state('');
+	let interviewDialog = $state<HTMLDialogElement>();
+	let textAnswer = $state('');
+	let numberAnswer = $state('');
+	let singleAnswer = $state('');
+	let multipleAnswer = $state<string[]>([]);
+	let yesNoAnswer = $state<boolean | null>(null);
+	let loadedAnswerSignature = '';
 
 	const insightSignature = $derived(
 		project
@@ -62,11 +80,23 @@
 			: 0
 	);
 	const currentStageIndex = $derived(
-		project ? { welcome: -1, problem: 0, preferences: 1, research: 2 }[project.stage] : -1
+		project
+			? { welcome: -1, problem: 0, preferences: 1, research: 2, questions: 3 }[project.stage]
+			: -1
 	);
 	const researchIsActive = $derived(
 		project?.research.status === 'queued' || project?.research.status === 'running'
 	);
+	const currentQuestion = $derived(
+		project?.interview.questions[project.interview.currentQuestionIndex] ?? null
+	);
+	const currentAnswer = $derived(
+		currentQuestion
+			? (project?.interview.answers.find((answer) => answer.questionId === currentQuestion.id) ??
+					null)
+			: null
+	);
+	const answeredQuestionCount = $derived(project?.interview.answers.length ?? 0);
 
 	const workflow = [
 		{ label: 'Problem', glyph: '01' },
@@ -159,7 +189,13 @@
 	$effect(() => {
 		const signature = insightSignature;
 		const retryNonce = insightRetryNonce;
-		if (!stateReady || !signature || project?.stage === 'research') return;
+		if (
+			!stateReady ||
+			!signature ||
+			project?.stage === 'research' ||
+			project?.stage === 'questions'
+		)
+			return;
 
 		const input = JSON.parse(signature) as IntakeInsightsRequest;
 		if (input.problems.length === 0) {
@@ -192,6 +228,26 @@
 		return () => window.clearInterval(timer);
 	});
 
+	$effect(() => {
+		const question = currentQuestion;
+		const answer = currentAnswer;
+		const signature = question ? `${question.id}:${JSON.stringify(answer)}` : '';
+		if (signature === loadedAnswerSignature) return;
+		loadedAnswerSignature = signature;
+		textAnswer = question?.type === 'text' && typeof answer?.value === 'string' ? answer.value : '';
+		numberAnswer =
+			(question?.type === 'number' || question?.type === 'budget') &&
+			typeof answer?.value === 'number'
+				? String(answer.value)
+				: '';
+		singleAnswer =
+			question?.type === 'single-choice' && typeof answer?.value === 'string' ? answer.value : '';
+		multipleAnswer =
+			question?.type === 'multiple-choice' && Array.isArray(answer?.value) ? [...answer.value] : [];
+		yesNoAnswer =
+			question?.type === 'yes-no' && typeof answer?.value === 'boolean' ? answer.value : null;
+	});
+
 	const enhanceLogin: SubmitFunction = () => {
 		submitting = true;
 		return async ({ update }) => {
@@ -215,7 +271,10 @@
 				? {
 						...nextProject,
 						research: { jobId: null, status: 'idle', result: null },
-						completedStages: nextProject.completedStages.filter((stage) => stage !== 'research')
+						interview: createInterview(),
+						completedStages: nextProject.completedStages.filter(
+							(stage) => stage !== 'research' && stage !== 'questions'
+						)
 					}
 				: nextProject
 		);
@@ -650,6 +709,205 @@
 		return project?.research.result?.sources.find((source) => source.id === id);
 	}
 
+	function goToResearch() {
+		if (!project || interviewBusy) return;
+		project = saveProject(window.localStorage, { ...project, stage: 'research' });
+		interviewMessage = '';
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	function enterInterview() {
+		if (!project || !project.research.result || interviewBusy) return;
+		project = saveProject(window.localStorage, { ...project, stage: 'questions' });
+		stateNotice = 'Research saved. The Sage will ask one useful question at a time.';
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+		if (project.interview.questions.length === 0) void requestNextInterview(project);
+	}
+
+	async function requestNextInterview(session: ProjectSession | null = project) {
+		if (!session || interviewBusy) return;
+		const input = interviewRequest(session);
+		if (!input) {
+			interviewMessage = 'The saved research or budget is incomplete. Return to the research room.';
+			return;
+		}
+		interviewBusy = true;
+		interviewMessage = 'The Sage is choosing the next useful question...';
+		try {
+			const response = await fetch(resolve('/api/interview/next'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(input)
+			});
+			const body: unknown = await response.json();
+			if (!response.ok) {
+				const error = body as { message?: unknown };
+				interviewMessage =
+					typeof error.message === 'string'
+						? error.message
+						: 'The next question did not arrive. Your answers are still saved.';
+				return;
+			}
+			const result = parseInterviewNextResult(body);
+			if (!result || !project || project.id !== session.id) {
+				throw new Error('Invalid interview response');
+			}
+			if (result.decision === 'complete') {
+				project = saveProject(window.localStorage, {
+					...project,
+					completedStages: Array.from(new Set([...project.completedStages, 'questions'])),
+					interview: {
+						...project.interview,
+						status: 'completed',
+						completionReason: result.completionReason,
+						confidence: 'normal'
+					}
+				});
+				interviewMessage = '';
+				return;
+			}
+			project = saveProject(window.localStorage, {
+				...project,
+				interview: {
+					...project.interview,
+					status: 'active',
+					questions: [...project.interview.questions, result.question],
+					currentQuestionIndex: project.interview.questions.length,
+					completionReason: null
+				}
+			});
+			interviewMessage = '';
+		} catch {
+			interviewMessage =
+				'The next question did not arrive. Your answers are saved, and you can retry.';
+		} finally {
+			interviewBusy = false;
+		}
+	}
+
+	function interviewRequest(session: ProjectSession): InterviewNextRequest | null {
+		const research = session.research.result;
+		const preferences = session.preferences;
+		if (!research || preferences.prototypeBudgetUsd === null) return null;
+		return {
+			projectId: session.id,
+			topic: session.problemInput.topic,
+			problems: session.problemInput.cards.map((card) => card.text.trim()).filter(Boolean),
+			technologyTags: preferences.technologyTags,
+			industryTags: preferences.selectedIndustryTags,
+			innovationLevel: preferences.innovationLevel,
+			prototypeBudgetUsd: preferences.prototypeBudgetUsd,
+			includeProductionPlanning: preferences.includeProductionPlanning,
+			productionBudgetUsd: preferences.productionBudgetUsd,
+			constraints: { ...preferences.constraints },
+			research: {
+				summary: research.summary,
+				findings: research.findings.map(({ title, claim, interpretation }) => ({
+					title,
+					claim,
+					interpretation
+				})),
+				gaps: research.gaps.map(({ category, reason }) => ({ category, reason }))
+			},
+			questions: session.interview.questions,
+			answers: session.interview.answers
+		};
+	}
+
+	function submitInterviewAnswer(status: InterviewAnswerStatus) {
+		if (!project || !currentQuestion || interviewBusy) return;
+		const answer = makeInterviewAnswer(
+			currentQuestion,
+			status,
+			status === 'answered' ? draftAnswerValue(currentQuestion) : null
+		);
+		if (!answer) {
+			interviewMessage = 'Choose or enter an answer first, or use Skip or I don’t know.';
+			return;
+		}
+
+		const index = project.interview.currentQuestionIndex;
+		const existing = project.interview.answers.find(
+			(entry) => entry.questionId === currentQuestion.id
+		);
+		if (
+			existing &&
+			JSON.stringify(existing) === JSON.stringify(answer) &&
+			index < project.interview.questions.length - 1
+		) {
+			project = saveProject(window.localStorage, {
+				...project,
+				interview: { ...project.interview, currentQuestionIndex: index + 1 }
+			});
+			interviewMessage = '';
+			return;
+		}
+
+		const keptQuestions = project.interview.questions.slice(0, index + 1);
+		const keptIds = new Set(keptQuestions.map((question) => question.id));
+		const answers = project.interview.answers.filter(
+			(entry) => entry.questionId !== currentQuestion.id && keptIds.has(entry.questionId)
+		);
+		const nextProject = saveProject(window.localStorage, {
+			...project,
+			completedStages: project.completedStages.filter((stage) => stage !== 'questions'),
+			interview: {
+				...project.interview,
+				status: 'active',
+				questions: keptQuestions,
+				answers: [...answers, answer],
+				currentQuestionIndex: index,
+				completionReason: null,
+				confidence: 'normal'
+			}
+		});
+		project = nextProject;
+		interviewMessage = '';
+		void requestNextInterview(nextProject);
+	}
+
+	function draftAnswerValue(question: InterviewQuestion): InterviewAnswer['value'] {
+		if (question.type === 'text') return textAnswer;
+		if (question.type === 'single-choice') return singleAnswer;
+		if (question.type === 'multiple-choice') return multipleAnswer;
+		if (question.type === 'yes-no') return yesNoAnswer;
+		return numberAnswer.trim() === '' ? null : Number(numberAnswer);
+	}
+
+	function toggleMultipleAnswer(id: string, checked: boolean) {
+		multipleAnswer = checked
+			? Array.from(new Set([...multipleAnswer, id]))
+			: multipleAnswer.filter((entry) => entry !== id);
+	}
+
+	function previousInterviewQuestion() {
+		if (!project || interviewBusy || project.interview.currentQuestionIndex === 0) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			interview: {
+				...project.interview,
+				currentQuestionIndex: project.interview.currentQuestionIndex - 1
+			}
+		});
+		interviewMessage = '';
+	}
+
+	function finishInterviewEarly() {
+		if (!project) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			completedStages: Array.from(new Set([...project.completedStages, 'questions'])),
+			interview: {
+				...project.interview,
+				status: 'ended-early',
+				completionReason: 'The interview ended early at your request.',
+				confidence: 'reduced'
+			}
+		});
+		interviewMessage = '';
+		interviewDialog?.close();
+	}
+
 	function startOver() {
 		void cancelResearchJob(true);
 		clearProject(window.localStorage);
@@ -664,6 +922,8 @@
 		insightRequestSequence += 1;
 		researchBusy = false;
 		researchMessage = '';
+		interviewBusy = false;
+		interviewMessage = '';
 		resetDialog?.close();
 	}
 </script>
@@ -766,7 +1026,8 @@
 							class:active={index === currentStageIndex}
 							class:complete={(index === 0 && project?.completedStages.includes('problem')) ||
 								(index === 1 && project?.completedStages.includes('preferences')) ||
-								(index === 2 && project?.completedStages.includes('research'))}
+								(index === 2 && project?.completedStages.includes('research')) ||
+								(index === 3 && project?.completedStages.includes('questions'))}
 							class:pending={!project || index > currentStageIndex}
 						>
 							<span class="step-glyph">{step.glyph}</span>
@@ -1269,6 +1530,9 @@
 										<strong>Ready for the interview</strong>
 										<p>The next room will turn these gaps into one-at-a-time questions.</p>
 									</div>
+									<button class="summon-button compact" type="button" onclick={enterInterview}
+										><span>Start interview</span><i aria-hidden="true">→</i></button
+									>
 								</div>
 							</div>
 						{:else}
@@ -1295,6 +1559,215 @@
 							<button class="text-button" type="button" onclick={() => resetDialog?.showModal()}
 								>Start over</button
 							>
+						</div>
+					</section>
+				{:else if project?.stage === 'questions'}
+					<section class="intake-room interview-room" aria-labelledby="interview-room-title">
+						<div class="room-heading interview-heading">
+							<div>
+								<p class="room-number">ROOM 04 / CLARIFYING INTERVIEW</p>
+								<h1 id="interview-room-title">Turn uncertainty into choices.</h1>
+								<p>
+									The Sage asks one question at a time and changes course when your answer reveals
+									something useful.
+								</p>
+							</div>
+							<div class="interview-counter">
+								<strong>{answeredQuestionCount}</strong>
+								<span>responses recorded</span>
+								<small>Usually 5–10 questions</small>
+							</div>
+						</div>
+
+						{#if project.interview.status === 'completed' || project.interview.status === 'ended-early'}
+							<div class="interview-complete" aria-live="polite">
+								<div class="completion-orb" aria-hidden="true">✦</div>
+								<p class="panel-kicker">THE SIGNAL IS SHARP ENOUGH</p>
+								<h2>
+									{project.interview.status === 'ended-early'
+										? 'Interview ended early'
+										: 'The questions have done their job'}
+								</h2>
+								<p>{project.interview.completionReason}</p>
+								{#if project.interview.confidence === 'reduced'}
+									<span class="confidence-note"
+										>Concept confidence will be marked lower because some uncertainty remains.</span
+									>
+								{/if}
+								<div class="next-slice-note">
+									<strong>Four project directions are next</strong>
+									<p>Concept generation arrives in slice 6.</p>
+								</div>
+							</div>
+						{:else if !currentQuestion}
+							<div class="interview-loading" aria-live="polite">
+								<div class="question-mark" aria-hidden="true">?</div>
+								<h2>
+									{interviewBusy ? 'Choosing the first useful question...' : 'Begin the interview'}
+								</h2>
+								<p>
+									Your research and preferences are ready. Answers save in this browser after each
+									question.
+								</p>
+								{#if !interviewBusy}
+									<button
+										class="summon-button compact"
+										type="button"
+										onclick={() => requestNextInterview()}
+										><span>{interviewMessage ? 'Try again' : 'Ask the first question'}</span><i
+											aria-hidden="true">→</i
+										></button
+									>
+								{/if}
+							</div>
+						{:else}
+							<article class="question-card" aria-live="polite">
+								<header>
+									<div>
+										<p class="panel-kicker">
+											QUESTION {String(project.interview.currentQuestionIndex + 1).padStart(2, '0')}
+										</p>
+										<h2>{currentQuestion.prompt}</h2>
+									</div>
+									<span>{currentQuestion.type.replace('-', ' ')}</span>
+								</header>
+								<div class="why-question">
+									<b>Why this matters</b>
+									<p>{currentQuestion.whyItMatters}</p>
+								</div>
+
+								<div class="answer-area">
+									{#if currentQuestion.type === 'text'}
+										<label>
+											<span>Your answer</span>
+											<textarea
+												rows="5"
+												maxlength="2000"
+												bind:value={textAnswer}
+												placeholder="A rough answer is enough..."></textarea>
+										</label>
+									{:else if currentQuestion.type === 'single-choice'}
+										<div class="choice-list" role="radiogroup" aria-label="Answer choices">
+											{#each currentQuestion.options as option (option.id)}
+												<label>
+													<input
+														type="radio"
+														name={currentQuestion.id}
+														value={option.id}
+														bind:group={singleAnswer}
+													/>
+													<span>{option.label}</span>
+												</label>
+											{/each}
+										</div>
+									{:else if currentQuestion.type === 'multiple-choice'}
+										<div class="choice-list multiple" aria-label="Answer choices">
+											{#each currentQuestion.options as option (option.id)}
+												<label>
+													<input
+														type="checkbox"
+														checked={multipleAnswer.includes(option.id)}
+														onchange={(event) =>
+															toggleMultipleAnswer(option.id, event.currentTarget.checked)}
+													/>
+													<span>{option.label}</span>
+												</label>
+											{/each}
+										</div>
+									{:else if currentQuestion.type === 'yes-no'}
+										<div class="yes-no-choices" aria-label="Yes or no">
+											<button
+												class:chosen={yesNoAnswer === true}
+												type="button"
+												onclick={() => (yesNoAnswer = true)}>Yes</button
+											>
+											<button
+												class:chosen={yesNoAnswer === false}
+												type="button"
+												onclick={() => (yesNoAnswer = false)}>No</button
+											>
+										</div>
+									{:else}
+										<label class="numeric-answer">
+											<span>Your answer</span>
+											<div class:no-prefix={currentQuestion.type !== 'budget'}>
+												{#if currentQuestion.type === 'budget'}<b>$</b>{/if}
+												<input
+													type="number"
+													min={currentQuestion.minimum ?? undefined}
+													max={currentQuestion.maximum ?? undefined}
+													bind:value={numberAnswer}
+													placeholder="0"
+												/>
+												{#if currentQuestion.unit}<i>{currentQuestion.unit}</i>{/if}
+											</div>
+										</label>
+									{/if}
+								</div>
+
+								{#if currentAnswer}
+									<p class="saved-answer-note">
+										Saved as <b>{currentAnswer.status}</b>. Continuing after an edit will replace
+										later follow-ups.
+									</p>
+								{/if}
+								<div class="answer-actions">
+									<button
+										class="secondary-button"
+										type="button"
+										disabled={interviewBusy}
+										onclick={() => submitInterviewAnswer('skipped')}>Skip</button
+									>
+									<button
+										class="secondary-button"
+										type="button"
+										disabled={interviewBusy}
+										onclick={() => submitInterviewAnswer('unknown')}>I don’t know</button
+									>
+									<button
+										class="summon-button compact"
+										type="button"
+										disabled={interviewBusy}
+										onclick={() => submitInterviewAnswer('answered')}
+									>
+										<span>{interviewBusy ? 'Thinking...' : 'Save and continue'}</span><i
+											aria-hidden="true">→</i
+										>
+									</button>
+								</div>
+							</article>
+						{/if}
+
+						{#if interviewMessage}
+							<p class="intake-error" role="alert">{interviewMessage}</p>
+						{/if}
+						<div class="room-actions interview-room-actions">
+							<div>
+								{#if project.interview.status === 'active'}
+									<button
+										class="secondary-button"
+										type="button"
+										disabled={interviewBusy ||
+											!currentQuestion ||
+											project.interview.currentQuestionIndex === 0}
+										onclick={previousInterviewQuestion}>← Previous question</button
+									>
+								{/if}
+								<button
+									class="secondary-button"
+									type="button"
+									disabled={interviewBusy}
+									onclick={goToResearch}>Research room</button
+								>
+							</div>
+							{#if project.interview.status === 'active'}
+								<button
+									class="text-button"
+									type="button"
+									disabled={interviewBusy}
+									onclick={() => interviewDialog?.showModal()}>End interview early</button
+								>
+							{/if}
 						</div>
 					</section>
 				{:else}
@@ -1349,6 +1822,22 @@
 			<div class="dialog-actions">
 				<button class="text-button" value="cancel">Keep it</button>
 				<button class="danger-button" type="button" onclick={startOver}>Clear project</button>
+			</div>
+		</form>
+	</dialog>
+
+	<dialog class="reset-dialog" bind:this={interviewDialog}>
+		<form method="dialog">
+			<p class="dialog-kicker">ENOUGH QUESTIONS?</p>
+			<h2>End the interview early?</h2>
+			<p>
+				You can continue to concepts, but the final package will mark its confidence as reduced.
+			</p>
+			<div class="dialog-actions">
+				<button class="text-button" value="cancel">Keep answering</button>
+				<button class="danger-button" type="button" onclick={finishInterviewEarly}
+					>End interview</button
+				>
 			</div>
 		</form>
 	</dialog>

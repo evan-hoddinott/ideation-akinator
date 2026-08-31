@@ -1981,6 +1981,292 @@ textarea::placeholder {
 	margin-top: 3px;
 	font-size: 11px;
 }
+.research-next .summon-button {
+	margin-left: auto;
+}
+
+.interview-heading {
+	grid-template-columns: minmax(0, 1fr) 180px;
+}
+.interview-counter {
+	display: grid;
+	align-content: center;
+	min-height: 150px;
+	padding: 20px;
+	border: 1px solid #5d4786;
+	background: radial-gradient(circle at 50% 20%, rgb(115 76 187 / 32%), transparent 65%), #100a2c;
+	text-align: center;
+}
+.interview-counter strong {
+	font:
+		700 46px/1 Georgia,
+		serif;
+	color: var(--gold);
+}
+.interview-counter span,
+.interview-counter small {
+	display: block;
+	font:
+		700 9px/1.4 'Courier New',
+		monospace;
+	text-transform: uppercase;
+}
+.interview-counter span {
+	margin-top: 7px;
+	color: #d5c7e9;
+}
+.interview-counter small {
+	margin-top: 11px;
+	color: #817492;
+}
+.question-card {
+	padding: clamp(20px, 4vw, 38px);
+	border: 1px solid #66508d;
+	background:
+		linear-gradient(rgb(255 255 255 / 2%) 1px, transparent 1px),
+		linear-gradient(90deg, rgb(255 255 255 / 2%) 1px, transparent 1px), #120c31;
+	background-size: 22px 22px;
+	box-shadow: 6px 6px 0 rgb(3 2 14 / 65%);
+}
+.question-card > header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 24px;
+}
+.question-card > header h2,
+.interview-complete h2,
+.interview-loading h2 {
+	max-width: 760px;
+	margin: 0;
+	font:
+		700 clamp(1.55rem, 3vw, 2.4rem)/1.2 Georgia,
+		serif;
+	color: #fff0bd;
+}
+.question-card > header > span {
+	padding: 7px 9px;
+	border: 1px solid #5f4a7e;
+	font:
+		700 8px/1 'Courier New',
+		monospace;
+	white-space: nowrap;
+	text-transform: uppercase;
+	color: #bba9d4;
+	background: #0a061f;
+}
+.why-question {
+	display: grid;
+	grid-template-columns: 125px minmax(0, 1fr);
+	gap: 18px;
+	margin: 25px 0;
+	padding: 14px 16px;
+	border-left: 3px solid var(--cyan);
+	background: rgb(71 58 112 / 28%);
+}
+.why-question b {
+	font:
+		700 9px/1.5 'Courier New',
+		monospace;
+	text-transform: uppercase;
+	color: var(--cyan);
+}
+.why-question p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.55;
+	color: #c8bdd8;
+}
+.answer-area {
+	min-height: 145px;
+	padding: 22px;
+	border: 1px solid #44345f;
+	background: rgb(7 4 24 / 72%);
+}
+.answer-area label > span,
+.numeric-answer > span {
+	display: block;
+	margin-bottom: 9px;
+	font:
+		700 10px/1.2 'Courier New',
+		monospace;
+	color: #c6b8db;
+}
+.answer-area textarea,
+.numeric-answer input {
+	width: 100%;
+	border: 1px solid #665087;
+	color: var(--ink);
+	background: #0c0825;
+}
+.answer-area textarea {
+	min-height: 125px;
+	padding: 13px;
+	resize: vertical;
+	line-height: 1.55;
+}
+.choice-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+.choice-list label {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	min-height: 58px;
+	margin: 0;
+	padding: 12px;
+	border: 1px solid #4d3a6c;
+	cursor: pointer;
+	background: #100b2d;
+}
+.choice-list label:has(input:checked) {
+	border-color: var(--cyan);
+	box-shadow: inset 0 0 18px rgb(115 233 237 / 9%);
+}
+.choice-list input {
+	accent-color: var(--cyan);
+}
+.choice-list label > span {
+	margin: 0;
+	font:
+		12px/1.45 Verdana,
+		sans-serif;
+	color: #e5dcf1;
+}
+.yes-no-choices {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+.yes-no-choices button {
+	min-height: 78px;
+	border: 1px solid #594275;
+	font:
+		700 20px/1 Georgia,
+		serif;
+	color: #ded2ef;
+	background: #110b30;
+}
+.yes-no-choices button.chosen {
+	border-color: var(--cyan);
+	color: #fff4c9;
+	box-shadow: inset 0 0 24px rgb(115 233 237 / 13%);
+}
+.numeric-answer > div {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	border: 1px solid #665087;
+	background: #0c0825;
+}
+.numeric-answer > div.no-prefix {
+	grid-template-columns: minmax(0, 1fr) auto;
+}
+.numeric-answer input {
+	min-width: 0;
+	padding: 16px 10px;
+	border: 0;
+}
+.numeric-answer b,
+.numeric-answer i {
+	padding: 0 13px;
+	font:
+		700 11px/1 'Courier New',
+		monospace;
+	color: var(--gold);
+}
+.numeric-answer i {
+	font-style: normal;
+	color: #a89abf;
+}
+.saved-answer-note {
+	margin: 15px 0 0;
+	font:
+		10px/1.5 'Courier New',
+		monospace;
+	color: #a99abb;
+}
+.saved-answer-note b {
+	color: var(--cyan);
+}
+.answer-actions {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	margin-top: 22px;
+}
+.answer-actions .summon-button {
+	margin-left: auto;
+}
+.interview-loading,
+.interview-complete {
+	display: grid;
+	justify-items: center;
+	min-height: 410px;
+	padding: 55px 24px;
+	border: 1px solid #4d396d;
+	background: radial-gradient(circle at 50% 25%, rgb(83 53 148 / 34%), transparent 35%), #100a2b;
+	text-align: center;
+}
+.interview-loading > p,
+.interview-complete > p {
+	max-width: 600px;
+	margin: 14px 0 22px;
+	font-size: 12px;
+	line-height: 1.65;
+	color: #b3a5c8;
+}
+.question-mark,
+.completion-orb {
+	display: grid;
+	place-items: center;
+	width: 82px;
+	height: 82px;
+	margin-bottom: 22px;
+	border: 1px solid #8e69ce;
+	border-radius: 50%;
+	font:
+		700 37px/1 Georgia,
+		serif;
+	color: #fff0bd;
+	background: radial-gradient(circle, #55378d, #120c31 68%);
+	box-shadow: 0 0 30px rgb(116 76 190 / 30%);
+}
+.completion-orb {
+	color: var(--gold);
+}
+.confidence-note {
+	max-width: 610px;
+	padding: 10px 13px;
+	border: 1px solid #9c7745;
+	font:
+		10px/1.5 'Courier New',
+		monospace;
+	color: #ffe0a4;
+	background: rgb(122 82 31 / 25%);
+}
+.next-slice-note {
+	margin-top: 23px;
+	padding: 15px 22px;
+	border: 1px solid #4d846e;
+	background: rgb(40 106 77 / 20%);
+}
+.next-slice-note strong,
+.next-slice-note p {
+	display: block;
+	margin: 0;
+}
+.next-slice-note p {
+	margin-top: 4px;
+	font-size: 10px;
+	color: #9ed2ba;
+}
+.interview-room-actions > div {
+	display: flex;
+	gap: 8px;
+}
 @keyframes orbit-spin {
 	to {
 		transform: rotate(360deg);
@@ -2002,5 +2288,30 @@ textarea::placeholder {
 	}
 	.research-brief > header {
 		flex-direction: column;
+	}
+	.research-next {
+		align-items: stretch;
+		flex-direction: column;
+	}
+	.research-next .summon-button {
+		margin-left: 0;
+	}
+	.interview-heading,
+	.why-question,
+	.choice-list {
+		grid-template-columns: 1fr;
+	}
+	.interview-counter {
+		min-height: 110px;
+	}
+	.question-card > header,
+	.answer-actions,
+	.interview-room-actions,
+	.interview-room-actions > div {
+		align-items: stretch;
+		flex-direction: column;
+	}
+	.answer-actions .summon-button {
+		margin-left: 0;
 	}
 }

@@ -1,4 +1,5 @@
 import { isClarityLabel, type ClarityLabel } from '$lib/intake-insights';
+import { createInterview, parseProjectInterview, type ProjectInterview } from '$lib/interview';
 import {
 	isResearchJobStatus,
 	parseBroadResearchResult,
@@ -6,10 +7,10 @@ import {
 	type ResearchJobStatus
 } from '$lib/research';
 
-export const PROJECT_SCHEMA_VERSION = 4;
+export const PROJECT_SCHEMA_VERSION = 5;
 export const PROJECT_STORAGE_KEY = 'ideation-akinator:active-project';
 
-export type WorkflowStage = 'welcome' | 'problem' | 'preferences' | 'research';
+export type WorkflowStage = 'welcome' | 'problem' | 'preferences' | 'research' | 'questions';
 export type CompletedStage = Exclude<WorkflowStage, 'welcome'>;
 export type InnovationLevel = 1 | 2 | 3 | 4 | 5;
 
@@ -67,6 +68,7 @@ export interface ProjectSession {
 	problemInput: ProblemInput;
 	preferences: ProjectPreferences;
 	research: ProjectResearch;
+	interview: ProjectInterview;
 }
 
 export interface StorageLike {
@@ -93,7 +95,8 @@ export function createProject(now = new Date(), id = createProjectId()): Project
 		invalidatedStages: [],
 		problemInput: createProblemInput(),
 		preferences: createPreferences(),
-		research: createResearch()
+		research: createResearch(),
+		interview: createInterview()
 	};
 }
 
@@ -110,7 +113,10 @@ export function loadProject(storage: StorageLike): ProjectLoadResult {
 		if (isCurrentProject(parsed)) return { status: 'ready', project: parsed };
 
 		const migrated =
-			migrateVersionThree(parsed) ?? migrateVersionTwo(parsed) ?? migrateVersionOne(parsed);
+			migrateVersionFour(parsed) ??
+			migrateVersionThree(parsed) ??
+			migrateVersionTwo(parsed) ??
+			migrateVersionOne(parsed);
 		if (migrated) {
 			storage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(migrated));
 			return { status: 'migrated', project: migrated };
@@ -227,7 +233,8 @@ function migrateVersionTwo(value: unknown): ProjectSession | null {
 		invalidatedStages: previous.invalidatedStages,
 		problemInput: { ...previous.problemInput },
 		preferences: { ...previous.preferences, suggestedIndustryTags: [] },
-		research: createResearch()
+		research: createResearch(),
+		interview: createInterview()
 	};
 }
 
@@ -261,7 +268,45 @@ function migrateVersionThree(value: unknown): ProjectSession | null {
 		invalidatedStages: previous.invalidatedStages,
 		problemInput: previous.problemInput,
 		preferences: previous.preferences,
-		research: createResearch()
+		research: createResearch(),
+		interview: createInterview()
+	};
+}
+
+function migrateVersionFour(value: unknown): ProjectSession | null {
+	if (!value || typeof value !== 'object') return null;
+	const previous = value as Record<string, unknown>;
+	if (
+		previous.schemaVersion !== 4 ||
+		typeof previous.id !== 'string' ||
+		previous.id.length === 0 ||
+		!isIsoDate(previous.createdAt) ||
+		!isIsoDate(previous.updatedAt) ||
+		(previous.stage !== 'welcome' &&
+			previous.stage !== 'problem' &&
+			previous.stage !== 'preferences' &&
+			previous.stage !== 'research') ||
+		!isVersionFourCompletedStageArray(previous.completedStages) ||
+		!isStringArray(previous.invalidatedStages) ||
+		!isProblemInput(previous.problemInput) ||
+		!isPreferences(previous.preferences) ||
+		!isResearch(previous.research)
+	) {
+		return null;
+	}
+
+	return {
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		id: previous.id,
+		createdAt: previous.createdAt,
+		updatedAt: previous.updatedAt,
+		stage: previous.stage,
+		completedStages: previous.completedStages,
+		invalidatedStages: previous.invalidatedStages,
+		problemInput: previous.problemInput,
+		preferences: previous.preferences,
+		research: previous.research,
+		interview: createInterview()
 	};
 }
 
@@ -279,7 +324,8 @@ function isCurrentProject(value: unknown): value is ProjectSession {
 		isStringArray(project.invalidatedStages) &&
 		isProblemInput(project.problemInput) &&
 		isPreferences(project.preferences) &&
-		isResearch(project.research)
+		isResearch(project.research) &&
+		!!parseProjectInterview(project.interview)
 	);
 }
 
@@ -381,7 +427,11 @@ function isVersionTwoPreferences(
 
 function isWorkflowStage(value: unknown): value is WorkflowStage {
 	return (
-		value === 'welcome' || value === 'problem' || value === 'preferences' || value === 'research'
+		value === 'welcome' ||
+		value === 'problem' ||
+		value === 'preferences' ||
+		value === 'research' ||
+		value === 'questions'
 	);
 }
 
@@ -398,6 +448,21 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 function isCompletedStageArray(value: unknown): value is CompletedStage[] {
+	return (
+		Array.isArray(value) &&
+		value.every(
+			(entry) =>
+				entry === 'problem' ||
+				entry === 'preferences' ||
+				entry === 'research' ||
+				entry === 'questions'
+		)
+	);
+}
+
+function isVersionFourCompletedStageArray(
+	value: unknown
+): value is Array<'problem' | 'preferences' | 'research'> {
 	return (
 		Array.isArray(value) &&
 		value.every((entry) => entry === 'problem' || entry === 'preferences' || entry === 'research')
