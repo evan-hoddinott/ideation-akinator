@@ -38,13 +38,48 @@ describe('versioned project state', () => {
 		});
 	});
 
+	it('starts with one empty problem and neutral preference defaults', () => {
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-1');
+
+		expect(project.problemInput.cards).toHaveLength(1);
+		expect(project.problemInput.cards[0].text).toBe('');
+		expect(project.preferences.innovationLevel).toBe(3);
+		expect(project.preferences.includeProductionPlanning).toBe(true);
+		expect(project.preferences.prototypeBudgetUsd).toBeNull();
+	});
+
+	it('migrates a valid slice-one project without changing its identity or stage', () => {
+		const storage = memoryStorage(
+			JSON.stringify({
+				schemaVersion: 1,
+				id: 'old-project',
+				createdAt: '2026-08-31T10:00:00.000Z',
+				updatedAt: '2026-08-31T10:01:00.000Z',
+				stage: 'problem'
+			})
+		);
+
+		const result = loadProject(storage);
+		expect(result.status).toBe('migrated');
+		if (result.status !== 'migrated') throw new Error('expected migrated project');
+		expect(result.project).toMatchObject({
+			schemaVersion: 2,
+			id: 'old-project',
+			stage: 'problem',
+			createdAt: '2026-08-31T10:00:00.000Z',
+			updatedAt: '2026-08-31T10:01:00.000Z'
+		});
+		expect(result.project.problemInput.cards).toHaveLength(1);
+		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(2);
+	});
+
 	it('clears corrupt state instead of crashing', () => {
 		const storage = memoryStorage('{ definitely not json');
 		expect(loadProject(storage)).toEqual({ status: 'recovered', project: null });
 		expect(storage.value()).toBeNull();
 	});
 
-	it('clears state from an unsupported schema version', () => {
+	it('clears state from a future schema version', () => {
 		const storage = memoryStorage(
 			JSON.stringify({
 				schemaVersion: PROJECT_SCHEMA_VERSION + 1,
