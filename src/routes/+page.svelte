@@ -2,6 +2,12 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import {
+		CLARITY_LABELS,
+		mergeIndustrySuggestions,
+		parseIntakeInsights,
+		type IntakeInsightsRequest
+	} from '$lib/intake-insights';
+	import {
 		clearProject,
 		createProject,
 		createProblemCard,
@@ -23,6 +29,28 @@
 	let industryTagDraft = $state('');
 	let preferenceError = $state('');
 	let preferencesSealed = $state(false);
+	let insightStatus = $state<'idle' | 'waiting' | 'loading' | 'ready' | 'error' | 'unavailable'>(
+		'idle'
+	);
+	let insightMessage = $state('');
+	let insightRetryNonce = $state(0);
+	let insightRequestSequence = 0;
+
+	const insightSignature = $derived(
+		project
+			? JSON.stringify({
+					topic: project.problemInput.topic,
+					problems: project.problemInput.cards
+						.map((card) => card.text)
+						.filter((text) => text.trim())
+				})
+			: ''
+	);
+	const clarityPosition = $derived(
+		project?.problemInput.clarityLabel
+			? CLARITY_LABELS.indexOf(project.problemInput.clarityLabel) + 1
+			: 0
+	);
 
 	const workflow = [
 		{ label: 'Problem', glyph: '01' },
@@ -101,6 +129,33 @@
 		}
 	});
 
+	$effect(() => {
+		const signature = insightSignature;
+		const retryNonce = insightRetryNonce;
+		if (!stateReady || !signature) return;
+
+		const input = JSON.parse(signature) as IntakeInsightsRequest;
+		if (input.problems.length === 0) {
+			insightStatus = 'idle';
+			insightMessage = '';
+			return;
+		}
+
+		void retryNonce;
+		insightStatus = 'waiting';
+		insightMessage = 'Listening for a pause...';
+		const controller = new AbortController();
+		const sequence = ++insightRequestSequence;
+		const timer = window.setTimeout(() => {
+			void requestIntakeInsights(input, signature, sequence, controller.signal);
+		}, 900);
+
+		return () => {
+			window.clearTimeout(timer);
+			controller.abort();
+		};
+	});
+
 	const enhanceLogin: SubmitFunction = () => {
 		submitting = true;
 		return async ({ update }) => {
@@ -122,7 +177,10 @@
 
 	function setTopic(topic: string) {
 		if (!project) return;
-		persist({ ...project, problemInput: { ...project.problemInput, topic } });
+		persist({
+			...project,
+			problemInput: clearProblemReading({ ...project.problemInput, topic })
+		});
 	}
 
 	function setProblemText(id: string, text: string) {
@@ -130,7 +188,7 @@
 		persist({
 			...project,
 			problemInput: {
-				...project.problemInput,
+				...clearProblemReading(project.problemInput),
 				cards: project.problemInput.cards.map((card) => (card.id === id ? { ...card, text } : card))
 			}
 		});
@@ -141,7 +199,7 @@
 		persist({
 			...project,
 			problemInput: {
-				...project.problemInput,
+				...clearProblemReading(project.problemInput),
 				cards: [...project.problemInput.cards, createProblemCard()]
 			}
 		});
@@ -153,7 +211,7 @@
 		persist({
 			...project,
 			problemInput: {
-				...project.problemInput,
+				...clearProblemReading(project.problemInput),
 				cards: cards.length > 0 ? cards : [createProblemCard()]
 			}
 		});
@@ -165,7 +223,83 @@
 		if (target < 0 || target >= project.problemInput.cards.length) return;
 		const cards = [...project.problemInput.cards];
 		[cards[index], cards[target]] = [cards[target], cards[index]];
-		persist({ ...project, problemInput: { ...project.problemInput, cards } });
+		persist({
+			...project,
+			problemInput: { ...clearProblemReading(project.problemInput), cards }
+		});
+	}
+
+	function clearProblemReading(problemInput: ProjectSession['problemInput']) {
+		return {
+			...problemInput,
+			clarityLabel: null,
+			clarityReasons: [],
+			topicCoherenceWarning: null
+		};
+	}
+
+	async function requestIntakeInsights(
+		input: IntakeInsightsRequest,
+		signature: string,
+		sequence: number,
+		signal: AbortSignal
+	) {
+		insightStatus = 'loading';
+		insightMessage = 'Reading the signal...';
+		try {
+			const response = await fetch(resolve('/api/intake-insights'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(input),
+				signal
+			});
+			const body: unknown = await response.json();
+			if (!response.ok) {
+				const errorBody = body as { message?: unknown };
+				insightStatus = response.status === 503 ? 'unavailable' : 'error';
+				insightMessage =
+					typeof errorBody.message === 'string'
+						? errorBody.message
+						: 'The reading flickered out. Your notes are still saved.';
+				return;
+			}
+
+			const insights = parseIntakeInsights(body);
+			if (!insights) throw new Error('Invalid intake insight response');
+			if (sequence !== insightRequestSequence || signature !== insightSignature || !project) return;
+
+			const mergedIndustries = mergeIndustrySuggestions(
+				project.preferences.selectedIndustryTags,
+				project.preferences.dismissedIndustryTags,
+				project.preferences.suggestedIndustryTags,
+				insights.suggestedIndustryTags
+			);
+			persist({
+				...project,
+				problemInput: {
+					...project.problemInput,
+					clarityLabel: insights.clarityLabel,
+					clarityReasons: insights.clarityReasons,
+					topicCoherenceWarning: insights.topicCoherenceWarning
+				},
+				preferences: {
+					...project.preferences,
+					selectedIndustryTags: mergedIndustries.selected,
+					suggestedIndustryTags: mergedIndustries.suggested
+				}
+			});
+			insightStatus = 'ready';
+			insightMessage = 'Reading updated.';
+		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') return;
+			if (sequence !== insightRequestSequence) return;
+			insightStatus = 'error';
+			insightMessage = 'The reading flickered out. Your notes are safe, and you can try again.';
+		}
+	}
+
+	function retryIntakeInsights() {
+		insightRetryNonce += 1;
 	}
 
 	function goToPreferences() {
@@ -204,7 +338,13 @@
 							? project.preferences.dismissedIndustryTags.filter(
 									(entry) => entry.toLocaleLowerCase() !== tag.toLocaleLowerCase()
 								)
-							: project.preferences.dismissedIndustryTags
+							: project.preferences.dismissedIndustryTags,
+					suggestedIndustryTags:
+						kind === 'industry'
+							? project.preferences.suggestedIndustryTags.filter(
+									(entry) => entry.toLocaleLowerCase() !== tag.toLocaleLowerCase()
+								)
+							: project.preferences.suggestedIndustryTags
 				}
 			});
 		}
@@ -240,6 +380,9 @@
 				),
 				dismissedIndustryTags: Array.from(
 					new Set([...project.preferences.dismissedIndustryTags, tag])
+				),
+				suggestedIndustryTags: project.preferences.suggestedIndustryTags.filter(
+					(entry) => entry !== tag
 				)
 			}
 		});
@@ -294,7 +437,7 @@
 			return;
 		}
 		if (preferences.selectedIndustryTags.length === 0) {
-			preferenceError = 'Add at least one industry for now. Automatic suggestions arrive next.';
+			preferenceError = 'Add at least one industry. The Sage can suggest them from your problems.';
 			return;
 		}
 		if (preferences.prototypeBudgetUsd === null) {
@@ -323,6 +466,9 @@
 		industryTagDraft = '';
 		preferenceError = '';
 		preferencesSealed = false;
+		insightStatus = 'idle';
+		insightMessage = '';
+		insightRequestSequence += 1;
 		resetDialog?.close();
 	}
 </script>
@@ -468,9 +614,32 @@
 							</div>
 							<div class="reading-card" aria-label="Problem clarity reading">
 								<span>CLARITY READING</span>
-								<strong>Signal not read yet</strong>
-								<div class="reading-track" aria-hidden="true"><i></i></div>
-								<small>The live reading is added in slice 3. It will never block progress.</small>
+								<strong>{project.problemInput.clarityLabel ?? 'Signal not read yet'}</strong>
+								<div class="reading-track" aria-hidden="true">
+									<i style={`width: ${(clarityPosition / CLARITY_LABELS.length) * 100}%`}></i>
+								</div>
+								<p class="reading-status" aria-live="polite">
+									{insightStatus === 'idle'
+										? 'Describe a problem to start the live reading. It never blocks progress.'
+										: insightMessage}
+								</p>
+								{#if project.problemInput.clarityReasons.length > 0}
+									<ul class="reading-reasons">
+										{#each project.problemInput.clarityReasons as reason (reason)}
+											<li>{reason}</li>
+										{/each}
+									</ul>
+								{/if}
+								{#if project.problemInput.topicCoherenceWarning}
+									<p class="coherence-warning" role="status">
+										<span aria-hidden="true">!</span>{project.problemInput.topicCoherenceWarning}
+									</p>
+								{/if}
+								{#if insightStatus === 'error' || insightStatus === 'unavailable'}
+									<button class="reading-retry" type="button" onclick={retryIntakeInsights}
+										>Try reading again</button
+									>
+								{/if}
 							</div>
 						</div>
 
@@ -589,14 +758,16 @@
 									<span>02</span>
 									<div>
 										<h2 id="industry-title">Industries</h2>
-										<p>Automatic selections arrive with the live reading in slice 3.</p>
+										<p>The Sage selects likely industries. Remove any that do not fit.</p>
 									</div>
 								</div>
 								<div class="tag-editor">
 									<div class="tag-list">
 										{#each project.preferences.selectedIndustryTags as tag (tag)}
 											<span class="tag-chip industry"
-												>{tag}<button
+												>{tag}{#if project.preferences.suggestedIndustryTags.some((entry) => entry.toLocaleLowerCase() === tag.toLocaleLowerCase())}<small
+														>AUTO</small
+													>{/if}<button
 													type="button"
 													onclick={() => removeTag('industry', tag)}
 													aria-label={`Remove ${tag}`}>×</button
@@ -612,6 +783,15 @@
 									</div>
 									<button type="button" onclick={() => addTag('industry')}>Add</button>
 								</div>
+								{#if insightStatus === 'waiting' || insightStatus === 'loading'}
+									<p class="industry-reading-note" aria-live="polite">
+										<span class="status-light" aria-hidden="true"></span>{insightMessage}
+									</p>
+								{:else if project.preferences.dismissedIndustryTags.length > 0}
+									<p class="industry-reading-note">
+										Removed suggestions stay out unless you add them back yourself.
+									</p>
+								{/if}
 							</section>
 
 							<section class="preference-panel wide-panel" aria-labelledby="innovation-title">
@@ -728,8 +908,8 @@
 								<div>
 									<strong>Intake complete</strong>
 									<p>
-										Slice 3 will add the live clarity reading and industry suggestions before
-										research begins.
+										Your problem reading, preferences, and industry choices are saved. Broad
+										research is next.
 									</p>
 								</div>
 							</div>

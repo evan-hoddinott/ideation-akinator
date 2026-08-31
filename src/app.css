@@ -835,15 +835,59 @@ textarea:focus-visible {
 }
 .reading-track i {
 	display: block;
-	width: 16%;
 	height: 100%;
-	background: #67518f;
+	background: linear-gradient(90deg, #6d50ad, var(--cyan));
+	transition: width 240ms ease;
 }
-.reading-card small {
-	display: block;
+.reading-status,
+.room-heading > div > p.reading-status {
+	min-height: 30px;
+	margin: 0;
 	font-size: 10px;
 	line-height: 1.5;
 	color: #8f83a5;
+}
+.reading-reasons {
+	display: grid;
+	gap: 6px;
+	margin: 11px 0 0;
+	padding: 11px 0 0 16px;
+	border-top: 1px solid #382955;
+	font-size: 10px;
+	line-height: 1.45;
+	color: #c9bddb;
+}
+.coherence-warning,
+.room-heading > div > p.coherence-warning {
+	display: flex;
+	align-items: flex-start;
+	gap: 7px;
+	margin: 11px 0 0;
+	padding: 8px;
+	border: 1px solid #8a6330;
+	font:
+		10px/1.45 'Courier New',
+		monospace;
+	color: #f2d49c;
+	background: #30200f;
+}
+.coherence-warning span {
+	display: grid;
+	place-items: center;
+	flex: 0 0 15px;
+	height: 15px;
+	border: 1px solid #c89243;
+}
+.reading-retry {
+	margin-top: 10px;
+	padding: 6px 8px;
+	border: 1px solid #6f5993;
+	color: #d8cbea;
+	background: #21164a;
+	font:
+		700 9px/1 'Courier New',
+		monospace;
+	cursor: pointer;
 }
 .field-block > span,
 .problem-card > label,
@@ -1111,6 +1155,13 @@ textarea::placeholder {
 	color: #b8f4ef;
 	background: #10363c;
 }
+.tag-chip small {
+	padding: 2px 3px;
+	border: 1px solid #5c9694;
+	color: #78c9c6;
+	font-size: 7px;
+	letter-spacing: 0.08em;
+}
 .tag-chip button {
 	padding: 0;
 	border: 0;
@@ -1119,6 +1170,19 @@ textarea::placeholder {
 	font-size: 16px;
 	line-height: 0.7;
 	cursor: pointer;
+}
+.industry-reading-note {
+	margin: 10px 0 0;
+	font:
+		9px/1.45 'Courier New',
+		monospace;
+	color: #81779a;
+}
+.industry-reading-note .status-light {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	margin-right: 7px;
 }
 .innovation-readout {
 	display: flex;

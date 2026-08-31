@@ -63,14 +63,56 @@ describe('versioned project state', () => {
 		expect(result.status).toBe('migrated');
 		if (result.status !== 'migrated') throw new Error('expected migrated project');
 		expect(result.project).toMatchObject({
-			schemaVersion: 2,
+			schemaVersion: 3,
 			id: 'old-project',
 			stage: 'problem',
 			createdAt: '2026-08-31T10:00:00.000Z',
 			updatedAt: '2026-08-31T10:01:00.000Z'
 		});
 		expect(result.project.problemInput.cards).toHaveLength(1);
-		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(2);
+		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(3);
+	});
+
+	it('migrates slice-two intake data and adds AI suggestion tracking', () => {
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-2');
+		const versionTwo = {
+			...project,
+			schemaVersion: 2,
+			stage: 'preferences',
+			problemInput: {
+				topic: 'Campus transit',
+				cards: [{ id: 'problem-1', text: 'Students miss route updates.' }],
+				clarityLabel: null,
+				clarityReasons: [],
+				topicCoherenceWarning: null
+			},
+			preferences: {
+				...project.preferences,
+				technologyTags: ['Open to anything'],
+				selectedIndustryTags: ['Education']
+			}
+		};
+		delete (versionTwo.preferences as Partial<typeof project.preferences>).suggestedIndustryTags;
+		const storage = memoryStorage(JSON.stringify(versionTwo));
+
+		const result = loadProject(storage);
+		expect(result.status).toBe('migrated');
+		if (result.status !== 'migrated') throw new Error('expected migrated project');
+		expect(result.project.problemInput.cards[0].text).toBe('Students miss route updates.');
+		expect(result.project.preferences.selectedIndustryTags).toEqual(['Education']);
+		expect(result.project.preferences.suggestedIndustryTags).toEqual([]);
+	});
+
+	it('round-trips validated AI insight fields', () => {
+		const storage = memoryStorage();
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-ai');
+		project.problemInput.clarityLabel = 'Ready to summon';
+		project.problemInput.clarityReasons = ['The group, context, and consequence are clear.'];
+		project.problemInput.topicCoherenceWarning = 'One note may concern a separate topic.';
+		project.preferences.suggestedIndustryTags = ['Higher Education'];
+		saveProject(storage, project);
+
+		expect(loadProject(storage).status).toBe('ready');
 	});
 
 	it('clears corrupt state instead of crashing', () => {

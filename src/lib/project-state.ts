@@ -1,4 +1,6 @@
-export const PROJECT_SCHEMA_VERSION = 2;
+import { isClarityLabel, type ClarityLabel } from '$lib/intake-insights';
+
+export const PROJECT_SCHEMA_VERSION = 3;
 export const PROJECT_STORAGE_KEY = 'ideation-akinator:active-project';
 
 export type WorkflowStage = 'welcome' | 'problem' | 'preferences';
@@ -13,9 +15,9 @@ export interface ProblemCard {
 export interface ProblemInput {
 	topic: string;
 	cards: ProblemCard[];
-	clarityLabel: null;
+	clarityLabel: ClarityLabel | null;
 	clarityReasons: string[];
-	topicCoherenceWarning: null;
+	topicCoherenceWarning: string | null;
 }
 
 export interface ProjectConstraints {
@@ -34,6 +36,7 @@ export interface ProjectPreferences {
 	technologyTags: string[];
 	selectedIndustryTags: string[];
 	dismissedIndustryTags: string[];
+	suggestedIndustryTags: string[];
 	innovationLevel: InnovationLevel;
 	prototypeBudgetUsd: number | null;
 	includeProductionPlanning: boolean;
@@ -92,7 +95,7 @@ export function loadProject(storage: StorageLike): ProjectLoadResult {
 		const parsed: unknown = JSON.parse(stored);
 		if (isCurrentProject(parsed)) return { status: 'ready', project: parsed };
 
-		const migrated = migrateVersionOne(parsed);
+		const migrated = migrateVersionTwo(parsed) ?? migrateVersionOne(parsed);
 		if (migrated) {
 			storage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(migrated));
 			return { status: 'migrated', project: migrated };
@@ -135,6 +138,7 @@ function createPreferences(): ProjectPreferences {
 		technologyTags: [],
 		selectedIndustryTags: [],
 		dismissedIndustryTags: [],
+		suggestedIndustryTags: [],
 		innovationLevel: 3,
 		prototypeBudgetUsd: null,
 		includeProductionPlanning: true,
@@ -174,6 +178,37 @@ function migrateVersionOne(value: unknown): ProjectSession | null {
 	};
 }
 
+function migrateVersionTwo(value: unknown): ProjectSession | null {
+	if (!value || typeof value !== 'object') return null;
+	const previous = value as Record<string, unknown>;
+	if (
+		previous.schemaVersion !== 2 ||
+		typeof previous.id !== 'string' ||
+		previous.id.length === 0 ||
+		!isIsoDate(previous.createdAt) ||
+		!isIsoDate(previous.updatedAt) ||
+		!isWorkflowStage(previous.stage) ||
+		!isIntakeStageArray(previous.completedStages) ||
+		!isStringArray(previous.invalidatedStages) ||
+		!isVersionTwoProblemInput(previous.problemInput) ||
+		!isVersionTwoPreferences(previous.preferences)
+	) {
+		return null;
+	}
+
+	return {
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		id: previous.id,
+		createdAt: previous.createdAt,
+		updatedAt: previous.updatedAt,
+		stage: previous.stage,
+		completedStages: previous.completedStages,
+		invalidatedStages: previous.invalidatedStages,
+		problemInput: { ...previous.problemInput },
+		preferences: { ...previous.preferences, suggestedIndustryTags: [] }
+	};
+}
+
 function isCurrentProject(value: unknown): value is ProjectSession {
 	if (!value || typeof value !== 'object') return false;
 	const project = value as Partial<ProjectSession>;
@@ -205,9 +240,9 @@ function isProblemInput(value: unknown): value is ProblemInput {
 				typeof (card as ProblemCard).id === 'string' &&
 				typeof (card as ProblemCard).text === 'string'
 		) &&
-		input.clarityLabel === null &&
+		(input.clarityLabel === null || isClarityLabel(input.clarityLabel)) &&
 		isStringArray(input.clarityReasons) &&
-		input.topicCoherenceWarning === null
+		(input.topicCoherenceWarning === null || typeof input.topicCoherenceWarning === 'string')
 	);
 }
 
@@ -219,6 +254,48 @@ function isPreferences(value: unknown): value is ProjectPreferences {
 		isStringArray(preferences.technologyTags) &&
 		isStringArray(preferences.selectedIndustryTags) &&
 		isStringArray(preferences.dismissedIndustryTags) &&
+		isStringArray(preferences.suggestedIndustryTags) &&
+		isInnovationLevel(preferences.innovationLevel) &&
+		isNullableBudget(preferences.prototypeBudgetUsd) &&
+		typeof preferences.includeProductionPlanning === 'boolean' &&
+		isNullableBudget(preferences.productionBudgetUsd) &&
+		!!constraints &&
+		Object.values(constraints).every((entry) => typeof entry === 'string') &&
+		Object.keys(createPreferences().constraints).every((key) => key in constraints)
+	);
+}
+
+function isVersionTwoProblemInput(value: unknown): value is ProblemInput {
+	if (!value || typeof value !== 'object') return false;
+	const input = value as Partial<ProblemInput>;
+	return (
+		typeof input.topic === 'string' &&
+		Array.isArray(input.cards) &&
+		input.cards.length > 0 &&
+		input.cards.every(
+			(card) =>
+				card &&
+				typeof card === 'object' &&
+				typeof (card as ProblemCard).id === 'string' &&
+				typeof (card as ProblemCard).text === 'string'
+		) &&
+		input.clarityLabel === null &&
+		isStringArray(input.clarityReasons) &&
+		input.topicCoherenceWarning === null
+	);
+}
+
+function isVersionTwoPreferences(
+	value: unknown
+): value is Omit<ProjectPreferences, 'suggestedIndustryTags'> {
+	if (!value || typeof value !== 'object') return false;
+	const preferences = value as Partial<ProjectPreferences>;
+	const constraints = preferences.constraints as Partial<ProjectConstraints> | undefined;
+	return (
+		isStringArray(preferences.technologyTags) &&
+		isStringArray(preferences.selectedIndustryTags) &&
+		isStringArray(preferences.dismissedIndustryTags) &&
+		preferences.suggestedIndustryTags === undefined &&
 		isInnovationLevel(preferences.innovationLevel) &&
 		isNullableBudget(preferences.prototypeBudgetUsd) &&
 		typeof preferences.includeProductionPlanning === 'boolean' &&
