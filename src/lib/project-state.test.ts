@@ -63,14 +63,14 @@ describe('versioned project state', () => {
 		expect(result.status).toBe('migrated');
 		if (result.status !== 'migrated') throw new Error('expected migrated project');
 		expect(result.project).toMatchObject({
-			schemaVersion: 3,
+			schemaVersion: 4,
 			id: 'old-project',
 			stage: 'problem',
 			createdAt: '2026-08-31T10:00:00.000Z',
 			updatedAt: '2026-08-31T10:01:00.000Z'
 		});
 		expect(result.project.problemInput.cards).toHaveLength(1);
-		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(3);
+		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(4);
 	});
 
 	it('migrates slice-two intake data and adds AI suggestion tracking', () => {
@@ -113,6 +113,18 @@ describe('versioned project state', () => {
 		saveProject(storage, project);
 
 		expect(loadProject(storage).status).toBe('ready');
+	});
+
+	it('migrates slice-three intake into an empty recoverable research room', () => {
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-3');
+		const versionThree = { ...project, schemaVersion: 3 };
+		delete (versionThree as Partial<typeof project>).research;
+		const storage = memoryStorage(JSON.stringify(versionThree));
+
+		const loaded = loadProject(storage);
+		expect(loaded.status).toBe('migrated');
+		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
+		expect(loaded.project.research).toEqual({ jobId: null, status: 'idle', result: null });
 	});
 
 	it('clears corrupt state instead of crashing', () => {

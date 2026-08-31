@@ -1,10 +1,16 @@
 import { isClarityLabel, type ClarityLabel } from '$lib/intake-insights';
+import {
+	isResearchJobStatus,
+	parseBroadResearchResult,
+	type BroadResearchResult,
+	type ResearchJobStatus
+} from '$lib/research';
 
-export const PROJECT_SCHEMA_VERSION = 3;
+export const PROJECT_SCHEMA_VERSION = 4;
 export const PROJECT_STORAGE_KEY = 'ideation-akinator:active-project';
 
-export type WorkflowStage = 'welcome' | 'problem' | 'preferences';
-export type IntakeStage = Exclude<WorkflowStage, 'welcome'>;
+export type WorkflowStage = 'welcome' | 'problem' | 'preferences' | 'research';
+export type CompletedStage = Exclude<WorkflowStage, 'welcome'>;
 export type InnovationLevel = 1 | 2 | 3 | 4 | 5;
 
 export interface ProblemCard {
@@ -44,16 +50,23 @@ export interface ProjectPreferences {
 	constraints: ProjectConstraints;
 }
 
+export interface ProjectResearch {
+	jobId: string | null;
+	status: 'idle' | ResearchJobStatus;
+	result: BroadResearchResult | null;
+}
+
 export interface ProjectSession {
 	schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	id: string;
 	createdAt: string;
 	updatedAt: string;
 	stage: WorkflowStage;
-	completedStages: IntakeStage[];
+	completedStages: CompletedStage[];
 	invalidatedStages: string[];
 	problemInput: ProblemInput;
 	preferences: ProjectPreferences;
+	research: ProjectResearch;
 }
 
 export interface StorageLike {
@@ -79,7 +92,8 @@ export function createProject(now = new Date(), id = createProjectId()): Project
 		completedStages: [],
 		invalidatedStages: [],
 		problemInput: createProblemInput(),
-		preferences: createPreferences()
+		preferences: createPreferences(),
+		research: createResearch()
 	};
 }
 
@@ -95,7 +109,8 @@ export function loadProject(storage: StorageLike): ProjectLoadResult {
 		const parsed: unknown = JSON.parse(stored);
 		if (isCurrentProject(parsed)) return { status: 'ready', project: parsed };
 
-		const migrated = migrateVersionTwo(parsed) ?? migrateVersionOne(parsed);
+		const migrated =
+			migrateVersionThree(parsed) ?? migrateVersionTwo(parsed) ?? migrateVersionOne(parsed);
 		if (migrated) {
 			storage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(migrated));
 			return { status: 'migrated', project: migrated };
@@ -157,6 +172,10 @@ function createPreferences(): ProjectPreferences {
 	};
 }
 
+function createResearch(): ProjectResearch {
+	return { jobId: null, status: 'idle', result: null };
+}
+
 function migrateVersionOne(value: unknown): ProjectSession | null {
 	if (!value || typeof value !== 'object') return null;
 	const previous = value as Record<string, unknown>;
@@ -187,8 +206,10 @@ function migrateVersionTwo(value: unknown): ProjectSession | null {
 		previous.id.length === 0 ||
 		!isIsoDate(previous.createdAt) ||
 		!isIsoDate(previous.updatedAt) ||
-		!isWorkflowStage(previous.stage) ||
-		!isIntakeStageArray(previous.completedStages) ||
+		(previous.stage !== 'welcome' &&
+			previous.stage !== 'problem' &&
+			previous.stage !== 'preferences') ||
+		!isLegacyIntakeStageArray(previous.completedStages) ||
 		!isStringArray(previous.invalidatedStages) ||
 		!isVersionTwoProblemInput(previous.problemInput) ||
 		!isVersionTwoPreferences(previous.preferences)
@@ -205,7 +226,42 @@ function migrateVersionTwo(value: unknown): ProjectSession | null {
 		completedStages: previous.completedStages,
 		invalidatedStages: previous.invalidatedStages,
 		problemInput: { ...previous.problemInput },
-		preferences: { ...previous.preferences, suggestedIndustryTags: [] }
+		preferences: { ...previous.preferences, suggestedIndustryTags: [] },
+		research: createResearch()
+	};
+}
+
+function migrateVersionThree(value: unknown): ProjectSession | null {
+	if (!value || typeof value !== 'object') return null;
+	const previous = value as Record<string, unknown>;
+	if (
+		previous.schemaVersion !== 3 ||
+		typeof previous.id !== 'string' ||
+		previous.id.length === 0 ||
+		!isIsoDate(previous.createdAt) ||
+		!isIsoDate(previous.updatedAt) ||
+		(previous.stage !== 'welcome' &&
+			previous.stage !== 'problem' &&
+			previous.stage !== 'preferences') ||
+		!isCompletedStageArray(previous.completedStages) ||
+		!isStringArray(previous.invalidatedStages) ||
+		!isProblemInput(previous.problemInput) ||
+		!isPreferences(previous.preferences)
+	) {
+		return null;
+	}
+
+	return {
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		id: previous.id,
+		createdAt: previous.createdAt,
+		updatedAt: previous.updatedAt,
+		stage: previous.stage,
+		completedStages: previous.completedStages,
+		invalidatedStages: previous.invalidatedStages,
+		problemInput: previous.problemInput,
+		preferences: previous.preferences,
+		research: createResearch()
 	};
 }
 
@@ -219,10 +275,11 @@ function isCurrentProject(value: unknown): value is ProjectSession {
 		isIsoDate(project.createdAt) &&
 		isIsoDate(project.updatedAt) &&
 		isWorkflowStage(project.stage) &&
-		isIntakeStageArray(project.completedStages) &&
+		isCompletedStageArray(project.completedStages) &&
 		isStringArray(project.invalidatedStages) &&
 		isProblemInput(project.problemInput) &&
-		isPreferences(project.preferences)
+		isPreferences(project.preferences) &&
+		isResearch(project.research)
 	);
 }
 
@@ -262,6 +319,22 @@ function isPreferences(value: unknown): value is ProjectPreferences {
 		!!constraints &&
 		Object.values(constraints).every((entry) => typeof entry === 'string') &&
 		Object.keys(createPreferences().constraints).every((key) => key in constraints)
+	);
+}
+
+function isResearch(value: unknown): value is ProjectResearch {
+	if (!value || typeof value !== 'object') return false;
+	const research = value as Partial<ProjectResearch>;
+	const validStatus = research.status === 'idle' || isResearchJobStatus(research.status);
+	const validResult = research.result === null || !!parseBroadResearchResult(research.result);
+	const activeHasJob =
+		(research.status !== 'queued' && research.status !== 'running') ||
+		typeof research.jobId === 'string';
+	return (
+		(research.jobId === null || typeof research.jobId === 'string') &&
+		validStatus &&
+		validResult &&
+		activeHasJob
 	);
 }
 
@@ -307,7 +380,9 @@ function isVersionTwoPreferences(
 }
 
 function isWorkflowStage(value: unknown): value is WorkflowStage {
-	return value === 'welcome' || value === 'problem' || value === 'preferences';
+	return (
+		value === 'welcome' || value === 'problem' || value === 'preferences' || value === 'research'
+	);
 }
 
 function isInnovationLevel(value: unknown): value is InnovationLevel {
@@ -322,7 +397,14 @@ function isStringArray(value: unknown): value is string[] {
 	return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
 }
 
-function isIntakeStageArray(value: unknown): value is IntakeStage[] {
+function isCompletedStageArray(value: unknown): value is CompletedStage[] {
+	return (
+		Array.isArray(value) &&
+		value.every((entry) => entry === 'problem' || entry === 'preferences' || entry === 'research')
+	);
+}
+
+function isLegacyIntakeStageArray(value: unknown): value is Array<'problem' | 'preferences'> {
 	return (
 		Array.isArray(value) && value.every((entry) => entry === 'problem' || entry === 'preferences')
 	);

@@ -17,6 +17,14 @@
 		type ProjectConstraints,
 		type ProjectSession
 	} from '$lib/project-state';
+	import {
+		RESEARCH_CATEGORIES,
+		parseResearchJobView,
+		type BroadResearchRequest,
+		type ResearchCategory,
+		type ResearchJobView,
+		type ResearchSource
+	} from '$lib/research';
 	import type { SubmitFunction } from '@sveltejs/kit';
 
 	let { data, form } = $props();
@@ -35,6 +43,8 @@
 	let insightMessage = $state('');
 	let insightRetryNonce = $state(0);
 	let insightRequestSequence = 0;
+	let researchBusy = $state(false);
+	let researchMessage = $state('');
 
 	const insightSignature = $derived(
 		project
@@ -50,6 +60,12 @@
 		project?.problemInput.clarityLabel
 			? CLARITY_LABELS.indexOf(project.problemInput.clarityLabel) + 1
 			: 0
+	);
+	const currentStageIndex = $derived(
+		project ? { welcome: -1, problem: 0, preferences: 1, research: 2 }[project.stage] : -1
+	);
+	const researchIsActive = $derived(
+		project?.research.status === 'queued' || project?.research.status === 'running'
 	);
 
 	const workflow = [
@@ -68,6 +84,17 @@
 		'Experimental',
 		'Wild but buildable today'
 	];
+	const researchCategoryLabels: Record<ResearchCategory, string> = {
+		competitors: 'Direct competitors',
+		'adjacent-solutions': 'Adjacent solutions',
+		'failed-products': 'Failed or discontinued products',
+		'academic-work': 'Academic work',
+		'prior-art': 'Patents and prior art',
+		market: 'Market signals',
+		'customer-frustrations': 'Customer frustrations',
+		'regulations-standards': 'Regulations and standards',
+		'technical-building-blocks': 'Technical building blocks'
+	};
 	const constraintFields: Array<{
 		key: keyof ProjectConstraints;
 		label: string;
@@ -132,7 +159,7 @@
 	$effect(() => {
 		const signature = insightSignature;
 		const retryNonce = insightRetryNonce;
-		if (!stateReady || !signature) return;
+		if (!stateReady || !signature || project?.stage === 'research') return;
 
 		const input = JSON.parse(signature) as IntakeInsightsRequest;
 		if (input.problems.length === 0) {
@@ -156,6 +183,15 @@
 		};
 	});
 
+	$effect(() => {
+		const jobId = project?.stage === 'research' ? project.research.jobId : null;
+		const status = project?.research.status;
+		if (!jobId || (status !== 'queued' && status !== 'running')) return;
+
+		const timer = window.setInterval(() => void pollResearchJob(jobId), 1_500);
+		return () => window.clearInterval(timer);
+	});
+
 	const enhanceLogin: SubmitFunction = () => {
 		submitting = true;
 		return async ({ update }) => {
@@ -171,8 +207,32 @@
 	}
 
 	function persist(nextProject: ProjectSession) {
-		project = saveProject(window.localStorage, nextProject);
+		const invalidatesResearch =
+			project && intakeFingerprint(project) !== intakeFingerprint(nextProject);
+		project = saveProject(
+			window.localStorage,
+			invalidatesResearch
+				? {
+						...nextProject,
+						research: { jobId: null, status: 'idle', result: null },
+						completedStages: nextProject.completedStages.filter((stage) => stage !== 'research')
+					}
+				: nextProject
+		);
 		preferencesSealed = false;
+	}
+
+	function persistResearch(job: ResearchJobView) {
+		if (!project) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			completedStages:
+				job.status === 'completed' || job.status === 'partial'
+					? Array.from(new Set([...project.completedStages, 'research']))
+					: project.completedStages.filter((stage) => stage !== 'research'),
+			research: { jobId: job.id, status: job.status, result: job.result }
+		});
+		researchMessage = job.message ?? progressMessage(job);
 	}
 
 	function setTopic(topic: string) {
@@ -451,14 +511,147 @@
 
 		project = saveProject(window.localStorage, {
 			...project,
+			stage: 'research',
 			completedStages: Array.from(new Set([...project.completedStages, 'preferences']))
 		});
 		preferenceError = '';
-		preferencesSealed = true;
-		stateNotice = 'Intake complete. Your settings are saved in this browser.';
+		preferencesSealed = false;
+		stateNotice = 'Intake complete. Review it once, then begin the broad research pass.';
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	async function startBroadResearch() {
+		if (!project || researchBusy || researchIsActive) return;
+		const input = broadResearchRequest(project);
+		if (!input) {
+			researchMessage = 'The intake is missing a required budget or preference.';
+			return;
+		}
+
+		researchBusy = true;
+		researchMessage = 'Opening the research room...';
+		try {
+			const response = await fetch(resolve('/api/research/jobs'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(input)
+			});
+			const body: unknown = await response.json();
+			if (!response.ok) {
+				const error = body as { message?: unknown };
+				researchMessage =
+					typeof error.message === 'string'
+						? error.message
+						: 'Research could not start. Your intake is still saved.';
+				return;
+			}
+			const job = parseResearchJobView(body);
+			if (!job) throw new Error('Invalid research job response');
+			persistResearch(job);
+		} catch {
+			researchMessage = 'Research could not start. Your intake is still saved.';
+		} finally {
+			researchBusy = false;
+		}
+	}
+
+	async function pollResearchJob(jobId: string) {
+		try {
+			const response = await fetch(`/api/research/jobs/${encodeURIComponent(jobId)}`);
+			const body: unknown = await response.json();
+			if (!response.ok) {
+				if (response.status === 404 && project?.research.jobId === jobId) {
+					project = saveProject(window.localStorage, {
+						...project,
+						research: { jobId: null, status: 'failed', result: project.research.result }
+					});
+				}
+				const error = body as { message?: unknown };
+				researchMessage =
+					typeof error.message === 'string'
+						? error.message
+						: 'The research job could not be restored.';
+				return;
+			}
+			const job = parseResearchJobView(body);
+			if (!job || project?.research.jobId !== jobId) return;
+			persistResearch(job);
+		} catch {
+			researchMessage =
+				'The status check failed. The app will keep trying while this page is open.';
+		}
+	}
+
+	async function cancelResearchJob(silent = false) {
+		const jobId = project?.research.jobId;
+		if (!jobId || !researchIsActive) return;
+		if (!silent) researchMessage = 'Cancelling the research pass...';
+		try {
+			const response = await fetch(`/api/research/jobs/${encodeURIComponent(jobId)}`, {
+				method: 'DELETE'
+			});
+			const body: unknown = await response.json();
+			const job = parseResearchJobView(body);
+			if (response.ok && job && project?.research.jobId === jobId) persistResearch(job);
+		} catch {
+			if (!silent)
+				researchMessage = 'The cancel request failed. Check the job status before retrying.';
+		}
+	}
+
+	function retryBroadResearch() {
+		if (!project) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			research: { jobId: null, status: 'idle', result: project.research.result }
+		});
+		researchMessage = '';
+		void startBroadResearch();
+	}
+
+	function broadResearchRequest(session: ProjectSession): BroadResearchRequest | null {
+		const preferences = session.preferences;
+		if (
+			preferences.prototypeBudgetUsd === null ||
+			(preferences.includeProductionPlanning && preferences.productionBudgetUsd === null)
+		) {
+			return null;
+		}
+		return {
+			projectId: session.id,
+			topic: session.problemInput.topic,
+			problems: session.problemInput.cards.map((card) => card.text.trim()).filter(Boolean),
+			technologyTags: preferences.technologyTags,
+			industryTags: preferences.selectedIndustryTags,
+			innovationLevel: preferences.innovationLevel,
+			prototypeBudgetUsd: preferences.prototypeBudgetUsd,
+			includeProductionPlanning: preferences.includeProductionPlanning,
+			productionBudgetUsd: preferences.productionBudgetUsd,
+			constraints: { ...preferences.constraints }
+		};
+	}
+
+	function intakeFingerprint(session: ProjectSession) {
+		return JSON.stringify(broadResearchRequest(session));
+	}
+
+	function progressMessage(job: ResearchJobView): string {
+		return {
+			queued: 'Waiting for a research slot...',
+			starting: 'Opening the dusty web...',
+			researching: 'Checking what people built, tried, and complained about...',
+			'checking-sources': 'Checking every source before it reaches the brief...',
+			'retrying-structure': 'The sources arrived messy. Sorting them once more...',
+			complete: 'The broad research brief is ready.'
+		}[job.progress];
+	}
+
+	function sourceFor(id: string): ResearchSource | undefined {
+		return project?.research.result?.sources.find((source) => source.id === id);
 	}
 
 	function startOver() {
+		void cancelResearchJob(true);
 		clearProject(window.localStorage);
 		project = null;
 		stateNotice = 'The active project was cleared. The oracle is ready for a new one.';
@@ -469,6 +662,8 @@
 		insightStatus = 'idle';
 		insightMessage = '';
 		insightRequestSequence += 1;
+		researchBusy = false;
+		researchMessage = '';
 		resetDialog?.close();
 	}
 </script>
@@ -568,14 +763,11 @@
 				<ol>
 					{#each workflow as step, index (step.glyph)}
 						<li
-							class:active={(project?.stage === 'problem' && index === 0) ||
-								(project?.stage === 'preferences' && index === 1)}
-							class:complete={project?.completedStages.includes(
-								index === 0 ? 'problem' : 'preferences'
-							) && index < 2}
-							class:pending={!project ||
-								index >
-									(project.stage === 'preferences' ? 1 : project.stage === 'problem' ? 0 : -1)}
+							class:active={index === currentStageIndex}
+							class:complete={(index === 0 && project?.completedStages.includes('problem')) ||
+								(index === 1 && project?.completedStages.includes('preferences')) ||
+								(index === 2 && project?.completedStages.includes('research'))}
+							class:pending={!project || index > currentStageIndex}
 						>
 							<span class="step-glyph">{step.glyph}</span>
 							<span>{step.label}</span>
@@ -920,6 +1112,188 @@
 							>
 							<button class="summon-button compact" type="button" onclick={sealPreferences}
 								><span>Save preferences</span><i aria-hidden="true">✓</i></button
+							>
+						</div>
+					</section>
+				{:else if project?.stage === 'research'}
+					<section class="intake-room research-room" aria-labelledby="research-room-title">
+						<div class="room-heading research-heading">
+							<div>
+								<p class="room-number">ROOM 03 / BROAD RESEARCH</p>
+								<h1 id="research-room-title">Find the shape of the territory.</h1>
+								<p>
+									This is a one-to-two-minute foothold. It checks what exists, what failed, and
+									which constraints may matter before the Sage starts asking questions.
+								</p>
+							</div>
+							<div class="research-seal" class:lit={project.research.result}>
+								<span aria-hidden="true">⌕</span>
+								<strong>{project.research.result ? 'SOURCES BOUND' : 'WEB UNOPENED'}</strong>
+								<small>{project.research.result?.sources.length ?? 0} saved sources</small>
+							</div>
+						</div>
+
+						{#if project.research.status === 'idle'}
+							<div class="research-launch-panel">
+								<div>
+									<p class="panel-kicker">THE SEARCH LIST</p>
+									<h2>Nine places worth checking before ideation</h2>
+									<div class="research-category-grid">
+										{#each RESEARCH_CATEGORIES as category, index (category)}
+											<span
+												><b>{String(index + 1).padStart(2, '0')}</b>{researchCategoryLabels[
+													category
+												]}</span
+											>
+										{/each}
+									</div>
+								</div>
+								<aside class="research-cost-card">
+									<span>BOUNDARIES</span>
+									<strong
+										>${project.preferences.prototypeBudgetUsd?.toLocaleString()} prototype</strong
+									>
+									<p>{project.preferences.selectedIndustryTags.join(' · ')}</p>
+									<button
+										class="summon-button compact"
+										type="button"
+										disabled={researchBusy}
+										onclick={startBroadResearch}
+										><span>{researchBusy ? 'Opening...' : 'Begin broad research'}</span><i
+											aria-hidden="true">→</i
+										></button
+									>
+								</aside>
+							</div>
+						{:else if researchIsActive}
+							<div class="research-running" aria-live="polite">
+								<div class="research-orb" aria-hidden="true"><i></i><b>?</b></div>
+								<p class="panel-kicker">LIVE RESEARCH PASS</p>
+								<h2>{researchMessage || 'Consulting the dusty web...'}</h2>
+								<p>
+									You can refresh or leave this page. The browser will reconnect while the server
+									still has the job.
+								</p>
+								<div class="stage-lights" aria-label="Research stage progress">
+									<span class:active={project.research.status === 'queued'}>Queued</span>
+									<span class:active={project.research.status === 'running'}
+										>Searching and checking sources</span
+									>
+									<span>Brief ready</span>
+								</div>
+								<button class="secondary-button" type="button" onclick={() => cancelResearchJob()}
+									>Cancel research</button
+								>
+							</div>
+						{:else if project.research.result}
+							<div class="research-brief" aria-live="polite">
+								<header>
+									<div>
+										<p class="panel-kicker">THE FOOTHOLD</p>
+										<h2>
+											{project.research.status === 'partial'
+												? 'Useful evidence, with gaps'
+												: 'Broad research complete'}
+										</h2>
+									</div>
+									<span class="research-status"
+										>{project.research.result.findings.length} findings</span
+									>
+								</header>
+								<p class="research-summary">{project.research.result.summary}</p>
+								<p class="research-disclaimer">{project.research.result.disclaimer}</p>
+
+								<div class="finding-groups">
+									{#each RESEARCH_CATEGORIES as category (category)}
+										{@const categoryFindings = project.research.result.findings.filter(
+											(finding) => finding.category === category
+										)}
+										{#if categoryFindings.length > 0}
+											<section class="finding-group">
+												<h3>{researchCategoryLabels[category]}</h3>
+												{#each categoryFindings as finding (finding.id)}
+													<article class="research-finding">
+														<h4>{finding.title}</h4>
+														<p>{finding.claim}</p>
+														<div class="finding-citations" aria-label="Sources for this finding">
+															{#each finding.sourceIds as sourceId (sourceId)}
+																{@const source = sourceFor(sourceId)}
+																{#if source}<a
+																		href={source.url}
+																		target="_blank"
+																		rel="external noreferrer">{source.title}</a
+																	>{/if}
+															{/each}
+														</div>
+														{#if finding.interpretation}
+															<p class="finding-interpretation">
+																<b>Why it may matter</b>{finding.interpretation}
+															</p>
+														{/if}
+													</article>
+												{/each}
+											</section>
+										{/if}
+									{/each}
+								</div>
+
+								{#if project.research.result.gaps.length > 0}
+									<section class="research-gaps">
+										<h3>Where the signal was weak</h3>
+										<ul>
+											{#each project.research.result.gaps as gap (`${gap.category}-${gap.reason}`)}
+												<li><b>{researchCategoryLabels[gap.category]}</b>{gap.reason}</li>
+											{/each}
+										</ul>
+									</section>
+								{/if}
+
+								<details class="source-ledger">
+									<summary>Open source ledger ({project.research.result.sources.length})</summary>
+									<ol>
+										{#each project.research.result.sources as source (source.id)}
+											<li>
+												<a href={source.url} target="_blank" rel="external noreferrer"
+													>{source.title}</a
+												>
+												<span>{source.publisher} · {source.publicationDate ?? 'date unknown'}</span>
+												<p>{source.evidenceSummary}</p>
+											</li>
+										{/each}
+									</ol>
+								</details>
+
+								<div class="research-next">
+									<span>✓</span>
+									<div>
+										<strong>Ready for the interview</strong>
+										<p>The next room will turn these gaps into one-at-a-time questions.</p>
+									</div>
+								</div>
+							</div>
+						{:else}
+							<div class="research-recovery" role="status">
+								<p class="panel-kicker">THE SIGNAL BROKE</p>
+								<h2>{researchMessage || 'This research pass did not finish.'}</h2>
+								<p>Your problems, preferences, and budgets are still saved in this browser.</p>
+								<button class="summon-button compact" type="button" onclick={retryBroadResearch}
+									><span>Start a fresh pass</span><i aria-hidden="true">↻</i></button
+								>
+							</div>
+						{/if}
+
+						{#if researchMessage && project.research.status === 'idle'}
+							<p class="intake-error" role="alert">{researchMessage}</p>
+						{/if}
+						<div class="room-actions">
+							<button
+								class="secondary-button"
+								type="button"
+								disabled={researchIsActive}
+								onclick={goToPreferences}>← Back to preferences</button
+							>
+							<button class="text-button" type="button" onclick={() => resetDialog?.showModal()}
+								>Start over</button
 							>
 						</div>
 					</section>
