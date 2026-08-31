@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+	<title>Ideation Akinator</title>
+	<rect width="64" height="64" rx="10" fill="#100b2c" />
+	<path d="M32 6 37 25 56 30 37 35 32 55 27 35 8 30 27 25Z" fill="#ffc94a" />
+	<path d="M32 18 34.5 27.5 44 30l-9.5 2.5L32 42l-2.5-9.5L20 30l9.5-2.5Z" fill="#fff4c0" />
+</svg>
