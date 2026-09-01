@@ -13,6 +13,7 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"auth:hash": "node scripts/hash-password.js",
+		"build:sage": "bash scripts/build-sage.sh",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run"
 	},
