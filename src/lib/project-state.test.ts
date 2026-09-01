@@ -47,6 +47,12 @@ describe('versioned project state', () => {
 		expect(project.preferences.includeProductionPlanning).toBe(true);
 		expect(project.preferences.prototypeBudgetUsd).toBeNull();
 		expect(project.concepts).toEqual({ status: 'idle', portfolio: null });
+		expect(project.featureWorkshop).toEqual({
+			status: 'idle',
+			configurations: [],
+			selectedConceptId: null,
+			confirmedAt: null
+		});
 	});
 
 	it('migrates a valid slice-one project without changing its identity or stage', () => {
@@ -64,14 +70,14 @@ describe('versioned project state', () => {
 		expect(result.status).toBe('migrated');
 		if (result.status !== 'migrated') throw new Error('expected migrated project');
 		expect(result.project).toMatchObject({
-			schemaVersion: 7,
+			schemaVersion: 8,
 			id: 'old-project',
 			stage: 'problem',
 			createdAt: '2026-08-31T10:00:00.000Z',
 			updatedAt: '2026-08-31T10:01:00.000Z'
 		});
 		expect(result.project.problemInput.cards).toHaveLength(1);
-		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(7);
+		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(8);
 	});
 
 	it('migrates slice-two intake data and adds AI suggestion tracking', () => {
@@ -184,6 +190,23 @@ describe('versioned project state', () => {
 		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
 		expect(loaded.project.personality).toEqual(project.personality);
 		expect(loaded.project.concepts).toEqual({ status: 'idle', portfolio: null });
+	});
+
+	it('migrates slice-seven concept state into a separate feature configuration for every idea', () => {
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-7');
+		const versionSeven = { ...project, schemaVersion: 7 };
+		delete (versionSeven as Partial<typeof project>).featureWorkshop;
+		const storage = memoryStorage(JSON.stringify(versionSeven));
+
+		const loaded = loadProject(storage);
+		expect(loaded.status).toBe('migrated');
+		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
+		expect(loaded.project.featureWorkshop).toEqual({
+			status: 'idle',
+			configurations: [],
+			selectedConceptId: null,
+			confirmedAt: null
+		});
 	});
 
 	it('clears corrupt state instead of crashing', () => {

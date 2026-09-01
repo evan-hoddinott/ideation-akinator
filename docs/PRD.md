@@ -488,6 +488,23 @@ Reactions follow these rules:
 - Do not repeat a line during the same project until its event pool is exhausted.
 - Never insert a joke into saved research facts, requirements, estimates, or PDF content.
 
+#### 8.3.1 Dialogue-first interaction
+
+The Sage and his dialogue are the primary interface. The current workflow must not depend on a permanent right-side workbench. When the Sage is asking a question, no large application window competes with him for attention.
+
+Dialogue uses a small operating-system window tethered to the Sage's CRT head. It follows his movement with a slight delay and stays inside the viewport. It opens in three or four held frames: title bar, empty window, dialogue, then response controls. The window may use fake chrome such as `SAGE.EXE`, a close button, and a title-bar status, but required dialogue cannot be accidentally dismissed.
+
+The dialogue director has four presentation states:
+
+- `ask` presents the actual workflow question, including model-generated interview questions.
+- `react` presents a short scripted response after an action.
+- `announce` reports clarity changes, research milestones, warnings, and reveals.
+- `wait` fills an existing model or research delay with local scripted lines.
+
+Immediate response controls appear beneath or inside the dialogue window. Single-choice answers submit when selected after a brief visible confirmation. Every generated choice question includes `Something else`, which opens an inline text field in the same dialogue window. Multiple-choice questions allow the user to combine listed choices with one custom response. The saved answer keeps the custom text as answer data rather than converting it into an invented option identifier.
+
+Secondary actions such as skip, unknown, back, answer history, and early finish remain available but do not compete with the current answers. `Why are you asking?` may reveal the existing rationale in a smaller attached window without creating another model call.
+
 ### 8.4 Hypotheses and confidence
 
 The Sage keeps a visible theory about what kind of product is forming. Example states include `utterly baffled`, `the modem stirs`, `I have a suspicious theory`, and `your future is embarrassingly obvious`.
@@ -509,6 +526,14 @@ The Sage must visibly initiate major movement before the camera follows. His cha
 
 The active question and its immediate controls remain the primary interface. Large forms do not accumulate as permanent cards. Problems, preferences, budgets, feature sets, research findings, and final documents appear in temporary summoned spellbooks, terminals, scrolls, or dossiers. Closing one returns to the same game scene and camera position.
 
+The screen has three visual layers:
+
+1. The Sage, his dialogue window, and the immediate response controls.
+2. Temporary physical information objects such as scrolls, clue scraps, recovered files, and evidence folders.
+3. Decorative interruptions such as fake pop-ups and the research workstation.
+
+A real work window appears only when the user asks to inspect, revise, or compare detailed information. The permanent workflow rail becomes a compact altitude gauge. Activating it opens a world map or stage history, then returns to the unobstructed scene.
+
 - Problem cards are clues offered to the Sage.
 - The clarity reading is his ability to understand the clues.
 - Industry tags are detected domains or `mortal institutions implicated in the omen`.
@@ -518,9 +543,23 @@ The active question and its immediate controls remain the primary interface. Lar
 - Requirements and comparisons use readable themed documents inside the game shell.
 - Stage counters may use phrases such as `the fourth inquiry` while preserving a plain progress label nearby.
 
+Problems begin as one dialogue-led text response. Saved problems become small clue scraps in the world. `Review my clues` summons the complete problem editor. Preferences run as short Sage questions for technology, detected industries, innovation, budget, production planning, and material constraints. A summoned spellbook provides the full preference editor when the user wants to revise several values at once.
+
+Information review uses summoned scrolls rather than permanent panels. The Sage performs a gesture, then the scroll unfurls in roughly 10 to 12 held visual steps. The first view contains a readable summary and an action to extend the scroll into the complete document. Closing it rolls the scroll up and preserves the Sage's position. Research briefs, concept dossiers, feature plans, and the final PRD may reuse this behavior. Dense comparisons may open as a wider two-page scroll.
+
 ### 8.6 Research theater
 
-Research uses layered fake browser windows and typing around the real progress display. These windows behave like interruptions and pop-ups rather than forming the base page layout. Suggested decorative content includes cat videos, wizard forums, fake banner ads, horoscope pages, `download more RAM`, suspicious toolbars, Windows 93-style utilities, and a window the Sage hurriedly closes.
+Long research uses an authored workstation performance. This applies to broad research and later focused research. Short generation waits may reuse the typing loop without replaying the full entrance.
+
+At research start, the Sage warns the user not to inspect his browsing history, spins his chair around, and travels offscreen. He returns pushing an oversized beige computer workstation on squeaky wheels. The prop includes a large CRT, tower, oversized keyboard, cheap speakers, tangled cables, stickers, a cup holder, and one visibly uncooperative wheel. He parks it, turns his chair and body toward the workstation, cracks his ball hands, and begins typing.
+
+The workstation screen cycles through a deterministic, project-seeded montage of decorative distractions. It may include local cat GIFs, a locally stored and asset-recorded Minecraft Beta-era GIF for the private demo, Minesweeper, wizard forums, fake searches, `download more RAM`, suspicious toolbars, `ACTUAL_RESEARCH_DO_NOT_DELETE`, a desktop full of `final_FINAL_2` files, and brief glimpses of plausible research before the Sage changes tabs. These scenes are jokes. They never represent sources or claims.
+
+The real job state appears on a separate readable strip attached to the workstation. It names the current research phase, source count when available, cancel action, failure state, and recovery action. The screen montage cannot obscure or imitate this strip.
+
+When research completes, the Sage notices the result, strikes the keyboard, ejects or produces a glowing recovered file, turns toward the user, and summons the research scroll. The scroll first shows the number of recovered sources, important findings, and known gaps. `Inspect recovered files` extends it into the full cited brief.
+
+The workstation entrance and exit play once. Research of unpredictable length uses a pool of loopable actions such as normal typing, one-handed typing while watching a game, leaning close to the CRT, smacking the monitor, reconnecting a cable, changing tabs when observed, briefly falling asleep, and celebrating an advertisement as if it were evidence. Completion interrupts the loop cleanly. If the job finishes unusually quickly, the app completes the short entrance before moving to the result. The user may skip the theatrical entrance without cancelling research.
 
 Requirements:
 
@@ -530,6 +569,7 @@ Requirements:
 - Research sources still open as normal citations.
 - The Sage may react to real findings through preset category-level lines.
 - Actual source claims cannot be rewritten for a joke.
+- Calm mode replaces the workstation performance with the same compact real progress strip and does not change job behavior.
 
 ### 8.7 Concept reveal and defeat state
 
@@ -591,7 +631,7 @@ The renderer and camera run at the display refresh rate, normally 60 frames per 
 - Fast actions avoid conventional motion blur. Use one-frame stretched geometry, duplicate hands, cursor trails, impact words, lightning scribbles, or other authored smear frames.
 - Elaborate animation is reserved for meaningful reactions. Normal idle motion stays restrained so the character does not constantly perform.
 
-Initial live animation clips should include restrained idle, attentive lean, thinking, approval, confusion, weak-answer slump, chair wobble, controlled ascent, uncontrolled drop, research recline, popup notice and swat, concept reveal, defeat, and forbidden-knowledge reveal.
+Initial live animation clips should include restrained idle, attentive lean, thinking, approval, confusion, weak-answer slump, chair wobble, controlled ascent, uncontrolled drop, research recline, workstation exit, workstation push-in, workstation parking, turn-to-keyboard, research typing loops, research completion, popup notice and swat, scroll summoning, concept reveal, defeat, and forbidden-knowledge reveal.
 
 #### 8.9.2 3D implementation direction
 
@@ -976,9 +1016,15 @@ The demo succeeds when a first-time user can complete the entire workflow withou
 - The illustrated Signal Sage remains available as a loading, reduced-motion, unsupported-browser, and failure fallback.
 - The world climbs continuously from a dark server basement toward a bright cosmic internet shrine.
 - Detailed inputs appear in temporary spellbooks, terminals, scrolls, or dossiers without losing workflow state.
+- The permanent right-side workbench is absent during ordinary questions. The Sage's tethered operating-system dialogue window presents the real prompt and its immediate answers.
+- The dialogue window follows the Sage, stays inside the viewport, and opens with visibly held retro frames.
+- Every generated choice question supports a saved custom response through an inline `Something else` control.
+- Information scrolls unfurl in choppy held steps, remain readable, and return the player to the same stage position when closed.
 - The shell mixes early 3D browser games, occult personal sites, GeoCities pages, Windows 93-style interruptions, and arcade fortune tellers without copying Akinator assets.
 - Every stored GIF and sound has an asset-record entry and explicit public-release status.
 - Fake windows remain visibly decorative interruptions while real progress and errors stay readable.
+- Long research includes the authored Sage exit, wheeled-computer entrance, workstation typing loop, decorative screen montage, and completion handoff to a cited research scroll.
+- The workstation's real progress, cancellation, failure, and recovery controls remain distinct from the decorative CRT content.
 - At least one authored popup event synchronizes a real HTML window with the Sage's 3D swat animation.
 - MIDI-style ambience and UI sounds work after user interaction, with persistent mute.
 - Calm mode removes optional motion, audio, pop-ups, fake windows, and reaction delays.
@@ -1034,16 +1080,45 @@ The three checkpoints were completed locally on 2026-09-01. This record does not
 - The Crystal RAM side quest is a real HTML interruption synchronized to the `popup_swat` clip and records the existing Forbidden Floppy achievement.
 - Local verification covered the welcome, problem, preference, research, and interview views; the popup impact frame; Calm-to-Chaos recovery; persistence after refresh; network asset responses; and 390, 1,024, 1,440, and 1,920 pixel viewport widths.
 
+#### 19.1.2 Approved dialogue-first follow-up
+
+The 2026-09-01 visual checkpoint proved the character and vertical world, but it still placed most workflow interaction inside a permanent right-side dossier. The approved follow-up replaces that composition without changing the saved workflow or AI contracts.
+
+1. Replace the permanent workbench and companion caption with the Sage-following operating-system dialogue window and dialogue director.
+2. Convert problem intake, preferences, and the adaptive interview into one-at-a-time dialogue responses. Keep full editors available as summoned review objects.
+3. Add inline custom answers to generated choice questions and preserve their text in the answer model.
+4. Replace the fixed progress rail with a compact altitude gauge and expandable world map.
+5. Build the stepped scroll system for research, concepts, feature planning, comparisons, and the final PRD.
+6. Build the wheeled research workstation, its long-running animation loops, deterministic decorative screen montage, readable real status strip, Calm mode replacement, and completion handoff.
+7. Verify that the full workflow no longer depends on a permanent right-side panel at 1,024, 1,440, and 1,920 pixel widths.
+
+#### 19.1.3 Dialogue-first local implementation record
+
+The first dialogue-first implementation pass was completed locally on 2026-09-01. This record does not claim deployment to `idea.battery.rip`.
+
+- Welcome, problem intake, preferences, research, and adaptive interview questions now use a Sage-following fake operating-system dialogue window instead of the permanent right-side workbench.
+- Preferences are presented one at a time, generated choice questions support a typed alternative, and the typed response is preserved in the saved interview answer.
+- Full problem and preference editing, completed research, and other dense information can be summoned as a choppily unfurling scroll without displacing the world scene.
+- Long research summons a wheeled beige workstation with a looping fake desktop montage, local Minecraft Beta footage, cat distractions, Minesweeper, exaggerated typing, a readable real status strip, cancellation, and a compact Calm mode equivalent.
+- The live Sage exits and returns during the workstation entrance and turns toward the research computer. Dedicated three-dimensional wheel, push, turn, and typing clips remain a later character-animation polish pass.
+- The existing concept room remains the dense dossier experience until the concept and feature-selection slices receive their dialogue-and-scroll conversion.
+- Local verification covered the dialogue states, typed custom-answer persistence, the summoned scroll, the research workstation, browser console output, automated checks, lint, and a production build.
+
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 7 of 13 were completed locally by 2026-09-01. This record does not claim deployment to `idea.battery.rip`.
+Implementation slices 1 through 8 of 13 were completed locally by 2026-09-01. This record does not claim deployment to `idea.battery.rip`.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
 - Competitor references can only cite source identifiers from the saved broad research. Invalid model output receives one bounded retry before the browser gets an error.
 - The concept room reveals one dossier at a time, supports skipping the reveal delay, renders cited competitor links and the seven-dimension comparison, and saves the portfolio in versioned browser state.
 - `You have defeated the Sage` warns that replacement is a paid model call, requires confirmation, preserves earlier inputs, and sends the rejected names and approaches so the replacement set cannot reuse them unchanged.
-- Slice 8 remains next. It adds editable feature groups, custom features, dependencies, and project selection.
+- Slice 8 gives all four concepts separate, persistent core, recommended, optional, and custom feature configurations. Switching concepts does not discard edits.
+- Dependency changes require an explanation and confirmation before the workshop selects missing requirements. The workshop blocks removing or deleting a feature while another feature depends on it.
+- A user can add a named custom feature, describe it, assign dependencies, remove it when safe, and keep it through reloads.
+- Selecting a project seals exactly that concept and its current feature set. Editing the selected configuration reopens it for confirmation.
+- Feature editing does not recalculate cost, timing, requirements, technical difficulty, or competitor positioning. The workshop labels those values as frozen until final generation.
+- Slice 9 remains next. It performs focused research for the selected concept and confirmed feature set, then recalculates the project for final generation.
 
 ## 20. Risks and mitigations
 
@@ -1051,6 +1126,8 @@ Implementation slices 1 through 7 of 13 were completed locally by 2026-09-01. Th
 | --- | --- | --- |
 | Broad research produces shallow results | Concepts repeat obvious existing products | Require citations, show gaps, and run a second focused pass |
 | Research exceeds the expected wait | Users assume the app froze | Show honest stage progress, cancellation, and recovery |
+| The workstation joke hides real research state | Users cannot tell whether research is running or failed | Keep the real status strip visually separate, readable, and available in Calm mode |
+| A long entrance delays an unusually fast result | The performance makes the app feel slower | Allow skipping theatrics and complete only the short entrance before handing off a ready result |
 | Four concepts are cosmetic variations | User receives little real choice | Enforce distinct approach categories and compare overlap before display |
 | Costs look more certain than they are | The final PDF misleads the user | Use ranges, assumptions, evidence, and confidence language |
 | Feature dependencies become confusing | Users cannot understand why items are selected | Explain each dependency and show the chain before applying it |

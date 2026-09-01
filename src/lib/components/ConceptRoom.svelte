@@ -1,14 +1,17 @@
 <script lang="ts">
+	import FeatureWorkshop from '$lib/components/FeatureWorkshop.svelte';
 	import {
 		COMPARISON_DIMENSIONS,
 		type ComparisonDimension,
 		type ConceptIcon,
 		type ConceptPortfolio
 	} from '$lib/concepts';
+	import type { FeatureWorkshopState } from '$lib/feature-workshop';
 	import type { ResearchSource } from '$lib/research';
 
 	let {
 		portfolio,
+		workshop,
 		sources,
 		busy,
 		message,
@@ -16,9 +19,11 @@
 		onRegenerate,
 		onBack,
 		onReveal,
-		onAllRevealed
+		onAllRevealed,
+		onWorkshopChange
 	}: {
 		portfolio: ConceptPortfolio | null;
+		workshop: FeatureWorkshopState;
 		sources: ResearchSource[];
 		busy: boolean;
 		message: string;
@@ -27,6 +32,10 @@
 		onBack: () => void;
 		onReveal: () => void;
 		onAllRevealed: () => void;
+		onWorkshopChange: (
+			state: FeatureWorkshopState,
+			event: 'changed' | 'blocked' | 'confirmed'
+		) => void;
 	} = $props();
 
 	let revealedCount = $state(1);
@@ -343,13 +352,7 @@
 				</div>
 			</section>
 
-			<div class="workshop-preview">
-				<div>
-					<span>NEXT ROOM</span><strong>Feature workshop</strong>
-					<p>Feature toggles and project selection arrive in slice 8.</p>
-				</div>
-				<button type="button" disabled>Workshop sealed for now</button>
-			</div>
+			<FeatureWorkshop {portfolio} {workshop} onChange={onWorkshopChange} />
 
 			<button
 				class="defeat-button"
@@ -839,36 +842,6 @@
 	.rating.high {
 		background: #762a57;
 	}
-	.workshop-preview {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 20px;
-		margin-top: 22px;
-		padding: 16px 20px;
-		border: 3px double #7a6a9a;
-		background: #090717e8;
-	}
-	.workshop-preview span,
-	.workshop-preview strong {
-		display: block;
-	}
-	.workshop-preview span {
-		color: #8ceaff;
-		font:
-			10px 'Courier New',
-			monospace;
-	}
-	.workshop-preview strong {
-		color: #ffe18a;
-		font:
-			700 22px Georgia,
-			serif;
-	}
-	.workshop-preview p {
-		margin: 3px 0;
-	}
-	.workshop-preview button,
 	.reset-note {
 		opacity: 0.6;
 	}
@@ -957,8 +930,7 @@
 		.risk-grid {
 			grid-template-columns: 1fr;
 		}
-		.reveal-controls > div,
-		.workshop-preview {
+		.reveal-controls > div {
 			align-items: stretch;
 			flex-direction: column;
 		}

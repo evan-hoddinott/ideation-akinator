@@ -1,0 +1,27 @@
+[Unit]
+Description=Ideation Akinator web application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=evanh
+Group=evanh
+WorkingDirectory=/home/evanh/ideation-akinator
+EnvironmentFile=/home/evanh/ideation-akinator/.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=4187
+ExecStart=/home/evanh/.local/bin/node build
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

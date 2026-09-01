@@ -99,6 +99,17 @@ All third-party files are stored locally. They are decoration only and are label
 - Retrieved: 2026-09-01
 - SHA-256: `a62f7523856ced3a78ce05f26d0f027a8d369a0fe328accebc2d49c11dc59ba6`
 
+### Minecraft Beta research distraction
+
+- File: `static/video/retro/minecraft-beta-gameplay.webm`
+- Creator and attribution: Xbox México
+- Source page: [Minecraft Beta Gameplay.webm](https://commons.wikimedia.org/wiki/File:Minecraft_Beta_Gameplay.webm)
+- Local source: 240p VP9 transcode of the 14-second Minecraft Beta v1.8.1 gameplay excerpt
+- License: CC BY 3.0 and CC BY 4.0 attribution record on Wikimedia Commons
+- Retrieved: 2026-09-01
+- SHA-256: `cb1335fa822be9d597413e121cfbf482a816f1116886d3552c38469c5814c677`
+- Use note: decorative workstation-screen joke only; it is never presented as research evidence and does not imply endorsement by Microsoft, Mojang, Xbox, or the creator
+
 ## Music
 
 ### Theme Song (8-bit)

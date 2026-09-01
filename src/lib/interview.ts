@@ -31,6 +31,7 @@ export interface InterviewAnswer {
 	questionId: string;
 	status: InterviewAnswerStatus;
 	value: InterviewAnswerValue;
+	customText?: string | null;
 }
 
 export interface ProjectInterview {
@@ -270,9 +271,10 @@ export function parseInterviewNextResult(value: unknown): InterviewNextResult | 
 export function makeInterviewAnswer(
 	question: InterviewQuestion,
 	status: InterviewAnswerStatus,
-	value: InterviewAnswerValue
+	value: InterviewAnswerValue,
+	customText: string | null = null
 ): InterviewAnswer | null {
-	return parseInterviewAnswer({ questionId: question.id, status, value }, [question]);
+	return parseInterviewAnswer({ questionId: question.id, status, value, customText }, [question]);
 }
 
 function parseInterviewAnswer(
@@ -284,13 +286,16 @@ function parseInterviewAnswer(
 	}
 	const question = questions.find((entry) => entry.id === value.questionId);
 	if (!question) return null;
+	const customText = parseCustomText(value.customText);
+	if (customText === false) return null;
 	if (value.status === 'skipped' || value.status === 'unknown') {
-		return value.value === null
+		return value.value === null && customText === null
 			? { questionId: value.questionId, status: value.status, value: null }
 			: null;
 	}
 
 	if (question.type === 'text') {
+		if (customText !== null) return null;
 		return typeof value.value === 'string' &&
 			value.value.trim().length > 0 &&
 			value.value.length <= 2_000
@@ -298,7 +303,16 @@ function parseInterviewAnswer(
 			: null;
 	}
 	if (question.type === 'single-choice') {
-		return typeof value.value === 'string' &&
+		if (customText !== null && value.value === null) {
+			return {
+				questionId: value.questionId,
+				status: 'answered',
+				value: null,
+				customText
+			};
+		}
+		return customText === null &&
+			typeof value.value === 'string' &&
 			question.options.some((option) => option.id === value.value)
 			? { questionId: value.questionId, status: 'answered', value: value.value }
 			: null;
@@ -306,7 +320,7 @@ function parseInterviewAnswer(
 	if (question.type === 'multiple-choice') {
 		if (
 			!Array.isArray(value.value) ||
-			value.value.length < 1 ||
+			(value.value.length < 1 && customText === null) ||
 			value.value.some(
 				(entry) =>
 					typeof entry !== 'string' || !question.options.some((option) => option.id === entry)
@@ -315,8 +329,14 @@ function parseInterviewAnswer(
 			return null;
 		}
 		const selected = Array.from(new Set(value.value as string[]));
-		return { questionId: value.questionId, status: 'answered', value: selected };
+		return {
+			questionId: value.questionId,
+			status: 'answered',
+			value: selected,
+			...(customText === null ? {} : { customText })
+		};
 	}
+	if (customText !== null) return null;
 	if (question.type === 'yes-no') {
 		return typeof value.value === 'boolean'
 			? { questionId: value.questionId, status: 'answered', value: value.value }
@@ -326,6 +346,12 @@ function parseInterviewAnswer(
 	if (question.minimum !== null && value.value < question.minimum) return null;
 	if (question.maximum !== null && value.value > question.maximum) return null;
 	return { questionId: value.questionId, status: 'answered', value: value.value };
+}
+
+function parseCustomText(value: unknown): string | null | false {
+	if (value === undefined || value === null) return null;
+	if (typeof value !== 'string' || value.length > 2_000 || value.trim().length === 0) return false;
+	return value.trim();
 }
 
 function parseOption(value: unknown): InterviewOption | null {

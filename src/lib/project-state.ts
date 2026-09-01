@@ -6,6 +6,11 @@ import {
 } from '$lib/concepts';
 import { createInterview, parseProjectInterview, type ProjectInterview } from '$lib/interview';
 import {
+	createFeatureWorkshop,
+	parseFeatureWorkshopState,
+	type FeatureWorkshopState
+} from '$lib/feature-workshop';
+import {
 	createSagePersonality,
 	parseSagePersonality,
 	type SagePersonality
@@ -17,7 +22,7 @@ import {
 	type ResearchJobStatus
 } from '$lib/research';
 
-export const PROJECT_SCHEMA_VERSION = 7;
+export const PROJECT_SCHEMA_VERSION = 8;
 export const PROJECT_STORAGE_KEY = 'ideation-akinator:active-project';
 
 export type WorkflowStage =
@@ -81,6 +86,7 @@ export interface ProjectSession {
 	research: ProjectResearch;
 	interview: ProjectInterview;
 	concepts: ProjectConceptState;
+	featureWorkshop: FeatureWorkshopState;
 	personality: SagePersonality;
 }
 
@@ -111,6 +117,7 @@ export function createProject(now = new Date(), id = createProjectId()): Project
 		research: createResearch(),
 		interview: createInterview(),
 		concepts: createConceptState(),
+		featureWorkshop: createFeatureWorkshop(null),
 		personality: createSagePersonality()
 	};
 }
@@ -128,6 +135,7 @@ export function loadProject(storage: StorageLike): ProjectLoadResult {
 		if (isCurrentProject(parsed)) return { status: 'ready', project: parsed };
 
 		const migrated =
+			migrateVersionSeven(parsed) ??
 			migrateVersionSix(parsed) ??
 			migrateVersionFive(parsed) ??
 			migrateVersionFour(parsed) ??
@@ -253,6 +261,7 @@ function migrateVersionTwo(value: unknown): ProjectSession | null {
 		research: createResearch(),
 		interview: createInterview(),
 		concepts: createConceptState(),
+		featureWorkshop: createFeatureWorkshop(null),
 		personality: createSagePersonality()
 	};
 }
@@ -290,6 +299,7 @@ function migrateVersionThree(value: unknown): ProjectSession | null {
 		research: createResearch(),
 		interview: createInterview(),
 		concepts: createConceptState(),
+		featureWorkshop: createFeatureWorkshop(null),
 		personality: createSagePersonality()
 	};
 }
@@ -329,6 +339,7 @@ function migrateVersionFour(value: unknown): ProjectSession | null {
 		research: previous.research,
 		interview: createInterview(),
 		concepts: createConceptState(),
+		featureWorkshop: createFeatureWorkshop(null),
 		personality: createSagePersonality()
 	};
 }
@@ -367,6 +378,7 @@ function migrateVersionFive(value: unknown): ProjectSession | null {
 		research: previous.research,
 		interview,
 		concepts: createConceptState(),
+		featureWorkshop: createFeatureWorkshop(null),
 		personality: createSagePersonality()
 	};
 }
@@ -407,6 +419,50 @@ function migrateVersionSix(value: unknown): ProjectSession | null {
 		research: previous.research,
 		interview,
 		concepts: createConceptState(),
+		featureWorkshop: createFeatureWorkshop(null),
+		personality
+	};
+}
+
+function migrateVersionSeven(value: unknown): ProjectSession | null {
+	if (!value || typeof value !== 'object') return null;
+	const previous = value as Record<string, unknown>;
+	const interview = parseProjectInterview(previous.interview);
+	const concepts = parseProjectConceptState(previous.concepts);
+	const personality = parseSagePersonality(previous.personality);
+	if (
+		previous.schemaVersion !== 7 ||
+		typeof previous.id !== 'string' ||
+		previous.id.length === 0 ||
+		!isIsoDate(previous.createdAt) ||
+		!isIsoDate(previous.updatedAt) ||
+		!isWorkflowStage(previous.stage) ||
+		!isCompletedStageArray(previous.completedStages) ||
+		!isStringArray(previous.invalidatedStages) ||
+		!isProblemInput(previous.problemInput) ||
+		!isPreferences(previous.preferences) ||
+		!isResearch(previous.research) ||
+		!interview ||
+		!concepts ||
+		!personality
+	) {
+		return null;
+	}
+
+	return {
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		id: previous.id,
+		createdAt: previous.createdAt,
+		updatedAt: previous.updatedAt,
+		stage: previous.stage,
+		completedStages: previous.completedStages,
+		invalidatedStages: previous.invalidatedStages,
+		problemInput: previous.problemInput,
+		preferences: previous.preferences,
+		research: previous.research,
+		interview,
+		concepts,
+		featureWorkshop: createFeatureWorkshop(concepts.portfolio),
 		personality
 	};
 }
@@ -414,6 +470,8 @@ function migrateVersionSix(value: unknown): ProjectSession | null {
 function isCurrentProject(value: unknown): value is ProjectSession {
 	if (!value || typeof value !== 'object') return false;
 	const project = value as Partial<ProjectSession>;
+	const concepts = parseProjectConceptState(project.concepts);
+	const featureWorkshop = parseFeatureWorkshopState(project.featureWorkshop);
 	return (
 		project.schemaVersion === PROJECT_SCHEMA_VERSION &&
 		typeof project.id === 'string' &&
@@ -427,8 +485,23 @@ function isCurrentProject(value: unknown): value is ProjectSession {
 		isPreferences(project.preferences) &&
 		isResearch(project.research) &&
 		!!parseProjectInterview(project.interview) &&
-		!!parseProjectConceptState(project.concepts) &&
+		!!concepts &&
+		!!featureWorkshop &&
+		featureWorkshopMatchesConcepts(featureWorkshop, concepts) &&
 		!!parseSagePersonality(project.personality)
+	);
+}
+
+function featureWorkshopMatchesConcepts(
+	workshop: FeatureWorkshopState,
+	concepts: ProjectConceptState
+): boolean {
+	if (!concepts.portfolio)
+		return workshop.status === 'idle' && workshop.configurations.length === 0;
+	const conceptIds = new Set(concepts.portfolio.concepts.map((concept) => concept.id));
+	return (
+		workshop.configurations.length === conceptIds.size &&
+		workshop.configurations.every((configuration) => conceptIds.has(configuration.conceptId))
 	);
 }
 

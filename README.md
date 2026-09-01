@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 7 of 13 are complete locally. They include:
+Implementation slices 1 through 8 of 13 are complete. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -28,10 +28,25 @@ Implementation slices 1 through 7 of 13 are complete locally. They include:
 - Exactly four validated project concepts: one recommended primary guess, two other within-budget alternatives, and one forbidden stretch option.
 - Suspenseful one-at-a-time reveals with a skip-theatrics control, detailed project files, cited competitor and substitute comparisons, and a seven-dimension qualitative comparison.
 - A confirmed `You have defeated the Sage` rematch that warns about the paid model call, preserves the original project inputs, and rejects recycled concept names.
-- Local autosave, back navigation, intake validation, and browser-state migration through schema v7.
+- A dialogue-first game layout with Sage-following response windows, summoned scrolls, and the wheeled research computer performance.
+- Separate feature workshops for all four ideas with core, recommended, optional, and custom features.
+- Explained feature dependencies, protected dependency removal, persistent edits, and confirmation of one chosen project.
+- Local autosave, back navigation, intake validation, and browser-state migration through schema v8.
 - A Node health endpoint at `/health`.
 
-Slice 8 adds feature selection, custom features, dependency handling, and project selection. The app is not deployed yet.
+Slice 9 adds focused research for the chosen project and confirmed feature set.
+
+## Server deployment
+
+The current server deployment runs the adapter-node build on `127.0.0.1:4187`. Cloudflare Tunnel maps `https://idea.battery.rip` to that loopback address. The included `deploy/ideation-akinator.service` unit loads secrets from the untracked `.env`, restarts the app after failures, and starts it at boot.
+
+After `npm ci` and `npm run build`, install or refresh the unit and restart the app:
+
+```sh
+sudo install -m 0644 deploy/ideation-akinator.service /etc/systemd/system/ideation-akinator.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now ideation-akinator.service
+```
 
 ## Local setup
 

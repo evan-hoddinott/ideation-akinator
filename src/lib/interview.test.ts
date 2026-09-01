@@ -80,6 +80,24 @@ describe('adaptive interview contracts', () => {
 		expect(makeInterviewAnswer(budget, 'answered', 50)).toBeNull();
 	});
 
+	it('preserves a typed alternative as answer data for choice questions', () => {
+		const choice = question();
+		expect(makeInterviewAnswer(choice, 'answered', null, 'Volunteer coordinators')).toEqual({
+			questionId: choice.id,
+			status: 'answered',
+			value: null,
+			customText: 'Volunteer coordinators'
+		});
+
+		const multiple = question({ type: 'multiple-choice' });
+		expect(makeInterviewAnswer(multiple, 'answered', ['students'], 'Recent graduates')).toEqual({
+			questionId: multiple.id,
+			status: 'answered',
+			value: ['students'],
+			customText: 'Recent graduates'
+		});
+	});
+
 	it('round-trips a valid active interview and rejects duplicate questions', () => {
 		const active = {
 			...createInterview(),

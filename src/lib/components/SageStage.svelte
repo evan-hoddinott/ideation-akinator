@@ -7,10 +7,14 @@
 	let {
 		personality,
 		altitude,
+		researching = false,
+		allowPopup = true,
 		onSecret
 	}: {
 		personality: SagePersonality;
 		altitude: number;
+		researching?: boolean;
+		allowPopup?: boolean;
 		onSecret: () => void;
 	} = $props();
 
@@ -51,6 +55,18 @@
 		void startThree();
 	});
 
+	$effect(() => {
+		if (
+			!allowPopup ||
+			personality.calmMode ||
+			personality.achievements.includes('FORBIDDEN FLOPPY') ||
+			popupVisible
+		)
+			return;
+		const popupTimer = window.setTimeout(() => (popupVisible = true), 2_200);
+		return () => window.clearTimeout(popupTimer);
+	});
+
 	function swatPopup() {
 		if (popupSwatting) return;
 		popupSwatting = true;
@@ -67,14 +83,6 @@
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const forcedFallback = new URL(window.location.href).searchParams.has('sageFallback');
 		motionFallback = reduceMotion || forcedFallback;
-		if (!personality.calmMode && !personality.achievements.includes('FORBIDDEN FLOPPY')) {
-			const popupTimer = window.setTimeout(() => (popupVisible = true), 2_200);
-			void startThree();
-			return () => {
-				mounted = false;
-				window.clearTimeout(popupTimer);
-			};
-		}
 		void startThree();
 		return () => {
 			mounted = false;
@@ -225,7 +233,7 @@
 				const steppedTime = Math.floor(actionTime * actionFps) / actionFps;
 				mixer.setTime(steppedTime);
 				presentation.position.y = Math.sin(elapsed * 1.7) * 0.035;
-				presentation.rotation.y = Math.sin(elapsed * 0.7) * 0.018;
+				presentation.rotation.y = (researching ? -0.52 : 0) + Math.sin(elapsed * 0.7) * 0.018;
 
 				const faceFps = actionName === 'popup_swat' ? 24 : personality.mood === 'thinking' ? 8 : 12;
 				const faceStep = Math.floor(elapsed * faceFps);
@@ -267,6 +275,7 @@
 	class="live-sage-stage"
 	class:fallback={useFallback}
 	class:ready={modelReady}
+	class:researching
 	data-mood={personality.mood}
 	style={`--sage-altitude: ${altitude}`}
 >
@@ -342,6 +351,10 @@
 		opacity: 0;
 	}
 
+	.researching .sage-motion {
+		animation: sage-fetch-computer 1.8s steps(12, end) both;
+	}
+
 	.sage-fallback {
 		position: absolute;
 		left: 50%;
@@ -360,8 +373,9 @@
 
 	.joke-popup {
 		position: absolute;
-		right: -5%;
-		top: 20%;
+		left: -2%;
+		right: auto;
+		top: 18%;
 		width: 220px;
 		padding: 30px 10px 12px;
 		border: 4px outset #ddd;
@@ -450,6 +464,25 @@
 		}
 	}
 
+	@keyframes sage-fetch-computer {
+		0%,
+		14% {
+			transform: translateX(0) rotate(0);
+		}
+		36% {
+			transform: translateX(-115%) rotate(-6deg);
+		}
+		58% {
+			transform: translateX(-115%) rotate(-6deg);
+		}
+		84% {
+			transform: translateX(-8%) rotate(3deg);
+		}
+		100% {
+			transform: translateX(-4%) rotate(1deg);
+		}
+	}
+
 	@media (max-width: 1180px) {
 		.live-sage-stage {
 			left: 0;
@@ -457,7 +490,8 @@
 			height: 70vh;
 		}
 		.joke-popup {
-			right: -18%;
+			left: 2%;
+			right: auto;
 			transform: scale(0.86) rotate(3deg);
 		}
 	}
@@ -470,6 +504,7 @@
 			height: 47vh;
 		}
 		.joke-popup {
+			left: auto;
 			right: 3%;
 			top: 10%;
 			transform: scale(0.72) rotate(3deg);
@@ -481,6 +516,10 @@
 			transition: none;
 		}
 		.joke-popup {
+			animation: none;
+		}
+
+		.researching .sage-motion {
 			animation: none;
 		}
 	}

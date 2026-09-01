@@ -40,6 +40,9 @@ export type SageEvent =
 	| 'concept-summoning'
 	| 'concept-revealed'
 	| 'concepts-complete'
+	| 'feature-changed'
+	| 'feature-blocked'
+	| 'project-selected'
 	| 'sage-defeated'
 	| 'calm-enabled'
 	| 'calm-disabled'
@@ -494,6 +497,51 @@ const LINES: Record<SageEvent, SageLine[]> = {
 			id: 'portfolio-3',
 			text: 'My guesses are complete. One of them is probably legal.',
 			mood: 'delighted'
+		}
+	],
+	'feature-changed': [
+		{
+			id: 'feature-change-1',
+			text: 'The prophecy has been edited with a checkbox. Ancient magic bows to HTML.',
+			mood: 'delighted',
+			sound: 'blip'
+		},
+		{
+			id: 'feature-change-2',
+			text: 'Scope altered. The old estimates are pretending not to notice.',
+			mood: 'suspicious'
+		},
+		{
+			id: 'feature-change-3',
+			text: 'A feature moves. Somewhere, a backlog screams.',
+			mood: 'smug'
+		}
+	],
+	'feature-blocked': [
+		{
+			id: 'feature-blocked-1',
+			text: 'Dependency goblin says no. Remove the thing using it first.',
+			mood: 'irritated',
+			sound: 'error'
+		},
+		{
+			id: 'feature-blocked-2',
+			text: 'That feature is load-bearing. I checked twice and frowned once.',
+			mood: 'suspicious'
+		}
+	],
+	'project-selected': [
+		{
+			id: 'project-selected-1',
+			text: 'The future is chosen. I am sealing it with a very official mouse click.',
+			mood: 'delighted',
+			sound: 'reveal'
+		},
+		{
+			id: 'project-selected-2',
+			text: 'One prophecy remains. The other three have been returned to the void.',
+			mood: 'forbidden',
+			sound: 'sparkle'
 		}
 	],
 	'sage-defeated': [
