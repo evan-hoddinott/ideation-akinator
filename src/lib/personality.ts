@@ -37,6 +37,10 @@ export type SageEvent =
 	| 'question-revisited'
 	| 'interview-finished'
 	| 'interview-abandoned'
+	| 'concept-summoning'
+	| 'concept-revealed'
+	| 'concepts-complete'
+	| 'sage-defeated'
 	| 'calm-enabled'
 	| 'calm-disabled'
 	| 'secret-found';
@@ -433,6 +437,83 @@ const LINES: Record<SageEvent, SageLine[]> = {
 		},
 		{ id: 'early-2', text: 'You flee the questions. The questions remember.', mood: 'forbidden' },
 		{ id: 'early-3', text: 'Very well. Reduced confidence, increased melodrama.', mood: 'defeated' }
+	],
+	'concept-summoning': [
+		{
+			id: 'summoning-1',
+			text: 'Silence. I am downloading four possible futures over dial-up.',
+			mood: 'thinking',
+			sound: 'sparkle'
+		},
+		{
+			id: 'summoning-2',
+			text: 'The prophecy compiler is running. Do not touch the suspicious fan.',
+			mood: 'forbidden'
+		},
+		{
+			id: 'summoning-3',
+			text: 'Four guesses enter. My dignity leaves.',
+			mood: 'suspicious',
+			sound: 'blip'
+		}
+	],
+	'concept-revealed': [
+		{
+			id: 'reveal-concept-1',
+			text: 'Behold. A possible future with a budget spreadsheet attached.',
+			mood: 'delighted',
+			sound: 'reveal'
+		},
+		{
+			id: 'reveal-concept-2',
+			text: 'Another guess. I had this one behind my monitor the whole time.',
+			mood: 'smug',
+			sound: 'sparkle'
+		},
+		{
+			id: 'reveal-concept-3',
+			text: 'The future branches. Very inconsiderate of it.',
+			mood: 'shocked',
+			sound: 'blip'
+		}
+	],
+	'concepts-complete': [
+		{
+			id: 'portfolio-1',
+			text: 'Four futures revealed. You may now compare my excellent mistakes.',
+			mood: 'smug',
+			sound: 'reveal'
+		},
+		{
+			id: 'portfolio-2',
+			text: 'The forbidden fourth idea escaped its folder. Typical.',
+			mood: 'forbidden',
+			sound: 'sparkle'
+		},
+		{
+			id: 'portfolio-3',
+			text: 'My guesses are complete. One of them is probably legal.',
+			mood: 'delighted'
+		}
+	],
+	'sage-defeated': [
+		{
+			id: 'defeated-concepts-1',
+			text: 'You have defeated the Sage. I demand a rematch and another API bill.',
+			mood: 'defeated',
+			sound: 'error'
+		},
+		{
+			id: 'defeated-concepts-2',
+			text: 'None of them? Fine. I am turning the prophecy off and on again.',
+			mood: 'irritated',
+			sound: 'error'
+		},
+		{
+			id: 'defeated-concepts-3',
+			text: 'A total miss. Please avert your eyes while I blame the modem.',
+			mood: 'shocked'
+		}
 	],
 	'calm-enabled': [
 		{

@@ -1,10 +1,17 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
 	import ResearchTheater from '$lib/components/ResearchTheater.svelte';
 	import SageCompanion from '$lib/components/SageCompanion.svelte';
 	import SageStage from '$lib/components/SageStage.svelte';
 	import VerticalWorld from '$lib/components/VerticalWorld.svelte';
+	import {
+		createConceptState,
+		parseConceptGenerationResult,
+		type ConceptGenerationRequest,
+		type RejectedConceptSummary
+	} from '$lib/concepts';
 	import {
 		CLARITY_LABELS,
 		mergeIndustrySuggestions,
@@ -70,6 +77,8 @@
 	let interviewBusy = $state(false);
 	let interviewMessage = $state('');
 	let interviewDialog = $state<HTMLDialogElement>();
+	let conceptBusy = $state(false);
+	let conceptMessage = $state('');
 	let textAnswer = $state('');
 	let numberAnswer = $state('');
 	let singleAnswer = $state('');
@@ -101,7 +110,9 @@
 	);
 	const currentStageIndex = $derived(
 		project
-			? { welcome: -1, problem: 0, preferences: 1, research: 2, questions: 3 }[project.stage]
+			? { welcome: -1, problem: 0, preferences: 1, research: 2, questions: 3, concepts: 4 }[
+					project.stage
+				]
 			: -1
 	);
 	const researchIsActive = $derived(
@@ -236,7 +247,8 @@
 			!stateReady ||
 			!signature ||
 			project?.stage === 'research' ||
-			project?.stage === 'questions'
+			project?.stage === 'questions' ||
+			project?.stage === 'concepts'
 		)
 			return;
 
@@ -399,8 +411,9 @@
 						...nextProject,
 						research: { jobId: null, status: 'idle', result: null },
 						interview: createInterview(),
+						concepts: createConceptState(),
 						completedStages: nextProject.completedStages.filter(
-							(stage) => stage !== 'research' && stage !== 'questions'
+							(stage) => stage !== 'research' && stage !== 'questions' && stage !== 'concepts'
 						)
 					}
 				: nextProject
@@ -741,6 +754,14 @@
 
 		researchBusy = true;
 		researchMessage = 'Opening the research room...';
+		project = saveProject(window.localStorage, {
+			...project,
+			interview: createInterview(),
+			concepts: createConceptState(),
+			completedStages: project.completedStages.filter(
+				(stage) => stage !== 'research' && stage !== 'questions' && stage !== 'concepts'
+			)
+		});
 		performSageEvent('research-started', project);
 		try {
 			const response = await fetch(resolve('/api/research/jobs'), {
@@ -1005,7 +1026,10 @@
 		);
 		const nextProject = saveProject(window.localStorage, {
 			...project,
-			completedStages: project.completedStages.filter((stage) => stage !== 'questions'),
+			completedStages: project.completedStages.filter(
+				(stage) => stage !== 'questions' && stage !== 'concepts'
+			),
+			concepts: createConceptState(),
 			interview: {
 				...project.interview,
 				status: 'active',
@@ -1063,6 +1087,7 @@
 		project = saveProject(window.localStorage, {
 			...project,
 			completedStages: Array.from(new Set([...project.completedStages, 'questions'])),
+			concepts: createConceptState(),
 			interview: {
 				...project.interview,
 				status: 'ended-early',
@@ -1073,6 +1098,128 @@
 		interviewMessage = '';
 		performSageEvent('interview-abandoned', project);
 		interviewDialog?.close();
+	}
+
+	function enterConceptRoom() {
+		if (
+			!project ||
+			conceptBusy ||
+			(project.interview.status !== 'completed' && project.interview.status !== 'ended-early')
+		)
+			return;
+		project = saveProject(window.localStorage, { ...project, stage: 'concepts' });
+		conceptMessage = '';
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+		if (!project.concepts.portfolio) void requestConcepts(false);
+	}
+
+	function returnToQuestions() {
+		if (!project || conceptBusy) return;
+		project = saveProject(window.localStorage, { ...project, stage: 'questions' });
+		conceptMessage = '';
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	function conceptRequest(
+		session: ProjectSession,
+		rejectedConcepts: RejectedConceptSummary[] = []
+	): ConceptGenerationRequest | null {
+		const research = session.research.result;
+		const preferences = session.preferences;
+		if (
+			!research ||
+			preferences.prototypeBudgetUsd === null ||
+			(preferences.includeProductionPlanning && preferences.productionBudgetUsd === null) ||
+			(session.interview.status !== 'completed' && session.interview.status !== 'ended-early')
+		) {
+			return null;
+		}
+		return {
+			projectId: session.id,
+			topic: session.problemInput.topic,
+			problems: session.problemInput.cards.map((card) => card.text.trim()).filter(Boolean),
+			technologyTags: preferences.technologyTags,
+			industryTags: preferences.selectedIndustryTags,
+			innovationLevel: preferences.innovationLevel,
+			prototypeBudgetUsd: preferences.prototypeBudgetUsd,
+			includeProductionPlanning: preferences.includeProductionPlanning,
+			productionBudgetUsd: preferences.productionBudgetUsd,
+			constraints: { ...preferences.constraints },
+			research,
+			interview: session.interview,
+			rejectedConcepts
+		};
+	}
+
+	async function requestConcepts(replacement: boolean) {
+		if (!project || conceptBusy) return;
+		const oldPortfolio = project.concepts.portfolio;
+		const rejectedConcepts =
+			replacement && oldPortfolio
+				? oldPortfolio.concepts.map(({ name, pitch, distinctApproach }) => ({
+						name,
+						pitch,
+						distinctApproach
+					}))
+				: [];
+		const input = conceptRequest(project, rejectedConcepts);
+		if (!input) {
+			conceptMessage = 'The saved research, interview, or budget is incomplete.';
+			return;
+		}
+
+		conceptBusy = true;
+		conceptMessage = replacement
+			? 'The Sage is deleting four prophecies and pretending this is normal...'
+			: 'The Sage is assembling four meaningfully different futures...';
+		performSageEvent(replacement ? 'sage-defeated' : 'concept-summoning', project);
+		const projectId = project.id;
+		try {
+			const response = await fetch(resolve('/api/concepts'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(input)
+			});
+			const body: unknown = await response.json();
+			if (!response.ok) {
+				const error = body as { message?: unknown };
+				conceptMessage =
+					typeof error.message === 'string'
+						? error.message
+						: 'The four futures did not stabilize. Your earlier work is still saved.';
+				return;
+			}
+			const result = parseConceptGenerationResult(body, input);
+			if (!result || !project || project.id !== projectId) throw new Error('Invalid portfolio');
+			project = saveProject(window.localStorage, {
+				...project,
+				stage: 'concepts',
+				completedStages: Array.from(new Set([...project.completedStages, 'concepts'])),
+				concepts: {
+					status: 'ready',
+					portfolio: {
+						...result,
+						generationNumber: (oldPortfolio?.generationNumber ?? 0) + 1,
+						generatedAt: new Date().toISOString()
+					}
+				}
+			});
+			conceptMessage = '';
+			performSageEvent('concept-revealed', project);
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		} catch {
+			conceptMessage = 'The four futures did not stabilize. Your earlier work is still saved.';
+		} finally {
+			conceptBusy = false;
+		}
+	}
+
+	function reactToConceptReveal() {
+		performSageEvent('concept-revealed');
+	}
+
+	function reactToAllConcepts() {
+		performSageEvent('concepts-complete');
 	}
 
 	function startOver() {
@@ -1092,6 +1239,8 @@
 		researchMessage = '';
 		interviewBusy = false;
 		interviewMessage = '';
+		conceptBusy = false;
+		conceptMessage = '';
 		playerNameDraft = '';
 		projectNameDraft = '';
 		void oracleAudio?.setEnabled(false);
@@ -1214,7 +1363,8 @@
 							class:complete={(index === 0 && project?.completedStages.includes('problem')) ||
 								(index === 1 && project?.completedStages.includes('preferences')) ||
 								(index === 2 && project?.completedStages.includes('research')) ||
-								(index === 3 && project?.completedStages.includes('questions'))}
+								(index === 3 && project?.completedStages.includes('questions')) ||
+								(index === 4 && project?.completedStages.includes('concepts'))}
 							class:pending={!project || index > currentStageIndex}
 						>
 							<span class="step-glyph">{step.glyph}</span>
@@ -1783,8 +1933,18 @@
 									>
 								{/if}
 								<div class="next-slice-note">
-									<strong>Four project directions are next</strong>
-									<p>Concept generation arrives in slice 7.</p>
+									<strong>Four project directions are waiting</strong>
+									<p>
+										The Sage will reveal one primary guess, three alternatives, and one forbidden
+										stretch.
+									</p>
+									<button class="summon-button compact" type="button" onclick={enterConceptRoom}>
+										<span
+											>{project.concepts.portfolio
+												? 'Return to the four futures'
+												: 'Summon four projects'}</span
+										><i aria-hidden="true">→</i>
+									</button>
 								</div>
 							</div>
 						{:else if !currentQuestion}
@@ -1958,6 +2118,18 @@
 							{/if}
 						</div>
 					</section>
+				{:else if project?.stage === 'concepts'}
+					<ConceptRoom
+						portfolio={project.concepts.portfolio}
+						sources={project.research.result?.sources ?? []}
+						busy={conceptBusy}
+						message={conceptMessage}
+						onGenerate={() => requestConcepts(false)}
+						onRegenerate={() => requestConcepts(true)}
+						onBack={returnToQuestions}
+						onReveal={reactToConceptReveal}
+						onAllRevealed={reactToAllConcepts}
+					/>
 				{:else}
 					<section class="welcome-room" aria-labelledby="welcome-title">
 						<div class="welcome-copy">

@@ -46,6 +46,7 @@ describe('versioned project state', () => {
 		expect(project.preferences.innovationLevel).toBe(3);
 		expect(project.preferences.includeProductionPlanning).toBe(true);
 		expect(project.preferences.prototypeBudgetUsd).toBeNull();
+		expect(project.concepts).toEqual({ status: 'idle', portfolio: null });
 	});
 
 	it('migrates a valid slice-one project without changing its identity or stage', () => {
@@ -63,14 +64,14 @@ describe('versioned project state', () => {
 		expect(result.status).toBe('migrated');
 		if (result.status !== 'migrated') throw new Error('expected migrated project');
 		expect(result.project).toMatchObject({
-			schemaVersion: 6,
+			schemaVersion: 7,
 			id: 'old-project',
 			stage: 'problem',
 			createdAt: '2026-08-31T10:00:00.000Z',
 			updatedAt: '2026-08-31T10:01:00.000Z'
 		});
 		expect(result.project.problemInput.cards).toHaveLength(1);
-		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(6);
+		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(7);
 	});
 
 	it('migrates slice-two intake data and adds AI suggestion tracking', () => {
@@ -170,6 +171,19 @@ describe('versioned project state', () => {
 			muted: true,
 			calmMode: false
 		});
+	});
+
+	it('migrates slice-six personality state into an empty concept room', () => {
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-6');
+		const versionSix = { ...project, schemaVersion: 6 };
+		delete (versionSix as Partial<typeof project>).concepts;
+		const storage = memoryStorage(JSON.stringify(versionSix));
+
+		const loaded = loadProject(storage);
+		expect(loaded.status).toBe('migrated');
+		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
+		expect(loaded.project.personality).toEqual(project.personality);
+		expect(loaded.project.concepts).toEqual({ status: 'idle', portfolio: null });
 	});
 
 	it('clears corrupt state instead of crashing', () => {

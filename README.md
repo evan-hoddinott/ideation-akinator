@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 6 of 13 are complete locally. They include:
+Implementation slices 1 through 7 of 13 are complete locally. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -25,10 +25,13 @@ Implementation slices 1 through 6 of 13 are complete locally. They include:
 - A maximum-chaos research theater with locally stored CC0 pixel GIFs clearly separated from real research evidence.
 - A local CC0 MIDI soundtrack rendered through Web Audio, short synthesized reaction cues, persistent sound controls, and browser visibility pausing.
 - Calm mode that removes optional pop-ups, fake windows, and motion while preserving the full workflow.
-- Local autosave, back navigation, intake validation, and browser-state migration through schema v6.
+- Exactly four validated project concepts: one recommended primary guess, two other within-budget alternatives, and one forbidden stretch option.
+- Suspenseful one-at-a-time reveals with a skip-theatrics control, detailed project files, cited competitor and substitute comparisons, and a seven-dimension qualitative comparison.
+- A confirmed `You have defeated the Sage` rematch that warns about the paid model call, preserves the original project inputs, and rejects recycled concept names.
+- Local autosave, back navigation, intake validation, and browser-state migration through schema v7.
 - A Node health endpoint at `/health`.
 
-Slice 7 adds four meaningfully different project concepts, a suspenseful primary guess plus three alternatives, and their comparison. The app is not deployed yet.
+Slice 8 adds feature selection, custom features, dependency handling, and project selection. The app is not deployed yet.
 
 ## Local setup
 
@@ -38,7 +41,7 @@ Requirements: Node.js 22 or later and npm.
 2. Copy `.env.example` to `.env`.
 3. Run `npm run auth:hash` and place the resulting hash in `APP_PASSWORD_HASH`.
 4. Generate `APP_COOKIE_SECRET` with at least 32 random bytes. `openssl rand -base64 48` works on Linux.
-5. Add a server-side `OPENAI_API_KEY`. `OPENAI_INTAKE_MODEL` and `OPENAI_INTERVIEW_MODEL` default to `gpt-5.6-luna`, and `OPENAI_RESEARCH_MODEL` defaults to `gpt-5.6-terra`.
+5. Add a server-side `OPENAI_API_KEY`. `OPENAI_INTAKE_MODEL` and `OPENAI_INTERVIEW_MODEL` default to `gpt-5.6-luna`. `OPENAI_RESEARCH_MODEL` and `OPENAI_CONCEPT_MODEL` default to `gpt-5.6-terra`.
 6. Start the app with `npm run dev`.
 
 Keep `.env` out of source control. The password helper hides terminal input when run interactively. If the OpenAI key is missing, intake stays usable and saved, while research and interview actions explain what the server needs without discarding completed work.

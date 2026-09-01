@@ -1,4 +1,9 @@
 import { isClarityLabel, type ClarityLabel } from '$lib/intake-insights';
+import {
+	createConceptState,
+	parseProjectConceptState,
+	type ProjectConceptState
+} from '$lib/concepts';
 import { createInterview, parseProjectInterview, type ProjectInterview } from '$lib/interview';
 import {
 	createSagePersonality,
@@ -12,10 +17,11 @@ import {
 	type ResearchJobStatus
 } from '$lib/research';
 
-export const PROJECT_SCHEMA_VERSION = 6;
+export const PROJECT_SCHEMA_VERSION = 7;
 export const PROJECT_STORAGE_KEY = 'ideation-akinator:active-project';
 
-export type WorkflowStage = 'welcome' | 'problem' | 'preferences' | 'research' | 'questions';
+export type WorkflowStage =
+	'welcome' | 'problem' | 'preferences' | 'research' | 'questions' | 'concepts';
 export type CompletedStage = Exclude<WorkflowStage, 'welcome'>;
 export type InnovationLevel = 1 | 2 | 3 | 4 | 5;
 
@@ -74,6 +80,7 @@ export interface ProjectSession {
 	preferences: ProjectPreferences;
 	research: ProjectResearch;
 	interview: ProjectInterview;
+	concepts: ProjectConceptState;
 	personality: SagePersonality;
 }
 
@@ -103,6 +110,7 @@ export function createProject(now = new Date(), id = createProjectId()): Project
 		preferences: createPreferences(),
 		research: createResearch(),
 		interview: createInterview(),
+		concepts: createConceptState(),
 		personality: createSagePersonality()
 	};
 }
@@ -120,6 +128,7 @@ export function loadProject(storage: StorageLike): ProjectLoadResult {
 		if (isCurrentProject(parsed)) return { status: 'ready', project: parsed };
 
 		const migrated =
+			migrateVersionSix(parsed) ??
 			migrateVersionFive(parsed) ??
 			migrateVersionFour(parsed) ??
 			migrateVersionThree(parsed) ??
@@ -243,6 +252,7 @@ function migrateVersionTwo(value: unknown): ProjectSession | null {
 		preferences: { ...previous.preferences, suggestedIndustryTags: [] },
 		research: createResearch(),
 		interview: createInterview(),
+		concepts: createConceptState(),
 		personality: createSagePersonality()
 	};
 }
@@ -279,6 +289,7 @@ function migrateVersionThree(value: unknown): ProjectSession | null {
 		preferences: previous.preferences,
 		research: createResearch(),
 		interview: createInterview(),
+		concepts: createConceptState(),
 		personality: createSagePersonality()
 	};
 }
@@ -317,6 +328,7 @@ function migrateVersionFour(value: unknown): ProjectSession | null {
 		preferences: previous.preferences,
 		research: previous.research,
 		interview: createInterview(),
+		concepts: createConceptState(),
 		personality: createSagePersonality()
 	};
 }
@@ -331,8 +343,8 @@ function migrateVersionFive(value: unknown): ProjectSession | null {
 		previous.id.length === 0 ||
 		!isIsoDate(previous.createdAt) ||
 		!isIsoDate(previous.updatedAt) ||
-		!isWorkflowStage(previous.stage) ||
-		!isCompletedStageArray(previous.completedStages) ||
+		!isVersionSixWorkflowStage(previous.stage) ||
+		!isVersionSixCompletedStageArray(previous.completedStages) ||
 		!isStringArray(previous.invalidatedStages) ||
 		!isProblemInput(previous.problemInput) ||
 		!isPreferences(previous.preferences) ||
@@ -354,7 +366,48 @@ function migrateVersionFive(value: unknown): ProjectSession | null {
 		preferences: previous.preferences,
 		research: previous.research,
 		interview,
+		concepts: createConceptState(),
 		personality: createSagePersonality()
+	};
+}
+
+function migrateVersionSix(value: unknown): ProjectSession | null {
+	if (!value || typeof value !== 'object') return null;
+	const previous = value as Record<string, unknown>;
+	const interview = parseProjectInterview(previous.interview);
+	const personality = parseSagePersonality(previous.personality);
+	if (
+		previous.schemaVersion !== 6 ||
+		typeof previous.id !== 'string' ||
+		previous.id.length === 0 ||
+		!isIsoDate(previous.createdAt) ||
+		!isIsoDate(previous.updatedAt) ||
+		!isVersionSixWorkflowStage(previous.stage) ||
+		!isVersionSixCompletedStageArray(previous.completedStages) ||
+		!isStringArray(previous.invalidatedStages) ||
+		!isProblemInput(previous.problemInput) ||
+		!isPreferences(previous.preferences) ||
+		!isResearch(previous.research) ||
+		!interview ||
+		!personality
+	) {
+		return null;
+	}
+
+	return {
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		id: previous.id,
+		createdAt: previous.createdAt,
+		updatedAt: previous.updatedAt,
+		stage: previous.stage,
+		completedStages: previous.completedStages,
+		invalidatedStages: previous.invalidatedStages,
+		problemInput: previous.problemInput,
+		preferences: previous.preferences,
+		research: previous.research,
+		interview,
+		concepts: createConceptState(),
+		personality
 	};
 }
 
@@ -374,6 +427,7 @@ function isCurrentProject(value: unknown): value is ProjectSession {
 		isPreferences(project.preferences) &&
 		isResearch(project.research) &&
 		!!parseProjectInterview(project.interview) &&
+		!!parseProjectConceptState(project.concepts) &&
 		!!parseSagePersonality(project.personality)
 	);
 }
@@ -480,7 +534,8 @@ function isWorkflowStage(value: unknown): value is WorkflowStage {
 		value === 'problem' ||
 		value === 'preferences' ||
 		value === 'research' ||
-		value === 'questions'
+		value === 'questions' ||
+		value === 'concepts'
 	);
 }
 
@@ -497,6 +552,32 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 function isCompletedStageArray(value: unknown): value is CompletedStage[] {
+	return (
+		Array.isArray(value) &&
+		value.every(
+			(entry) =>
+				entry === 'problem' ||
+				entry === 'preferences' ||
+				entry === 'research' ||
+				entry === 'questions' ||
+				entry === 'concepts'
+		)
+	);
+}
+
+function isVersionSixWorkflowStage(value: unknown): value is Exclude<WorkflowStage, 'concepts'> {
+	return (
+		value === 'welcome' ||
+		value === 'problem' ||
+		value === 'preferences' ||
+		value === 'research' ||
+		value === 'questions'
+	);
+}
+
+function isVersionSixCompletedStageArray(
+	value: unknown
+): value is Array<'problem' | 'preferences' | 'research' | 'questions'> {
 	return (
 		Array.isArray(value) &&
 		value.every(

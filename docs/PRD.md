@@ -1034,6 +1034,17 @@ The three checkpoints were completed locally on 2026-09-01. This record does not
 - The Crystal RAM side quest is a real HTML interruption synchronized to the `popup_swat` clip and records the existing Forbidden Floppy achievement.
 - Local verification covered the welcome, problem, preference, research, and interview views; the popup impact frame; Calm-to-Chaos recovery; persistence after refresh; network asset responses; and 390, 1,024, 1,440, and 1,920 pixel viewport widths.
 
+### 19.2 Product slice completion record
+
+Implementation slices 1 through 7 of 13 were completed locally by 2026-09-01. This record does not claim deployment to `idea.battery.rip`.
+
+- Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
+- Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
+- Competitor references can only cite source identifiers from the saved broad research. Invalid model output receives one bounded retry before the browser gets an error.
+- The concept room reveals one dossier at a time, supports skipping the reveal delay, renders cited competitor links and the seven-dimension comparison, and saves the portfolio in versioned browser state.
+- `You have defeated the Sage` warns that replacement is a paid model call, requires confirmation, preserves earlier inputs, and sends the rejected names and approaches so the replacement set cannot reuse them unchanged.
+- Slice 8 remains next. It adds editable feature groups, custom features, dependencies, and project selection.
+
 ## 20. Risks and mitigations
 
 | Risk | Impact | Mitigation |
