@@ -4,7 +4,7 @@
 | --- | --- |
 | Product | Ideation Akinator |
 | Version | 1.2 |
-| Status | Implementation underway; vertical 3D game direction approved for design |
+| Status | Core workflow underway; vertical 3D game workstream complete locally |
 | Primary URL | `https://idea.battery.rip` |
 | Audience | Solo creators and students |
 | Product type | Personal, password-protected tech demo |
@@ -1022,6 +1022,17 @@ The vertical game redesign is a three-part workstream that can proceed alongside
 3. **World and personality pass:** Build the vertical internet zones, parallax transitions, popup and side-quest system, remaining animation clips, graphic effects, audio synchronization, performance controls, and final browser verification.
 
 The proof-of-style scene may use rough source textures and temporary scenery. Animation timing, silhouette, camera behavior, and popup interaction must prove the direction before the model receives a detailed polish pass.
+
+#### 19.1.1 Local completion record
+
+The three checkpoints were completed locally on 2026-09-01. This record does not claim deployment to `idea.battery.rip`.
+
+- The reproducible Blender build produces an original 204 KB rigged Sage with 3,384 uploaded vertices, a CRT head, oversized hands, a floating gaming chair, and six named animation clips.
+- The Three.js stage renders the chair, camera drift, and hover motion continuously while character poses are quantized to 12 or 24 frames per second. The CRT face runs on its own 8, 12, or 24 frame timing.
+- Workflow state now controls Sage altitude through the server basement, GeoCities homepage, popup neighborhood, and cosmic uplink. Sage begins moving before the slower world transition.
+- Existing intake, preference, research, and interview surfaces appear as summoned dossiers. The existing illustrated Sage is used by Calm mode, reduced motion, forced QA fallback, and WebGL failure recovery.
+- The Crystal RAM side quest is a real HTML interruption synchronized to the `popup_swat` clip and records the existing Forbidden Floppy achievement.
+- Local verification covered the welcome, problem, preference, research, and interview views; the popup impact frame; Calm-to-Chaos recovery; persistence after refresh; network asset responses; and 390, 1,024, 1,440, and 1,920 pixel viewport widths.
 
 ## 20. Risks and mitigations
 

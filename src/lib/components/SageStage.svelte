@@ -216,7 +216,7 @@
 </script>
 
 <div
-	class="sage-stage"
+	class="live-sage-stage"
 	class:fallback={useFallback}
 	class:ready={modelReady}
 	data-mood={personality.mood}
@@ -262,7 +262,7 @@
 </div>
 
 <style>
-	.sage-stage {
+	.live-sage-stage {
 		position: fixed;
 		left: clamp(30px, 4vw, 90px);
 		top: calc(56% - (var(--sage-altitude) * 25vh));
@@ -403,7 +403,7 @@
 	}
 
 	@media (max-width: 1180px) {
-		.sage-stage {
+		.live-sage-stage {
 			left: 0;
 			width: 48vw;
 			height: 70vh;
@@ -415,7 +415,7 @@
 	}
 
 	@media (max-width: 760px) {
-		.sage-stage {
+		.live-sage-stage {
 			left: 0;
 			top: 25vh;
 			width: 100vw;
@@ -429,7 +429,7 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.sage-stage {
+		.live-sage-stage {
 			transition: none;
 		}
 		.joke-popup {
