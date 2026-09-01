@@ -1027,7 +1027,7 @@ The proof-of-style scene may use rough source textures and temporary scenery. An
 
 The three checkpoints were completed locally on 2026-09-01. This record does not claim deployment to `idea.battery.rip`.
 
-- The reproducible Blender build produces an original 204 KB rigged Sage with 3,384 uploaded vertices, a CRT head, oversized hands, a floating gaming chair, and six named animation clips.
+- The reproducible Blender build produces an original 243 KB rigged Sage with 4,266 uploaded vertices, a CRT head, crooked wizard hat, one-piece low-poly hands, seated robe, floating gaming chair, and six named animation clips.
 - The Three.js stage renders the chair, camera drift, and hover motion continuously while character poses are quantized to 12 or 24 frames per second. The CRT face runs on its own 8, 12, or 24 frame timing.
 - Workflow state now controls Sage altitude through the server basement, GeoCities homepage, popup neighborhood, and cosmic uplink. Sage begins moving before the slower world transition.
 - Existing intake, preference, research, and interview surfaces appear as summoned dossiers. The existing illustrated Sage is used by Calm mode, reduced motion, forced QA fallback, and WebGL failure recovery.

@@ -8,6 +8,8 @@ from mathutils import Vector
 ROOT = "/work"
 MODEL_PATH = os.path.join(ROOT, "static", "models", "signal-sage.glb")
 PREVIEW_PATH = os.path.join(ROOT, "artifacts", "sage-proof.png")
+SWAT_PREVIEW_PATH = os.path.join(ROOT, "artifacts", "sage-proof-swat.png")
+REVEAL_PREVIEW_PATH = os.path.join(ROOT, "artifacts", "sage-proof-reveal.png")
 
 
 def clear_scene():
@@ -79,13 +81,14 @@ def cylinder(name, location, radius, depth, mat, vertices=8, rotation=(0.0, 0.0,
     return finish_mesh(obj, mat)
 
 
-def cone(name, location, radius_top, radius_bottom, depth, mat, vertices=8):
+def cone(name, location, radius_top, radius_bottom, depth, mat, vertices=8, rotation=(0.0, 0.0, 0.0)):
     bpy.ops.mesh.primitive_cone_add(
         vertices=vertices,
         radius1=radius_bottom,
         radius2=radius_top,
         depth=depth,
         location=location,
+        rotation=rotation,
     )
     obj = bpy.context.active_object
     obj.name = name
@@ -133,7 +136,8 @@ def create_rig():
 
     add_bone("root", (0, 0, 0.25), (0, 0, 0.55))
     add_bone("chair", (0, 0, 0.55), (0, 0, 1.15), "root")
-    add_bone("spine", (0, 0, 1.1), (0, 0, 1.95), "root")
+    add_bone("pelvis", (0, 0, 0.92), (0, 0, 1.2), "chair")
+    add_bone("spine", (0, 0, 1.1), (0, 0, 1.95), "pelvis")
     add_bone("head", (0, 0, 1.95), (0, 0, 2.55), "spine")
     add_bone("upper_arm.L", (-0.25, 0, 1.82), (-0.78, 0, 1.65), "spine")
     add_bone("forearm.L", (-0.78, 0, 1.65), (-1.08, -0.02, 1.38), "upper_arm.L")
@@ -163,6 +167,9 @@ def parent_to_bone(obj, armature, bone_name):
 def build_character(armature):
     navy = material("robe_navy", (0.025, 0.055, 0.18), roughness=0.96)
     robe_edge = material("robe_violet", (0.23, 0.07, 0.48), roughness=0.9)
+    boot_mat = material("boot_dark", (0.045, 0.025, 0.09), roughness=0.94)
+    hat = material("hat_indigo", (0.045, 0.025, 0.19), roughness=0.92)
+    hat_band = material("hat_band", (0.28, 0.06, 0.43), roughness=0.88)
     case = material("crt_case", (0.52, 0.47, 0.34), roughness=0.92)
     case_dark = material("crt_case_dark", (0.19, 0.17, 0.12), roughness=0.9)
     screen = material("crt_glass", (0.008, 0.035, 0.04), metallic=0.08, roughness=0.32)
@@ -176,17 +183,19 @@ def build_character(armature):
 
     pieces = []
 
-    # Floating gaming chair. It is intentionally chunky enough to read behind the robe.
+    # Floating gaming chair with an exposed cushion and readable PS2-era silhouette.
     pieces.extend(
         [
-            cube("ChairSeat", (0, 0.06, 0.93), (0.67, 0.56, 0.12), chair_pad, 0.08),
-            cube("ChairSeatShell", (0, 0.12, 0.82), (0.74, 0.62, 0.10), chair_shell, 0.08),
-            cube("ChairBack", (0, 0.43, 1.48), (0.70, 0.13, 0.73), chair_shell, 0.10),
-            cube("ChairBackPad", (0, 0.27, 1.48), (0.55, 0.08, 0.54), chair_pad, 0.06),
-            cube("ChairWingL", (-0.62, 0.37, 1.67), (0.14, 0.18, 0.42), chair_shell, 0.05, (0, -0.18, -0.12)),
-            cube("ChairWingR", (0.62, 0.37, 1.67), (0.14, 0.18, 0.42), chair_shell, 0.05, (0, 0.18, 0.12)),
-            cube("ArmRestL", (-0.72, -0.02, 1.22), (0.12, 0.45, 0.08), chair_pad, 0.04),
-            cube("ArmRestR", (0.72, -0.02, 1.22), (0.12, 0.45, 0.08), chair_pad, 0.04),
+            cube("ChairSeat", (0, -0.02, 0.95), (0.74, 0.60, 0.13), chair_pad, 0.09),
+            cube("ChairSeatFront", (0, -0.55, 0.91), (0.68, 0.08, 0.15), chair_trim, 0.04),
+            cube("ChairSeatShell", (0, 0.08, 0.82), (0.81, 0.66, 0.10), chair_shell, 0.08),
+            cube("ChairBack", (0, 0.45, 1.51), (0.75, 0.14, 0.78), chair_shell, 0.10),
+            cube("ChairBackPad", (0, 0.28, 1.51), (0.59, 0.08, 0.59), chair_pad, 0.06),
+            cube("ChairHeadrest", (0, 0.24, 2.00), (0.43, 0.09, 0.16), chair_pad, 0.05),
+            cube("ChairWingL", (-0.68, 0.38, 1.69), (0.15, 0.19, 0.45), chair_shell, 0.05, (0, -0.18, -0.12)),
+            cube("ChairWingR", (0.68, 0.38, 1.69), (0.15, 0.19, 0.45), chair_shell, 0.05, (0, 0.18, 0.12)),
+            cube("ArmRestL", (-0.78, -0.03, 1.27), (0.12, 0.46, 0.09), chair_pad, 0.04),
+            cube("ArmRestR", (0.78, -0.03, 1.27), (0.12, 0.46, 0.09), chair_pad, 0.04),
             cylinder("ChairStem", (0, 0.16, 0.54), 0.13, 0.50, chair_metal, 8),
             torus("ChairHoverRing", (0, 0.16, 0.32), 0.52, 0.07, chair_trim),
             cone("ChairThruster", (0, 0.16, 0.03), 0.18, 0.42, 0.45, magic, 8),
@@ -195,15 +204,24 @@ def build_character(armature):
     for piece in pieces:
         parent_to_bone(piece, armature, "chair")
 
-    # Robe and torso.
-    body_parts = [
-        cone("Robe", (0, 0.02, 1.30), 0.40, 0.78, 1.10, navy, 8),
-        torus("RobeHem", (0, 0.02, 0.78), 0.66, 0.07, robe_edge),
-        cube("Belt", (0, -0.02, 1.47), (0.48, 0.29, 0.07), robe_edge, 0.03),
+    # Seated torso, lap, and boots. No intersecting belt or robe-hem meshes.
+    pelvis_parts = [
+        cone("RobeTorso", (0, 0.14, 1.52), 0.33, 0.55, 0.72, navy, 8),
+        cube("RobeLap", (0, -0.14, 1.12), (0.57, 0.46, 0.18), navy, 0.10, (-0.10, 0, 0)),
+        cube("RobeLapTrim", (0, -0.56, 1.09), (0.50, 0.035, 0.07), robe_edge, 0.025, (-0.10, 0, 0)),
+        cube("BootL", (-0.31, -0.58, 0.98), (0.23, 0.31, 0.14), boot_mat, 0.055, (-0.10, 0, -0.055)),
+        cube("BootR", (0.31, -0.58, 0.98), (0.23, 0.31, 0.14), boot_mat, 0.055, (-0.10, 0, 0.055)),
+        cube("BootSoleL", (-0.31, -0.84, 0.88), (0.24, 0.075, 0.045), case_dark, 0.025, (-0.10, 0, -0.055)),
+        cube("BootSoleR", (0.31, -0.84, 0.88), (0.24, 0.075, 0.045), case_dark, 0.025, (-0.10, 0, 0.055)),
+    ]
+    for piece in pelvis_parts:
+        parent_to_bone(piece, armature, "pelvis")
+
+    shoulder_parts = [
         sphere("ShoulderL", (-0.48, 0, 1.76), (0.26, 0.28, 0.24), navy),
         sphere("ShoulderR", (0.48, 0, 1.76), (0.26, 0.28, 0.24), navy),
     ]
-    for piece in body_parts:
+    for piece in shoulder_parts:
         parent_to_bone(piece, armature, "spine")
 
     # Rigid low-poly arms follow the armature bones.
@@ -217,24 +235,12 @@ def build_character(armature):
         part = cylinder(name, location, radius, depth, navy, 8, rotation)
         parent_to_bone(part, armature, bone)
 
+    # Mario 64-style ball hands avoid intersecting finger cylinders during large poses.
     for side, x in (("L", -1.16), ("R", 1.16)):
-        hand = sphere(f"Hand{side}", (x, -0.04, 1.31), (0.22, 0.15, 0.22), glove)
+        hand = sphere(f"Hand{side}", (x, -0.04, 1.31), (0.26, 0.21, 0.26), glove)
         parent_to_bone(hand, armature, f"hand.{side}")
-        for finger_index in range(3):
-            finger_x = x + (-0.10 if side == "L" else 0.10)
-            finger_y = -0.12 + finger_index * 0.10
-            finger = cylinder(
-                f"Finger{side}{finger_index}",
-                (finger_x, finger_y, 1.30),
-                0.045,
-                0.25,
-                glove,
-                6,
-                (0, math.pi / 2, 0),
-            )
-            parent_to_bone(finger, armature, f"hand.{side}")
 
-    # CRT head with thick silhouette, vents, antenna, and geometry-based face.
+    # CRT head with a thick silhouette, top vents, and a geometry-based face.
     head_parts = [
         cube("MonitorCase", (0, -0.02, 2.38), (0.62, 0.42, 0.46), case, 0.11),
         cube("MonitorBezel", (0, -0.44, 2.38), (0.54, 0.055, 0.37), case_dark, 0.05),
@@ -243,10 +249,6 @@ def build_character(armature):
         cube("EyeRight", (0.19, -0.542, 2.45), (0.10, 0.018, 0.055), amber, 0.025),
         cube("Mouth", (0, -0.543, 2.24), (0.16, 0.018, 0.025), amber, 0.012),
         cube("MonitorNeck", (0, 0, 1.96), (0.17, 0.20, 0.16), case_dark, 0.04),
-        cylinder("AntennaL", (-0.24, 0, 2.91), 0.035, 0.45, chair_metal, 6, (0, -0.28, 0)),
-        cylinder("AntennaR", (0.24, 0, 2.91), 0.035, 0.45, chair_metal, 6, (0, 0.28, 0)),
-        sphere("AntennaTipL", (-0.30, 0, 3.12), (0.09, 0.09, 0.09), amber),
-        sphere("AntennaTipR", (0.30, 0, 3.12), (0.09, 0.09, 0.09), amber),
     ]
     for piece in head_parts:
         parent_to_bone(piece, armature, "head")
@@ -255,6 +257,21 @@ def build_character(armature):
     for index, x in enumerate((-0.34, -0.17, 0.0, 0.17, 0.34)):
         vent = cube(f"TopVent{index}", (x, -0.03, 2.86), (0.045, 0.18, 0.018), case_dark, 0.01)
         parent_to_bone(vent, armature, "head")
+
+    # Crooked wizard hat. The clean brim keeps its silhouette free of stray nubs.
+    hat_parts = [
+        cylinder("HatBrim", (0, -0.01, 2.91), 0.80, 0.10, hat, 12, (0.03, 0.08, -0.05)),
+        cone("HatCrown", (0.03, 0.04, 3.25), 0.30, 0.67, 0.66, hat, 10, (0.02, 0.10, -0.04)),
+        cone("HatBend", (0.13, 0.05, 3.65), 0.15, 0.32, 0.48, hat, 9, (0.02, 0.38, -0.13)),
+        cone("HatTip", (0.30, 0.04, 3.90), 0.015, 0.17, 0.35, hat, 8, (0.04, 0.65, -0.16)),
+        torus("HatBand", (0.02, 0.01, 3.01), 0.57, 0.055, hat_band, (0.03, 0.08, -0.05)),
+        cube("HatStarLargeV", (0.18, -0.58, 3.23), (0.025, 0.018, 0.095), amber, 0.01, (0, 0, 0.18)),
+        cube("HatStarLargeH", (0.18, -0.58, 3.23), (0.085, 0.018, 0.025), amber, 0.01, (0, 0, 0.18)),
+        cube("HatStarSmallV", (-0.24, -0.53, 3.10), (0.018, 0.018, 0.06), amber, 0.008, (0, 0, -0.15)),
+        cube("HatStarSmallH", (-0.24, -0.53, 3.10), (0.055, 0.018, 0.018), amber, 0.008, (0, 0, -0.15)),
+    ]
+    for piece in hat_parts:
+        parent_to_bone(piece, armature, "head")
 
     return {
         "screen": bpy.data.objects["MonitorScreen"],
@@ -388,7 +405,7 @@ def build_actions(armature):
     return actions
 
 
-def setup_preview(armature, action):
+def setup_preview(armature):
     scene = bpy.context.scene
     scene.render.engine = "BLENDER_EEVEE"
     scene.render.resolution_x = 720
@@ -396,9 +413,6 @@ def setup_preview(armature, action):
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.film_transparent = True
-    scene.render.filepath = PREVIEW_PATH
-    scene.frame_set(12)
-    armature.animation_data.action = action
 
     bpy.ops.object.light_add(type="AREA", location=(-3.5, -4.5, 6.0))
     key = bpy.context.active_object
@@ -415,17 +429,26 @@ def setup_preview(armature, action):
     fill.data.color = (1.0, 0.12, 0.42)
     fill.data.size = 4
 
-    bpy.ops.object.camera_add(location=(0, -8.6, 2.25))
+    bpy.ops.object.camera_add(location=(0, -10.2, 2.15))
     camera = bpy.context.active_object
     camera.name = "PreviewCamera"
-    direction = Vector((0, 0, 1.55)) - camera.location
+    direction = Vector((0, 0, 1.90)) - camera.location
     camera.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
-    camera.data.lens = 58
+    camera.data.lens = 56
     scene.camera = camera
 
     scene.world.color = (0.005, 0.004, 0.02)
     os.makedirs(os.path.dirname(PREVIEW_PATH), exist_ok=True)
-    bpy.ops.render.render(write_still=True)
+
+    def render_action(action_name, frame, path):
+        armature.animation_data.action = bpy.data.actions[action_name]
+        scene.frame_set(frame)
+        scene.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+
+    render_action("idle", 1, PREVIEW_PATH)
+    render_action("popup_swat", 12, SWAT_PREVIEW_PATH)
+    render_action("reveal", 11, REVEAL_PREVIEW_PATH)
 
 
 def export_glb(armature, actions):
@@ -460,8 +483,8 @@ def main():
     build_character(armature)
     actions = build_actions(armature)
     export_glb(armature, actions)
-    setup_preview(armature, bpy.data.actions["popup_swat"])
-    print("PREVIEW", PREVIEW_PATH)
+    setup_preview(armature)
+    print("PREVIEWS", PREVIEW_PATH, SWAT_PREVIEW_PATH, REVEAL_PREVIEW_PATH)
 
 
 if __name__ == "__main__":

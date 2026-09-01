@@ -25,6 +25,8 @@
 	let playClip: ((clip: SageClip, returnToIdle?: boolean) => void) | null = null;
 	let lastReactionCounter = -1;
 	let lastAltitude = 0;
+	let mounted = false;
+	let threeStarted = false;
 	let cleanupThree = () => {};
 
 	$effect(() => {
@@ -42,6 +44,13 @@
 		playClip('ascend', true);
 	});
 
+	$effect(() => {
+		const calmMode = personality.calmMode;
+		const fallback = motionFallback;
+		if (!mounted || calmMode || fallback || threeStarted) return;
+		void startThree();
+	});
+
 	function swatPopup() {
 		if (popupSwatting) return;
 		popupSwatting = true;
@@ -54,21 +63,29 @@
 	}
 
 	onMount(() => {
+		mounted = true;
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const forcedFallback = new URL(window.location.href).searchParams.has('sageFallback');
 		motionFallback = reduceMotion || forcedFallback;
 		if (!personality.calmMode && !personality.achievements.includes('FORBIDDEN FLOPPY')) {
 			const popupTimer = window.setTimeout(() => (popupVisible = true), 2_200);
 			void startThree();
-			return () => window.clearTimeout(popupTimer);
+			return () => {
+				mounted = false;
+				window.clearTimeout(popupTimer);
+			};
 		}
 		void startThree();
+		return () => {
+			mounted = false;
+		};
 	});
 
 	onDestroy(() => cleanupThree());
 
 	async function startThree() {
-		if (personality.calmMode || motionFallback) return;
+		if (personality.calmMode || motionFallback || threeStarted || !canvas || !container) return;
+		threeStarted = true;
 
 		try {
 			const THREE = await import('three');
@@ -76,7 +93,6 @@
 				import('three/examples/jsm/loaders/GLTFLoader.js'),
 				import('three/examples/jsm/effects/OutlineEffect.js')
 			]);
-			if (!canvas || !container) return;
 			const mountContainer = container;
 
 			const renderer = new THREE.WebGLRenderer({
@@ -92,8 +108,6 @@
 
 			const scene = new THREE.Scene();
 			const camera = new THREE.PerspectiveCamera(31, 1, 0.1, 100);
-			camera.position.set(0, 1.25, 7.4);
-			camera.lookAt(0, 1.2, 0);
 
 			scene.add(new THREE.HemisphereLight(0xbfeaff, 0x17062d, 2.4));
 			const key = new THREE.DirectionalLight(0xffd1b6, 4.4);
@@ -105,14 +119,37 @@
 
 			const gltf = await new GLTFLoader().loadAsync('/models/signal-sage.glb');
 			const sage = gltf.scene;
-			sage.position.set(0, -0.95, 0);
-			sage.scale.setScalar(1.48);
 			sage.rotation.y = -0.08;
-			scene.add(sage);
+			const presentation = new THREE.Group();
+			presentation.add(sage);
+			scene.add(presentation);
 
 			const mixer = new THREE.AnimationMixer(sage);
 			const actions: Record<string, AnimationAction> = {};
 			for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
+
+			// Fit the camera to every authored pose, not just the idle stance. This keeps the
+			// hat, chair, and wide hand gestures inside the canvas at every viewport size.
+			const poseEnvelope = new THREE.Box3();
+			const sampleBounds = new THREE.Box3();
+			for (const clip of gltf.animations) {
+				mixer.stopAllAction();
+				mixer.setTime(0);
+				const sampleAction = actions[clip.name];
+				sampleAction.reset().setLoop(THREE.LoopOnce, 1).play();
+				const steps = Math.max(1, Math.ceil(clip.duration * 24));
+				for (let step = 0; step <= steps; step += 1) {
+					mixer.setTime((clip.duration * step) / steps);
+					sage.updateMatrixWorld(true);
+					sampleBounds.setFromObject(sage);
+					poseEnvelope.union(sampleBounds);
+				}
+			}
+			mixer.stopAllAction();
+			mixer.setTime(0);
+			const poseCenter = poseEnvelope.getCenter(new THREE.Vector3());
+			const poseSize = poseEnvelope.getSize(new THREE.Vector3());
+			sage.position.sub(poseCenter);
 			let activeAction: AnimationAction | null = null;
 			let actionName: SageClip = 'idle';
 			let actionTime = 0;
@@ -163,6 +200,17 @@
 				const height = Math.max(mountContainer.clientHeight, 1);
 				renderer.setSize(width, height, false);
 				camera.aspect = width / height;
+				const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+				const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+				const fitHeight = (poseSize.y * 1.08) / 0.74;
+				const fitWidth = (poseSize.x * 1.08) / 0.78;
+				const verticalDistance = fitHeight / 2 / Math.tan(verticalFov / 2);
+				const horizontalDistance = fitWidth / 2 / Math.tan(horizontalFov / 2);
+				const distance = Math.max(verticalDistance, horizontalDistance) + poseSize.z * 0.55;
+				camera.position.set(0, 0, distance);
+				camera.near = Math.max(0.01, distance - poseSize.z * 2);
+				camera.far = distance + poseSize.z * 4;
+				camera.lookAt(0, 0, 0);
 				camera.updateProjectionMatrix();
 			};
 			const resizeObserver = new ResizeObserver(resize);
@@ -176,8 +224,8 @@
 				actionTime += delta;
 				const steppedTime = Math.floor(actionTime * actionFps) / actionFps;
 				mixer.setTime(steppedTime);
-				sage.position.y = -0.95 + Math.sin(elapsed * 1.7) * 0.035;
-				sage.rotation.y = -0.08 + Math.sin(elapsed * 0.7) * 0.018;
+				presentation.position.y = Math.sin(elapsed * 1.7) * 0.035;
+				presentation.rotation.y = Math.sin(elapsed * 0.7) * 0.018;
 
 				const faceFps = actionName === 'popup_swat' ? 24 : personality.mood === 'thinking' ? 8 : 12;
 				const faceStep = Math.floor(elapsed * faceFps);
