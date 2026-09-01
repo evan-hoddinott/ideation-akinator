@@ -63,14 +63,14 @@ describe('versioned project state', () => {
 		expect(result.status).toBe('migrated');
 		if (result.status !== 'migrated') throw new Error('expected migrated project');
 		expect(result.project).toMatchObject({
-			schemaVersion: 5,
+			schemaVersion: 6,
 			id: 'old-project',
 			stage: 'problem',
 			createdAt: '2026-08-31T10:00:00.000Z',
 			updatedAt: '2026-08-31T10:01:00.000Z'
 		});
 		expect(result.project.problemInput.cards).toHaveLength(1);
-		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(5);
+		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(6);
 	});
 
 	it('migrates slice-two intake data and adds AI suggestion tracking', () => {
@@ -139,6 +139,37 @@ describe('versioned project state', () => {
 		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
 		expect(loaded.project.research).toEqual(project.research);
 		expect(loaded.project.interview).toMatchObject({ status: 'not-started', questions: [] });
+	});
+
+	it('migrates slice-five interview state and adds the local Sage director', () => {
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-5');
+		project.interview.status = 'active';
+		project.interview.questions = [
+			{
+				id: 'audience',
+				prompt: 'Who needs this first?',
+				whyItMatters: 'The first audience changes the prototype.',
+				type: 'yes-no',
+				options: [],
+				unit: null,
+				minimum: null,
+				maximum: null
+			}
+		];
+		const versionFive = { ...project, schemaVersion: 5 };
+		delete (versionFive as Partial<typeof project>).personality;
+		const storage = memoryStorage(JSON.stringify(versionFive));
+
+		const loaded = loadProject(storage);
+		expect(loaded.status).toBe('migrated');
+		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
+		expect(loaded.project.interview.status).toBe('active');
+		expect(loaded.project.personality).toMatchObject({
+			mood: 'neutral',
+			confidence: 'static',
+			muted: true,
+			calmMode: false
+		});
 	});
 
 	it('clears corrupt state instead of crashing', () => {

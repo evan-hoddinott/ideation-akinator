@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import ResearchTheater from '$lib/components/ResearchTheater.svelte';
+	import SageCompanion from '$lib/components/SageCompanion.svelte';
 	import {
 		CLARITY_LABELS,
 		mergeIndustrySuggestions,
@@ -16,6 +18,13 @@
 		type InterviewNextRequest,
 		type InterviewQuestion
 	} from '$lib/interview';
+	import { OracleAudio } from '$lib/oracle-audio';
+	import {
+		reactToSageEvent,
+		type SageContext,
+		type SageEvent,
+		type SageSoundCue
+	} from '$lib/personality';
 	import {
 		clearProject,
 		createProject,
@@ -52,6 +61,7 @@
 	let insightMessage = $state('');
 	let insightRetryNonce = $state(0);
 	let insightRequestSequence = 0;
+	let completedInsightSignature = '';
 	let researchBusy = $state(false);
 	let researchMessage = $state('');
 	let interviewBusy = $state(false);
@@ -63,6 +73,10 @@
 	let multipleAnswer = $state<string[]>([]);
 	let yesNoAnswer = $state<boolean | null>(null);
 	let loadedAnswerSignature = '';
+	let playerNameDraft = $state('');
+	let projectNameDraft = $state('');
+	let oracleAudio: OracleAudio | null = null;
+	let reducedMotionApplied = false;
 
 	const insightSignature = $derived(
 		project
@@ -175,6 +189,8 @@
 
 		const result = loadProject(window.localStorage);
 		project = result.project;
+		playerNameDraft = result.project?.personality.playerName ?? '';
+		projectNameDraft = result.project?.personality.projectName ?? '';
 		stateReady = true;
 
 		if (result.status === 'recovered') {
@@ -184,6 +200,27 @@
 		} else if (result.status === 'ready') {
 			stateNotice = 'Your unfinished project was restored from this browser.';
 		}
+	});
+
+	$effect(() => {
+		if (!stateReady || reducedMotionApplied || !project) return;
+		reducedMotionApplied = true;
+		if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		if (project.personality.calmMode) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			personality: { ...project.personality, calmMode: true }
+		});
+	});
+
+	$effect(() => {
+		if (!stateReady) return;
+		const onVisibility = () => {
+			if (!oracleAudio || !project || project.personality.muted) return;
+			void oracleAudio.setEnabled(document.visibilityState === 'visible');
+		};
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => document.removeEventListener('visibilitychange', onVisibility);
 	});
 
 	$effect(() => {
@@ -203,6 +240,7 @@
 			insightMessage = '';
 			return;
 		}
+		if (signature === completedInsightSignature) return;
 
 		void retryNonce;
 		insightStatus = 'waiting';
@@ -258,8 +296,91 @@
 
 	function beginProject() {
 		const nextProject = project ?? createProject();
-		project = saveProject(window.localStorage, { ...nextProject, stage: 'problem' });
+		const namedProject = {
+			...nextProject,
+			stage: 'problem' as const,
+			personality: {
+				...nextProject.personality,
+				playerName: playerNameDraft.trim().slice(0, 50),
+				projectName: projectNameDraft.trim().slice(0, 50)
+			}
+		};
+		const reaction = reactToSageEvent(
+			namedProject.personality,
+			'project-started',
+			namedProject.id,
+			sageContext(namedProject)
+		);
+		project = saveProject(window.localStorage, {
+			...namedProject,
+			personality: reaction.personality
+		});
+		playSageCue(reaction.sound);
 		stateNotice = 'Project started. Your progress now stays in this browser.';
+	}
+
+	function sageContext(session: ProjectSession): SageContext {
+		return {
+			playerName: session.personality.playerName,
+			projectName: session.personality.projectName,
+			topic: session.problemInput.topic,
+			industries: session.preferences.selectedIndustryTags,
+			technologies: session.preferences.technologyTags,
+			problemCount: session.problemInput.cards.filter((card) => card.text.trim()).length,
+			answeredCount: session.interview.answers.length,
+			hasResearch: !!session.research.result
+		};
+	}
+
+	function performSageEvent(
+		event: SageEvent,
+		session: ProjectSession | null = project,
+		context: SageContext = {}
+	) {
+		if (!session) return;
+		const reaction = reactToSageEvent(session.personality, event, session.id, {
+			...sageContext(session),
+			...context
+		});
+		project = saveProject(window.localStorage, { ...session, personality: reaction.personality });
+		playSageCue(reaction.sound);
+	}
+
+	function playSageCue(cue: SageSoundCue) {
+		if (!project || project.personality.muted) return;
+		oracleAudio ??= new OracleAudio();
+		oracleAudio.playCue(cue);
+	}
+
+	function toggleSageAudio() {
+		if (!project) return;
+		const muted = !project.personality.muted;
+		project = saveProject(window.localStorage, {
+			...project,
+			personality: { ...project.personality, muted }
+		});
+		oracleAudio ??= new OracleAudio();
+		void oracleAudio.setEnabled(!muted);
+		if (!muted) oracleAudio.playCue('reveal');
+	}
+
+	function toggleCalmMode() {
+		if (!project) return;
+		const calmMode = !project.personality.calmMode;
+		const nextProject = {
+			...project,
+			personality: {
+				...project.personality,
+				calmMode,
+				muted: calmMode ? true : project.personality.muted
+			}
+		};
+		if (calmMode) void oracleAudio?.setEnabled(false);
+		performSageEvent(calmMode ? 'calm-enabled' : 'calm-disabled', nextProject);
+	}
+
+	function findForbiddenFloppy() {
+		performSageEvent('secret-found');
 	}
 
 	function persist(nextProject: ProjectSession) {
@@ -283,6 +404,7 @@
 
 	function persistResearch(job: ResearchJobView) {
 		if (!project) return;
+		const previousStatus = project.research.status;
 		project = saveProject(window.localStorage, {
 			...project,
 			completedStages:
@@ -292,6 +414,15 @@
 			research: { jobId: job.id, status: job.status, result: job.result }
 		});
 		researchMessage = job.message ?? progressMessage(job);
+		if (job.status !== previousStatus) {
+			if (job.status === 'completed' || job.status === 'partial') {
+				performSageEvent('research-complete', project);
+			} else if (job.status === 'failed' || job.status === 'cancelled') {
+				performSageEvent('research-failed', project);
+			} else if (job.status === 'running') {
+				performSageEvent('research-progress', project);
+			}
+		}
 	}
 
 	function setTopic(topic: string) {
@@ -322,6 +453,7 @@
 				cards: [...project.problemInput.cards, createProblemCard()]
 			}
 		});
+		performSageEvent('problem-added', project);
 	}
 
 	function removeProblem(id: string) {
@@ -334,6 +466,7 @@
 				cards: cards.length > 0 ? cards : [createProblemCard()]
 			}
 		});
+		performSageEvent('problem-removed', project);
 	}
 
 	function moveProblem(index: number, direction: -1 | 1) {
@@ -386,6 +519,7 @@
 			const insights = parseIntakeInsights(body);
 			if (!insights) throw new Error('Invalid intake insight response');
 			if (sequence !== insightRequestSequence || signature !== insightSignature || !project) return;
+			completedInsightSignature = signature;
 
 			const mergedIndustries = mergeIndustrySuggestions(
 				project.preferences.selectedIndustryTags,
@@ -393,6 +527,8 @@
 				project.preferences.suggestedIndustryTags,
 				insights.suggestedIndustryTags
 			);
+			const previousClarity = project.problemInput.clarityLabel;
+			const previousIndustryCount = project.preferences.selectedIndustryTags.length;
 			persist({
 				...project,
 				problemInput: {
@@ -407,6 +543,12 @@
 					suggestedIndustryTags: mergedIndustries.suggested
 				}
 			});
+			if (project && mergedIndustries.selected.length > previousIndustryCount) {
+				performSageEvent('industries-guessed', project);
+			} else if (project && insights.clarityLabel !== previousClarity) {
+				const strong = CLARITY_LABELS.indexOf(insights.clarityLabel) >= 3;
+				performSageEvent(strong ? 'clarity-strong' : 'clarity-weak', project);
+			}
 			insightStatus = 'ready';
 			insightMessage = 'Reading updated.';
 		} catch (error) {
@@ -418,6 +560,7 @@
 	}
 
 	function retryIntakeInsights() {
+		completedInsightSignature = '';
 		insightRetryNonce += 1;
 	}
 
@@ -429,6 +572,7 @@
 			completedStages: Array.from(new Set([...project.completedStages, 'problem']))
 		});
 		stateNotice = 'Problem notes saved. Preferences are up next.';
+		performSageEvent('preferences-opened', project);
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
@@ -513,6 +657,8 @@
 			...project,
 			preferences: { ...project.preferences, innovationLevel: level as InnovationLevel }
 		});
+		if (level === 1) performSageEvent('innovation-safe', project);
+		if (level === 5) performSageEvent('innovation-wild', project);
 	}
 
 	function setBudget(kind: 'prototype' | 'production', input: HTMLInputElement) {
@@ -589,6 +735,7 @@
 
 		researchBusy = true;
 		researchMessage = 'Opening the research room...';
+		performSageEvent('research-started', project);
 		try {
 			const response = await fetch(resolve('/api/research/jobs'), {
 				method: 'POST',
@@ -720,6 +867,7 @@
 		if (!project || !project.research.result || interviewBusy) return;
 		project = saveProject(window.localStorage, { ...project, stage: 'questions' });
 		stateNotice = 'Research saved. The Sage will ask one useful question at a time.';
+		performSageEvent('interview-started', project);
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 		if (project.interview.questions.length === 0) void requestNextInterview(project);
 	}
@@ -764,6 +912,7 @@
 					}
 				});
 				interviewMessage = '';
+				performSageEvent('interview-finished', project);
 				return;
 			}
 			project = saveProject(window.localStorage, {
@@ -862,8 +1011,18 @@
 			}
 		});
 		project = nextProject;
+		performSageEvent(
+			existing
+				? 'answer-changed'
+				: status === 'skipped'
+					? 'answer-skipped'
+					: status === 'unknown'
+						? 'answer-unknown'
+						: 'answer-saved',
+			project
+		);
 		interviewMessage = '';
-		void requestNextInterview(nextProject);
+		void requestNextInterview(project);
 	}
 
 	function draftAnswerValue(question: InterviewQuestion): InterviewAnswer['value'] {
@@ -890,6 +1049,7 @@
 			}
 		});
 		interviewMessage = '';
+		performSageEvent('question-revisited', project);
 	}
 
 	function finishInterviewEarly() {
@@ -905,6 +1065,7 @@
 			}
 		});
 		interviewMessage = '';
+		performSageEvent('interview-abandoned', project);
 		interviewDialog?.close();
 	}
 
@@ -920,10 +1081,14 @@
 		insightStatus = 'idle';
 		insightMessage = '';
 		insightRequestSequence += 1;
+		completedInsightSignature = '';
 		researchBusy = false;
 		researchMessage = '';
 		interviewBusy = false;
 		interviewMessage = '';
+		playerNameDraft = '';
+		projectNameDraft = '';
+		void oracleAudio?.setEnabled(false);
 		resetDialog?.close();
 	}
 </script>
@@ -1002,7 +1167,7 @@
 		</p>
 	</main>
 {:else}
-	<div class="app-frame">
+	<div class="app-frame" class:calm-mode={project?.personality.calmMode}>
 		<header class="site-header">
 			<a class="wordmark" href={resolve('/')} aria-label="Ideation Akinator home">
 				<span class="wordmark-star" aria-hidden="true">✦</span>
@@ -1016,7 +1181,7 @@
 			</div>
 		</header>
 
-		<div class="workspace">
+		<div class="workspace" class:has-companion={project && project.stage !== 'welcome'}>
 			<aside class="progress-rail" aria-label="Project progress">
 				<div class="rail-orb" aria-hidden="true"><span>?</span></div>
 				<p class="rail-kicker">THE RITUAL</p>
@@ -1445,6 +1610,7 @@
 								<button class="secondary-button" type="button" onclick={() => cancelResearchJob()}
 									>Cancel research</button
 								>
+								<ResearchTheater calm={project.personality.calmMode} />
 							</div>
 						{:else if project.research.result}
 							<div class="research-brief" aria-live="polite">
@@ -1596,7 +1762,7 @@
 								{/if}
 								<div class="next-slice-note">
 									<strong>Four project directions are next</strong>
-									<p>Concept generation arrives in slice 6.</p>
+									<p>Concept generation arrives in slice 7.</p>
 								</div>
 							</div>
 						{:else if !currentQuestion}
@@ -1793,6 +1959,24 @@
 									<p>Export the chosen project as a cited PDF.</p>
 								</div>
 							</div>
+							<div class="welcome-name-grid">
+								<label>
+									<span>What should the wizard call you? <small>optional</small></span>
+									<input
+										maxlength="50"
+										bind:value={playerNameDraft}
+										placeholder="Mortal, Evan, Captain..."
+									/>
+								</label>
+								<label>
+									<span>Working project name <small>optional and probably wrong</small></span>
+									<input
+										maxlength="50"
+										bind:value={projectNameDraft}
+										placeholder="Operation Mystery Box"
+									/>
+								</label>
+							</div>
 							<button class="summon-button" type="button" onclick={beginProject}>
 								<span>Begin conjuring</span>
 								<i aria-hidden="true">→</i>
@@ -1803,7 +1987,7 @@
 						<div class="sage-card" aria-label="A message from the Signal Sage">
 							<div class="speech-bubble">
 								<span class="online-dot" aria-hidden="true"></span>
-								"Do not polish the problem first. The weird, specific bits are usually the useful ones."
+								I can guess your future project from its problems. Eventually. Probably.
 							</div>
 							<img src="/images/signal-sage.png" alt="" />
 							<div class="sage-shadow" aria-hidden="true"></div>
@@ -1811,6 +1995,14 @@
 					</section>
 				{/if}
 			</main>
+			{#if project && project.stage !== 'welcome'}
+				<SageCompanion
+					personality={project.personality}
+					onToggleMute={toggleSageAudio}
+					onToggleCalm={toggleCalmMode}
+					onSecret={findForbiddenFloppy}
+				/>
+			{/if}
 		</div>
 	</div>
 
