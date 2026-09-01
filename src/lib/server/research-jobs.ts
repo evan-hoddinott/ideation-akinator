@@ -163,7 +163,8 @@ export class ResearchJobManager {
 				console.warn('broad_research failed', {
 					jobId: job.id,
 					durationMs: this.now() - startedAt,
-					failureClass
+					failureClass,
+					reason: error instanceof Error ? error.message : 'Unknown research failure'
 				});
 				return;
 			}

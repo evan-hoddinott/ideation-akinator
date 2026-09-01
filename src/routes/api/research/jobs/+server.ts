@@ -85,7 +85,7 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress 
 	const provider = createOpenAIResearchProvider(
 		{
 			create: (parameters) => openai.responses.create(parameters),
-			retrieve: (responseId) => openai.responses.retrieve(responseId),
+			retrieve: (responseId, parameters) => openai.responses.retrieve(responseId, parameters),
 			cancel: (responseId) => openai.responses.cancel(responseId)
 		},
 		model

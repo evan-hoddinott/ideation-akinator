@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildResearchParameters,
+	createOpenAIResearchProvider,
 	InvalidResearchResponseError,
 	parseCompletedResearch,
 	toProviderSnapshot,
@@ -69,6 +70,35 @@ describe('research AI orchestration', () => {
 			text: { format: { name: 'broad_product_research', strict: true } }
 		});
 		expect(parameters.instructions).toContain('untrusted evidence');
+	});
+
+	it('requests the web source ledger again when retrieving a background response', async () => {
+		const calls: Array<{ responseId: string; parameters: Record<string, unknown> | undefined }> =
+			[];
+		const provider = createOpenAIResearchProvider(
+			{
+				async create() {
+					throw new Error('Not used');
+				},
+				async retrieve(responseId, parameters) {
+					calls.push({ responseId, parameters });
+					return { id: responseId, status: 'in_progress', output: [], output_text: '' };
+				},
+				async cancel() {
+					return {};
+				}
+			},
+			'test-model'
+		);
+
+		await provider.retrieve('response-1');
+
+		expect(calls).toEqual([
+			{
+				responseId: 'response-1',
+				parameters: { include: ['web_search_call.action.sources'] }
+			}
+		]);
 	});
 
 	it('keeps only findings tied to URLs returned by web search', () => {
