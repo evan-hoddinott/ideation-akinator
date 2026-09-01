@@ -3,6 +3,8 @@
 	import { resolve } from '$app/paths';
 	import ResearchTheater from '$lib/components/ResearchTheater.svelte';
 	import SageCompanion from '$lib/components/SageCompanion.svelte';
+	import SageStage from '$lib/components/SageStage.svelte';
+	import VerticalWorld from '$lib/components/VerticalWorld.svelte';
 	import {
 		CLARITY_LABELS,
 		mergeIndustrySuggestions,
@@ -35,6 +37,7 @@
 		type ProjectConstraints,
 		type ProjectSession
 	} from '$lib/project-state';
+	import { projectAltitude } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
 		parseResearchJobView,
@@ -77,6 +80,9 @@
 	let projectNameDraft = $state('');
 	let oracleAudio: OracleAudio | null = null;
 	let reducedMotionApplied = false;
+	const stagePreview = createProject(new Date(0), 'stage-preview');
+	const visualProject = $derived(project ?? stagePreview);
+	const sageAltitude = $derived(project ? projectAltitude(project) : 0.04);
 
 	const insightSignature = $derived(
 		project
@@ -1167,7 +1173,23 @@
 		</p>
 	</main>
 {:else}
-	<div class="app-frame" class:calm-mode={project?.personality.calmMode}>
+	<div
+		class="app-frame vertical-game"
+		class:calm-mode={visualProject.personality.calmMode}
+		data-stage={visualProject.stage}
+	>
+		<VerticalWorld
+			altitude={sageAltitude}
+			stage={visualProject.stage}
+			calm={visualProject.personality.calmMode}
+		/>
+		{#if stateReady}
+			<SageStage
+				personality={visualProject.personality}
+				altitude={sageAltitude}
+				onSecret={findForbiddenFloppy}
+			/>
+		{/if}
 		<header class="site-header">
 			<a class="wordmark" href={resolve('/')} aria-label="Ideation Akinator home">
 				<span class="wordmark-star" aria-hidden="true">✦</span>
