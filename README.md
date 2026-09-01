@@ -33,8 +33,15 @@ Implementation slices 1 through 8 of 13 are complete. They include:
 - Explained feature dependencies, protected dependency removal, persistent edits, and confirmation of one chosen project.
 - Local autosave, back navigation, intake validation, and browser-state migration through schema v8.
 - A Node health endpoint at `/health`.
+- A fully local, token-free visual walkthrough with canned intake feedback, research, interview questions, and four concepts. Demo projects are visibly marked, survive refresh, and can be restarted from any stage.
 
 Slice 9 adds focused research for the chosen project and confirmed feature set.
+
+## Token-free visual walkthrough
+
+After signing in, choose `Run the token-free visual demo`. The app loads a fictional campus-transit project and lets you click through the complete implemented flow without calling any AI or research endpoint. The canned research uses clearly labeled illustrative links and must not be treated as live evidence.
+
+Use `Restart demo` in the header at any point to return to the prefilled problem stage. Starting a normal project continues to use the configured providers.
 
 ## Server deployment
 

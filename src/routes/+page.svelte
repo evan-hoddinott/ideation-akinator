@@ -13,11 +13,20 @@
 		type ConceptGenerationRequest,
 		type RejectedConceptSummary
 	} from '$lib/concepts';
+	import {
+		createDemoPortfolio,
+		createDemoProject,
+		createDemoResearchJob,
+		demoIntakeInsights,
+		isDemoProject,
+		nextDemoInterview
+	} from '$lib/demo';
 	import { createFeatureWorkshop, type FeatureWorkshopState } from '$lib/feature-workshop';
 	import {
 		CLARITY_LABELS,
 		mergeIndustrySuggestions,
 		parseIntakeInsights,
+		type IntakeInsights,
 		type IntakeInsightsRequest
 	} from '$lib/intake-insights';
 	import {
@@ -26,6 +35,7 @@
 		parseInterviewNextResult,
 		type InterviewAnswer,
 		type InterviewAnswerStatus,
+		type InterviewNextResult,
 		type InterviewNextRequest,
 		type InterviewQuestion
 	} from '$lib/interview';
@@ -99,6 +109,7 @@
 	let reducedMotionApplied = false;
 	const stagePreview = createProject(new Date(0), 'stage-preview');
 	const visualProject = $derived(project ?? stagePreview);
+	const demoMode = $derived(isDemoProject(project));
 	const sageAltitude = $derived(project ? projectAltitude(project) : 0.04);
 
 	const insightSignature = $derived(
@@ -299,6 +310,10 @@
 		const jobId = project?.stage === 'research' ? project.research.jobId : null;
 		const status = project?.research.status;
 		if (!jobId || (status !== 'queued' && status !== 'running')) return;
+		if (isDemoProject(project)) {
+			const timer = window.setTimeout(() => completeDemoResearch(jobId), 4_500);
+			return () => window.clearTimeout(timer);
+		}
 
 		const timer = window.setInterval(() => void pollResearchJob(jobId), 1_500);
 		return () => window.clearInterval(timer);
@@ -357,6 +372,33 @@
 		});
 		playSageCue(reaction.sound);
 		stateNotice = 'Project started. Your progress now stays in this browser.';
+	}
+
+	function beginDemo() {
+		const demo = createDemoProject();
+		const reaction = reactToSageEvent(
+			demo.personality,
+			'project-started',
+			demo.id,
+			sageContext(demo)
+		);
+		project = saveProject(window.localStorage, {
+			...demo,
+			personality: reaction.personality
+		});
+		playerNameDraft = demo.personality.playerName;
+		projectNameDraft = demo.personality.projectName;
+		insightStatus = 'ready';
+		insightMessage = 'Canned demo reading. No model call occurred.';
+		completedInsightSignature = insightSignature;
+		stateNotice = 'Token-free visual demo. Every research result, question, and idea is canned.';
+		playSageCue(reaction.sound);
+	}
+
+	function restartDemo() {
+		if (!demoMode) return;
+		startOver();
+		beginDemo();
 	}
 
 	function sageContext(session: ProjectSession): SageContext {
@@ -539,8 +581,16 @@
 		signal: AbortSignal
 	) {
 		insightStatus = 'loading';
-		insightMessage = 'Reading the signal...';
+		insightMessage = isDemoProject(project)
+			? 'Playing a canned clarity reading...'
+			: 'Reading the signal...';
 		try {
+			if (isDemoProject(project)) {
+				await new Promise((resolveDelay) => window.setTimeout(resolveDelay, 180));
+				if (signal.aborted) return;
+				applyIntakeInsights(demoIntakeInsights(), signature, sequence);
+				return;
+			}
 			const response = await fetch(resolve('/api/intake-insights'), {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -560,45 +610,51 @@
 
 			const insights = parseIntakeInsights(body);
 			if (!insights) throw new Error('Invalid intake insight response');
-			if (sequence !== insightRequestSequence || signature !== insightSignature || !project) return;
-			completedInsightSignature = signature;
-
-			const mergedIndustries = mergeIndustrySuggestions(
-				project.preferences.selectedIndustryTags,
-				project.preferences.dismissedIndustryTags,
-				project.preferences.suggestedIndustryTags,
-				insights.suggestedIndustryTags
-			);
-			const previousClarity = project.problemInput.clarityLabel;
-			const previousIndustryCount = project.preferences.selectedIndustryTags.length;
-			persist({
-				...project,
-				problemInput: {
-					...project.problemInput,
-					clarityLabel: insights.clarityLabel,
-					clarityReasons: insights.clarityReasons,
-					topicCoherenceWarning: insights.topicCoherenceWarning
-				},
-				preferences: {
-					...project.preferences,
-					selectedIndustryTags: mergedIndustries.selected,
-					suggestedIndustryTags: mergedIndustries.suggested
-				}
-			});
-			if (project && mergedIndustries.selected.length > previousIndustryCount) {
-				performSageEvent('industries-guessed', project);
-			} else if (project && insights.clarityLabel !== previousClarity) {
-				const strong = CLARITY_LABELS.indexOf(insights.clarityLabel) >= 3;
-				performSageEvent(strong ? 'clarity-strong' : 'clarity-weak', project);
-			}
-			insightStatus = 'ready';
-			insightMessage = 'Reading updated.';
+			applyIntakeInsights(insights, signature, sequence);
 		} catch (error) {
 			if (error instanceof DOMException && error.name === 'AbortError') return;
 			if (sequence !== insightRequestSequence) return;
 			insightStatus = 'error';
 			insightMessage = 'The reading flickered out. Your notes are safe, and you can try again.';
 		}
+	}
+
+	function applyIntakeInsights(insights: IntakeInsights, signature: string, sequence: number) {
+		if (sequence !== insightRequestSequence || signature !== insightSignature || !project) return;
+		completedInsightSignature = signature;
+
+		const mergedIndustries = mergeIndustrySuggestions(
+			project.preferences.selectedIndustryTags,
+			project.preferences.dismissedIndustryTags,
+			project.preferences.suggestedIndustryTags,
+			insights.suggestedIndustryTags
+		);
+		const previousClarity = project.problemInput.clarityLabel;
+		const previousIndustryCount = project.preferences.selectedIndustryTags.length;
+		persist({
+			...project,
+			problemInput: {
+				...project.problemInput,
+				clarityLabel: insights.clarityLabel,
+				clarityReasons: insights.clarityReasons,
+				topicCoherenceWarning: insights.topicCoherenceWarning
+			},
+			preferences: {
+				...project.preferences,
+				selectedIndustryTags: mergedIndustries.selected,
+				suggestedIndustryTags: mergedIndustries.suggested
+			}
+		});
+		if (project && mergedIndustries.selected.length > previousIndustryCount) {
+			performSageEvent('industries-guessed', project);
+		} else if (project && insights.clarityLabel !== previousClarity) {
+			const strong = CLARITY_LABELS.indexOf(insights.clarityLabel) >= 3;
+			performSageEvent(strong ? 'clarity-strong' : 'clarity-weak', project);
+		}
+		insightStatus = 'ready';
+		insightMessage = isDemoProject(project)
+			? 'Canned demo reading. No model call occurred.'
+			: 'Reading updated.';
 	}
 
 	function retryIntakeInsights() {
@@ -828,6 +884,11 @@
 			)
 		});
 		performSageEvent('research-started', project);
+		if (isDemoProject(project)) {
+			persistResearch(createDemoResearchJob('running'));
+			researchBusy = false;
+			return;
+		}
 		try {
 			const response = await fetch(resolve('/api/research/jobs'), {
 				method: 'POST',
@@ -851,6 +912,18 @@
 		} finally {
 			researchBusy = false;
 		}
+	}
+
+	function completeDemoResearch(jobId: string) {
+		if (
+			!project ||
+			!isDemoProject(project) ||
+			project.research.jobId !== jobId ||
+			(project.research.status !== 'queued' && project.research.status !== 'running')
+		) {
+			return;
+		}
+		persistResearch(createDemoResearchJob('completed'));
 	}
 
 	async function pollResearchJob(jobId: string) {
@@ -883,6 +956,14 @@
 	async function cancelResearchJob(silent = false) {
 		const jobId = project?.research.jobId;
 		if (!jobId || !researchIsActive) return;
+		if (project && isDemoProject(project)) {
+			project = saveProject(window.localStorage, {
+				...project,
+				research: { jobId: null, status: 'cancelled', result: null }
+			});
+			researchMessage = silent ? '' : 'The local demo performance was cancelled.';
+			return;
+		}
 		if (!silent) researchMessage = 'Cancelling the research pass...';
 		try {
 			const response = await fetch(`/api/research/jobs/${encodeURIComponent(jobId)}`, {
@@ -972,23 +1053,31 @@
 			return;
 		}
 		interviewBusy = true;
-		interviewMessage = 'The Sage is choosing the next useful question...';
+		interviewMessage = isDemoProject(session)
+			? 'The Sage is consulting his local demo cue cards...'
+			: 'The Sage is choosing the next useful question...';
 		try {
-			const response = await fetch(resolve('/api/interview/next'), {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(input)
-			});
-			const body: unknown = await response.json();
-			if (!response.ok) {
-				const error = body as { message?: unknown };
-				interviewMessage =
-					typeof error.message === 'string'
-						? error.message
-						: 'The next question did not arrive. Your answers are still saved.';
-				return;
+			let result: InterviewNextResult | null;
+			if (isDemoProject(session)) {
+				await new Promise((resolveDelay) => window.setTimeout(resolveDelay, 280));
+				result = nextDemoInterview(session.interview);
+			} else {
+				const response = await fetch(resolve('/api/interview/next'), {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify(input)
+				});
+				const body: unknown = await response.json();
+				if (!response.ok) {
+					const error = body as { message?: unknown };
+					interviewMessage =
+						typeof error.message === 'string'
+							? error.message
+							: 'The next question did not arrive. Your answers are still saved.';
+					return;
+				}
+				result = parseInterviewNextResult(body);
 			}
-			const result = parseInterviewNextResult(body);
 			if (!result || !project || project.id !== session.id) {
 				throw new Error('Invalid interview response');
 			}
@@ -1255,6 +1344,25 @@
 		performSageEvent(replacement ? 'sage-defeated' : 'concept-summoning', project);
 		const projectId = project.id;
 		try {
+			if (isDemoProject(project)) {
+				await new Promise((resolveDelay) => window.setTimeout(resolveDelay, 850));
+				if (!project || project.id !== projectId) return;
+				const portfolio = createDemoPortfolio(
+					new Date(),
+					(oldPortfolio?.generationNumber ?? 0) + 1
+				);
+				project = saveProject(window.localStorage, {
+					...project,
+					stage: 'concepts',
+					completedStages: Array.from(new Set([...project.completedStages, 'concepts'])),
+					concepts: { status: 'ready', portfolio },
+					featureWorkshop: createFeatureWorkshop(portfolio)
+				});
+				conceptMessage = '';
+				performSageEvent('concept-revealed', project);
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+				return;
+			}
 			const response = await fetch(resolve('/api/concepts'), {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -1454,7 +1562,14 @@
 				<span><b>IDEATION</b> AKINATOR</span>
 			</a>
 			<div class="header-tools">
-				<span class="demo-badge">PRIVATE TECH DEMO</span>
+				<span class="demo-badge" class:token-free={demoMode}
+					>{demoMode ? '0 TOKEN WALKTHROUGH' : 'PRIVATE TECH DEMO'}</span
+				>
+				{#if demoMode}
+					<button class="restart-demo-button" type="button" onclick={restartDemo}
+						>Restart demo</button
+					>
+				{/if}
 				<form method="POST" action="?/logout">
 					<button class="text-button" type="submit">Lock workshop</button>
 				</form>
@@ -1485,6 +1600,7 @@
 					<span class="status-light" aria-hidden="true"></span>
 					Saved in this browser
 				</div>
+				{#if demoMode}<div class="rail-demo-stamp">LOCAL TAPE<br />NO AI CALLS</div>{/if}
 			</aside>
 
 			{#if visualProject.stage !== 'concepts'}
@@ -2133,6 +2249,13 @@
 								<button class="answer-button primary full" type="button" onclick={beginProject}
 									>Begin the divination</button
 								>
+								<div class="demo-launch-divider"><span>or inspect the machinery</span></div>
+								<button class="answer-button demo-launch full" type="button" onclick={beginDemo}>
+									Run the token-free visual demo
+								</button>
+								<small class="demo-launch-note">
+									Uses canned research, questions, and ideas. Every screen still works.
+								</small>
 								<small>No account. This project stays in this browser.</small>
 							</div>
 						</SageDialogue>

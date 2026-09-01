@@ -956,6 +956,8 @@ AI calls should have per-stage token and tool-call limits. The app should refuse
 
 Scripted dialogue, expressions, research-window jokes, Easter eggs, and confidence explanations must not create AI calls. When an existing generation can supply a useful hypothesis, include it in that stage's structured response instead of starting another request. `You have defeated the Sage` must disclose that it starts a paid replacement generation and require confirmation.
 
+The welcome screen also provides a visibly labeled token-free visual walkthrough. It uses a local fictional project, canned research, three canned interview questions, and four canned concepts. A demo identifier must route every implemented generation boundary around its network endpoint, remain active through refresh, and expose a persistent `Restart demo` control. Illustrative demo sources must never be presented as live research.
+
 ## 17. Success criteria
 
 The demo succeeds when a first-time user can complete the entire workflow without outside help:
@@ -1106,7 +1108,7 @@ The first dialogue-first implementation pass was completed locally on 2026-09-01
 
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 8 of 13 were completed locally by 2026-09-01. This record does not claim deployment to `idea.battery.rip`.
+Implementation slices 1 through 8 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-01.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
@@ -1118,6 +1120,7 @@ Implementation slices 1 through 8 of 13 were completed locally by 2026-09-01. Th
 - A user can add a named custom feature, describe it, assign dependencies, remove it when safe, and keep it through reloads.
 - Selecting a project seals exactly that concept and its current feature set. Editing the selected configuration reopens it for confirmation.
 - Feature editing does not recalculate cost, timing, requirements, technical difficulty, or competitor positioning. The workshop labels those values as frozen until final generation.
+- A separate token-free walkthrough exercises every implemented stage through concept selection using schema-valid canned data. It survives refresh, can restart from any stage, and bypasses intake, research, interview, and concept-generation API routes.
 - Slice 9 remains next. It performs focused research for the selected concept and confirmed feature set, then recalculates the project for final generation.
 
 ## 20. Risks and mitigations
