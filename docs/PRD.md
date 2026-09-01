@@ -1108,7 +1108,7 @@ The first dialogue-first implementation pass was completed locally on 2026-09-01
 
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 8 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-01.
+Implementation slices 1 through 9 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-01.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
@@ -1120,8 +1120,12 @@ Implementation slices 1 through 8 of 13 were completed and deployed to `idea.bat
 - A user can add a named custom feature, describe it, assign dependencies, remove it when safe, and keep it through reloads.
 - Selecting a project seals exactly that concept and its current feature set. Editing the selected configuration reopens it for confirmation.
 - Feature editing does not recalculate cost, timing, requirements, technical difficulty, or competitor positioning. The workshop labels those values as frozen until final generation.
-- A separate token-free walkthrough exercises every implemented stage through concept selection using schema-valid canned data. It survives refresh, can restart from any stage, and bypasses intake, research, interview, and concept-generation API routes.
-- Slice 9 remains next. It performs focused research for the selected concept and confirmed feature set, then recalculates the project for final generation.
+- A separate token-free walkthrough exercises every implemented stage through final recalculation using schema-valid canned data. It survives refresh, can restart from any stage, and bypasses every AI and research API route.
+- Slice 9 adds a second background research job for the exact sealed concept and feature configuration. It checks direct competitors, substitutes, every selected feature, technical and regulatory constraints, contrary evidence, and cost feasibility against validated web-search sources.
+- Focused research returns a visible `supported`, `caution`, or `weakened` verdict. A weakened result remains attached to the chosen project and cannot silently replace it or remove a feature.
+- Final recalculation uses a separate non-web structured-output contract. It preserves the selected concept and exact confirmed feature IDs while updating ranges, timeline, requirements, technology or hardware, dependencies, difficulty, competitor positioning, risks, validation steps, and development phases.
+- The browser stores the focused source ledger and recalculated project file in schema v9. Editing or replacing the sealed configuration invalidates those later results.
+- Slice 10 remains next. It renders the saved recalculated project file as the polished in-browser report and downloadable cited PDF.
 
 ## 20. Risks and mitigations
 

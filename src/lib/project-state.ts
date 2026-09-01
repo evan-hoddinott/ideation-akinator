@@ -11,6 +11,11 @@ import {
 	type FeatureWorkshopState
 } from '$lib/feature-workshop';
 import {
+	createProjectFinalization,
+	parseProjectFinalization,
+	type ProjectFinalization
+} from '$lib/finalization';
+import {
 	createSagePersonality,
 	parseSagePersonality,
 	type SagePersonality
@@ -22,11 +27,11 @@ import {
 	type ResearchJobStatus
 } from '$lib/research';
 
-export const PROJECT_SCHEMA_VERSION = 8;
+export const PROJECT_SCHEMA_VERSION = 9;
 export const PROJECT_STORAGE_KEY = 'ideation-akinator:active-project';
 
 export type WorkflowStage =
-	'welcome' | 'problem' | 'preferences' | 'research' | 'questions' | 'concepts';
+	'welcome' | 'problem' | 'preferences' | 'research' | 'questions' | 'concepts' | 'focused';
 export type CompletedStage = Exclude<WorkflowStage, 'welcome'>;
 export type InnovationLevel = 1 | 2 | 3 | 4 | 5;
 
@@ -87,6 +92,7 @@ export interface ProjectSession {
 	interview: ProjectInterview;
 	concepts: ProjectConceptState;
 	featureWorkshop: FeatureWorkshopState;
+	finalization: ProjectFinalization;
 	personality: SagePersonality;
 }
 
@@ -118,6 +124,7 @@ export function createProject(now = new Date(), id = createProjectId()): Project
 		interview: createInterview(),
 		concepts: createConceptState(),
 		featureWorkshop: createFeatureWorkshop(null),
+		finalization: createProjectFinalization(),
 		personality: createSagePersonality()
 	};
 }
@@ -135,6 +142,7 @@ export function loadProject(storage: StorageLike): ProjectLoadResult {
 		if (isCurrentProject(parsed)) return { status: 'ready', project: parsed };
 
 		const migrated =
+			migrateVersionEight(parsed) ??
 			migrateVersionSeven(parsed) ??
 			migrateVersionSix(parsed) ??
 			migrateVersionFive(parsed) ??
@@ -262,6 +270,7 @@ function migrateVersionTwo(value: unknown): ProjectSession | null {
 		interview: createInterview(),
 		concepts: createConceptState(),
 		featureWorkshop: createFeatureWorkshop(null),
+		finalization: createProjectFinalization(),
 		personality: createSagePersonality()
 	};
 }
@@ -300,6 +309,7 @@ function migrateVersionThree(value: unknown): ProjectSession | null {
 		interview: createInterview(),
 		concepts: createConceptState(),
 		featureWorkshop: createFeatureWorkshop(null),
+		finalization: createProjectFinalization(),
 		personality: createSagePersonality()
 	};
 }
@@ -340,6 +350,7 @@ function migrateVersionFour(value: unknown): ProjectSession | null {
 		interview: createInterview(),
 		concepts: createConceptState(),
 		featureWorkshop: createFeatureWorkshop(null),
+		finalization: createProjectFinalization(),
 		personality: createSagePersonality()
 	};
 }
@@ -379,6 +390,7 @@ function migrateVersionFive(value: unknown): ProjectSession | null {
 		interview,
 		concepts: createConceptState(),
 		featureWorkshop: createFeatureWorkshop(null),
+		finalization: createProjectFinalization(),
 		personality: createSagePersonality()
 	};
 }
@@ -420,6 +432,7 @@ function migrateVersionSix(value: unknown): ProjectSession | null {
 		interview,
 		concepts: createConceptState(),
 		featureWorkshop: createFeatureWorkshop(null),
+		finalization: createProjectFinalization(),
 		personality
 	};
 }
@@ -463,6 +476,54 @@ function migrateVersionSeven(value: unknown): ProjectSession | null {
 		interview,
 		concepts,
 		featureWorkshop: createFeatureWorkshop(concepts.portfolio),
+		finalization: createProjectFinalization(),
+		personality
+	};
+}
+
+function migrateVersionEight(value: unknown): ProjectSession | null {
+	if (!value || typeof value !== 'object') return null;
+	const previous = value as Record<string, unknown>;
+	const interview = parseProjectInterview(previous.interview);
+	const concepts = parseProjectConceptState(previous.concepts);
+	const featureWorkshop = parseFeatureWorkshopState(previous.featureWorkshop);
+	const personality = parseSagePersonality(previous.personality);
+	if (
+		previous.schemaVersion !== 8 ||
+		typeof previous.id !== 'string' ||
+		previous.id.length === 0 ||
+		!isIsoDate(previous.createdAt) ||
+		!isIsoDate(previous.updatedAt) ||
+		!isVersionEightWorkflowStage(previous.stage) ||
+		!isVersionEightCompletedStageArray(previous.completedStages) ||
+		!isStringArray(previous.invalidatedStages) ||
+		!isProblemInput(previous.problemInput) ||
+		!isPreferences(previous.preferences) ||
+		!isResearch(previous.research) ||
+		!interview ||
+		!concepts ||
+		!featureWorkshop ||
+		!featureWorkshopMatchesConcepts(featureWorkshop, concepts) ||
+		!personality
+	) {
+		return null;
+	}
+
+	return {
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		id: previous.id,
+		createdAt: previous.createdAt,
+		updatedAt: previous.updatedAt,
+		stage: previous.stage,
+		completedStages: previous.completedStages,
+		invalidatedStages: previous.invalidatedStages,
+		problemInput: previous.problemInput,
+		preferences: previous.preferences,
+		research: previous.research,
+		interview,
+		concepts,
+		featureWorkshop,
+		finalization: createProjectFinalization(),
 		personality
 	};
 }
@@ -472,6 +533,7 @@ function isCurrentProject(value: unknown): value is ProjectSession {
 	const project = value as Partial<ProjectSession>;
 	const concepts = parseProjectConceptState(project.concepts);
 	const featureWorkshop = parseFeatureWorkshopState(project.featureWorkshop);
+	const finalization = parseProjectFinalization(project.finalization);
 	return (
 		project.schemaVersion === PROJECT_SCHEMA_VERSION &&
 		typeof project.id === 'string' &&
@@ -488,6 +550,7 @@ function isCurrentProject(value: unknown): value is ProjectSession {
 		!!concepts &&
 		!!featureWorkshop &&
 		featureWorkshopMatchesConcepts(featureWorkshop, concepts) &&
+		!!finalization &&
 		!!parseSagePersonality(project.personality)
 	);
 }
@@ -608,7 +671,8 @@ function isWorkflowStage(value: unknown): value is WorkflowStage {
 		value === 'preferences' ||
 		value === 'research' ||
 		value === 'questions' ||
-		value === 'concepts'
+		value === 'concepts' ||
+		value === 'focused'
 	);
 }
 
@@ -625,6 +689,34 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 function isCompletedStageArray(value: unknown): value is CompletedStage[] {
+	return (
+		Array.isArray(value) &&
+		value.every(
+			(entry) =>
+				entry === 'problem' ||
+				entry === 'preferences' ||
+				entry === 'research' ||
+				entry === 'questions' ||
+				entry === 'concepts' ||
+				entry === 'focused'
+		)
+	);
+}
+
+function isVersionEightWorkflowStage(value: unknown): value is Exclude<WorkflowStage, 'focused'> {
+	return (
+		value === 'welcome' ||
+		value === 'problem' ||
+		value === 'preferences' ||
+		value === 'research' ||
+		value === 'questions' ||
+		value === 'concepts'
+	);
+}
+
+function isVersionEightCompletedStageArray(
+	value: unknown
+): value is Array<'problem' | 'preferences' | 'research' | 'questions' | 'concepts'> {
 	return (
 		Array.isArray(value) &&
 		value.every(

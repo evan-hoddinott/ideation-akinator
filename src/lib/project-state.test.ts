@@ -53,6 +53,11 @@ describe('versioned project state', () => {
 			selectedConceptId: null,
 			confirmedAt: null
 		});
+		expect(project.finalization).toEqual({
+			configurationFingerprint: null,
+			research: { jobId: null, status: 'idle', result: null },
+			plan: null
+		});
 	});
 
 	it('migrates a valid slice-one project without changing its identity or stage', () => {
@@ -70,14 +75,14 @@ describe('versioned project state', () => {
 		expect(result.status).toBe('migrated');
 		if (result.status !== 'migrated') throw new Error('expected migrated project');
 		expect(result.project).toMatchObject({
-			schemaVersion: 8,
+			schemaVersion: PROJECT_SCHEMA_VERSION,
 			id: 'old-project',
 			stage: 'problem',
 			createdAt: '2026-08-31T10:00:00.000Z',
 			updatedAt: '2026-08-31T10:01:00.000Z'
 		});
 		expect(result.project.problemInput.cards).toHaveLength(1);
-		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(8);
+		expect(JSON.parse(storage.value() ?? '{}').schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
 	});
 
 	it('migrates slice-two intake data and adds AI suggestion tracking', () => {
@@ -206,6 +211,22 @@ describe('versioned project state', () => {
 			configurations: [],
 			selectedConceptId: null,
 			confirmedAt: null
+		});
+	});
+
+	it('migrates slice-eight feature state into an empty finalization room', () => {
+		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-8');
+		const versionEight = { ...project, schemaVersion: 8 } as Record<string, unknown>;
+		delete versionEight.finalization;
+		const storage = memoryStorage(JSON.stringify(versionEight));
+
+		const loaded = loadProject(storage);
+		expect(loaded.status).toBe('migrated');
+		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
+		expect(loaded.project.finalization).toEqual({
+			configurationFingerprint: null,
+			research: { jobId: null, status: 'idle', result: null },
+			plan: null
 		});
 	});
 

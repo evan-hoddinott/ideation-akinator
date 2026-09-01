@@ -8,7 +8,8 @@ export const STAGE_ALTITUDES: Record<WorkflowStage, number> = {
 	preferences: 0.4,
 	research: 0.65,
 	questions: 0.84,
-	concepts: 0.95
+	concepts: 0.95,
+	focused: 0.98
 };
 
 export type SageClip = 'idle' | 'ascend' | 'reaction' | 'popup_swat' | 'weak_answer' | 'reveal';

@@ -1,4 +1,11 @@
 import { COMPARISON_DIMENSIONS, type ConceptPortfolio, type ProjectConcept } from '$lib/concepts';
+import type {
+	FinalProjectPlan,
+	FinalRecalculationRequest,
+	FocusedResearchJobView,
+	FocusedResearchRequest,
+	FocusedResearchResult
+} from '$lib/finalization';
 import type { IntakeInsights } from '$lib/intake-insights';
 import type { InterviewNextResult, InterviewQuestion, ProjectInterview } from '$lib/interview';
 import { createProject, type ProjectSession } from '$lib/project-state';
@@ -272,6 +279,221 @@ export function createDemoPortfolio(now = new Date(), generationNumber = 1): Con
 			})
 		],
 		generationNumber,
+		generatedAt: now.toISOString()
+	};
+}
+
+export function createDemoFocusedResearchResult(
+	request: FocusedResearchRequest,
+	now = new Date()
+): FocusedResearchResult {
+	const retrievedAt = now.toISOString();
+	const sources = [
+		{
+			id: 'demo-focused-source-1',
+			url: 'https://example.com/demo/configured-competitor',
+			title: 'Illustrative configured competitor page',
+			publisher: 'Token-free demo tape',
+			publicationDate: null,
+			retrievedAt,
+			stage: 'focused' as const,
+			evidenceSummary: 'Canned example showing how direct feature overlap appears.'
+		},
+		{
+			id: 'demo-focused-source-2',
+			url: 'https://example.com/demo/configured-feasibility',
+			title: 'Illustrative implementation and cost notes',
+			publisher: 'Token-free demo tape',
+			publicationDate: null,
+			retrievedAt,
+			stage: 'focused' as const,
+			evidenceSummary: 'Canned example showing how feasibility evidence appears.'
+		}
+	];
+	return {
+		summary: `${request.selectedConcept.name} still has a plausible campus-specific opening, but the value rests on a simpler staff-to-rider notice loop rather than generic trip planning.`,
+		verdict: 'caution',
+		verdictRationale:
+			'The configured feature set is buildable inside the demo budget, but access to reliable campus service data remains unverified.',
+		findings: [
+			{
+				id: 'demo-focused-finding-1',
+				category: 'direct-competitors',
+				title: 'Generic service alerts already exist',
+				claim: 'The illustrative competitor supports general transit notices.',
+				interpretation:
+					'The chosen project must win on the campus publishing workflow, not on having alerts at all.',
+				sourceIds: ['demo-focused-source-1']
+			},
+			{
+				id: 'demo-focused-finding-2',
+				category: 'cost-feasibility',
+				title: 'The notice-first prototype stays small',
+				claim: 'A web prototype can use scheduled data and manually entered service changes.',
+				interpretation: 'Live prediction can remain outside the first build.',
+				sourceIds: ['demo-focused-source-2']
+			}
+		],
+		featureOverlap: request.includedFeatures.map((feature, index) => ({
+			featureId: feature.id,
+			status: index === 0 ? ('common' as const) : ('partial' as const),
+			explanation:
+				index === 0
+					? `${feature.name} resembles a common transit notice capability.`
+					: `${feature.name} exists in pieces, but the canned demo found no exact campus workflow match.`,
+			sourceIds: ['demo-focused-source-1']
+		})),
+		competitorMatrix: [
+			{
+				name: 'Illustrative general transit app',
+				type: 'direct',
+				overlappingFeatures: request.includedFeatures.slice(0, 1).map((feature) => feature.name),
+				missingFeatures: request.includedFeatures.slice(1).map((feature) => feature.name),
+				comparison:
+					'The substitute covers general rider alerts. The configured project stays narrower and gives campus staff one publishing workflow.',
+				sourceIds: ['demo-focused-source-1']
+			}
+		],
+		recommendations: [
+			'Validate data access before promising live information.',
+			'Test whether one publishing action actually reduces staff repetition.'
+		],
+		sources,
+		gaps: [
+			{
+				category: 'regulatory-constraints',
+				reason: 'The token-free walkthrough does not research a real campus or jurisdiction.'
+			}
+		],
+		retrievedAt,
+		disclaimer: 'Token-free visual demo. These are illustrative findings, not live research.'
+	};
+}
+
+export function createDemoFocusedResearchJob(
+	request: FocusedResearchRequest,
+	status: 'running' | 'completed',
+	now = new Date()
+): FocusedResearchJobView {
+	const timestamp = now.toISOString();
+	return {
+		id: 'demo-focused-research-job',
+		status,
+		progress: status === 'completed' ? 'complete' : 'researching',
+		createdAt: timestamp,
+		updatedAt: timestamp,
+		expiresAt: new Date(now.getTime() + 60 * 60 * 1_000).toISOString(),
+		message:
+			status === 'completed'
+				? 'The canned configured-project brief is ready. No web search occurred.'
+				: 'Playing the local focused research performance. No AI call is running.',
+		result: status === 'completed' ? createDemoFocusedResearchResult(request, now) : null
+	};
+}
+
+export function createDemoFinalPlan(
+	request: FinalRecalculationRequest,
+	now = new Date()
+): FinalProjectPlan {
+	const features = request.includedFeatures;
+	return {
+		selectedConceptId: request.selectedConcept.id,
+		productName: request.selectedConcept.name,
+		oneLineSummary:
+			'A campus notice desk that turns one staff update into clear information for affected riders.',
+		executiveSummary:
+			'This recalculated demo plan keeps the confirmed notice workflow small. It tests staff publishing and rider comprehension before adding live tracking or prediction.',
+		confirmedFeatures: features,
+		prototypeBudget: {
+			minimumUsd: 450,
+			maximumUsd: 1_200,
+			assumptions: [
+				'One student builds the prototype with hosted web services.',
+				'The first test uses sample transit data and manual notices.'
+			]
+		},
+		productionBudget: request.includeProductionPlanning
+			? {
+					minimumUsd: 4_000,
+					maximumUsd: 10_000,
+					assumptions: ['One campus deploys the service with a maintained data feed.']
+				}
+			: null,
+		prototypeTimeline: '5 to 7 weeks',
+		functionalRequirements: features.map((feature, index) => ({
+			id: `FR-${index + 1}`,
+			name: feature.name,
+			description: feature.description,
+			acceptanceCriteria: [`A test user can complete the ${feature.name} workflow.`]
+		})),
+		nonfunctionalRequirements: [
+			{
+				category: 'Accessibility',
+				requirement: 'Current service notices must remain readable without color or animation.',
+				measure: 'Keyboard-only review passes and every notice has text status.'
+			},
+			{
+				category: 'Freshness',
+				requirement: 'Published changes must appear promptly.',
+				measure: 'A saved test notice appears within 30 seconds.'
+			}
+		],
+		technologyRecommendations: [
+			{
+				area: 'Application',
+				choice: 'TypeScript web app with a small relational database',
+				rationale:
+					'It matches the demo builder skills and keeps the publishing workflow inspectable.'
+			}
+		],
+		hardwareManufacturingRequirements: [],
+		featureDependencies: features.map((feature) => ({
+			featureId: feature.id,
+			dependsOnFeatureIds: feature.dependencies,
+			explanation: feature.dependencies.length
+				? 'Keep the confirmed workshop dependency.'
+				: 'This feature has no confirmed dependency.'
+		})),
+		technicalDifficulty: 'medium',
+		technicalDifficultyRationale:
+			'The interface is routine, but reliable transit data and timely publishing need early testing.',
+		competitorPositioning: [
+			{
+				competitorName: 'Illustrative general transit app',
+				type: 'direct',
+				overlap: 'Both present service alerts to riders.',
+				differentiation: 'The selected project centers the campus staff publishing loop.',
+				sourceIds: ['demo-focused-source-1']
+			}
+		],
+		risks: [
+			{
+				risk: 'Campus data access may be delayed or unavailable.',
+				mitigation:
+					'Prototype with scheduled data and manual notices before integrating a live feed.',
+				evidenceSourceIds: ['demo-focused-source-2']
+			}
+		],
+		validationSteps: [
+			{
+				hypothesis: 'One publishing action reduces repeated staff updates.',
+				method: 'Run a tabletop route-change exercise with two staff members.',
+				successSignal: 'Both publish the complete notice without copying it into another tool.'
+			}
+		],
+		developmentPhases: [
+			{
+				name: 'Notice loop prototype',
+				goal: 'Prove the staff-to-rider workflow.',
+				deliverables: ['Staff notice form', 'Rider notice page', 'Sample campus route data']
+			},
+			{
+				name: 'Small campus test',
+				goal: 'Measure comprehension and staff effort.',
+				deliverables: ['Usability notes', 'Timing measurements', 'Revised requirements']
+			}
+		],
+		materialWarning: null,
 		generatedAt: now.toISOString()
 	};
 }

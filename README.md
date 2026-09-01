@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 8 of 13 are complete. They include:
+Implementation slices 1 through 9 of 13 are complete. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -31,15 +31,19 @@ Implementation slices 1 through 8 of 13 are complete. They include:
 - A dialogue-first game layout with Sage-following response windows, summoned scrolls, and the wheeled research computer performance.
 - Separate feature workshops for all four ideas with core, recommended, optional, and custom features.
 - Explained feature dependencies, protected dependency removal, persistent edits, and confirmation of one chosen project.
-- Local autosave, back navigation, intake validation, and browser-state migration through schema v8.
+- A second cited web pass for the exact selected concept and confirmed feature set, including direct competitors, substitutes, feature overlap, constraints, contrary evidence, cost evidence, and named gaps.
+- A visible supported, caution, or weakened verdict that can recommend changes without silently replacing the user's selected project.
+- Final recalculation of cost ranges, timeline, functional and measurable nonfunctional requirements, technology or hardware recommendations, dependencies, difficulty, positioning, risks, validation steps, and development phases.
+- Strict preservation of the sealed concept and feature list through final recalculation, with a required material warning when research weakens the idea.
+- Local autosave, back navigation, intake validation, and browser-state migration through schema v9.
 - A Node health endpoint at `/health`.
 - A fully local, token-free visual walkthrough with canned intake feedback, research, interview questions, and four concepts. Demo projects are visibly marked, survive refresh, and can be restarted from any stage.
 
-Slice 9 adds focused research for the chosen project and confirmed feature set.
+Slice 10 turns the saved recalculated plan into the polished browser preview and downloadable cited PDF.
 
 ## Token-free visual walkthrough
 
-After signing in, choose `Run the token-free visual demo`. The app loads a fictional campus-transit project and lets you click through the complete implemented flow without calling any AI or research endpoint. The canned research uses clearly labeled illustrative links and must not be treated as live evidence.
+After signing in, choose `Run the token-free visual demo`. The app loads a fictional campus-transit project and lets you click through the complete implemented flow, including focused research and final recalculation, without calling any AI or research endpoint. The canned research uses clearly labeled illustrative links and must not be treated as live evidence.
 
 Use `Restart demo` in the header at any point to return to the prefilled problem stage. Starting a normal project continues to use the configured providers.
 
@@ -63,7 +67,7 @@ Requirements: Node.js 22 or later and npm.
 2. Copy `.env.example` to `.env`.
 3. Run `npm run auth:hash` and place the resulting hash in `APP_PASSWORD_HASH`.
 4. Generate `APP_COOKIE_SECRET` with at least 32 random bytes. `openssl rand -base64 48` works on Linux.
-5. Add a server-side `OPENAI_API_KEY`. `OPENAI_INTAKE_MODEL` and `OPENAI_INTERVIEW_MODEL` default to `gpt-5.6-luna`. `OPENAI_RESEARCH_MODEL` and `OPENAI_CONCEPT_MODEL` default to `gpt-5.6-terra`.
+5. Add a server-side `OPENAI_API_KEY`. `OPENAI_INTAKE_MODEL` and `OPENAI_INTERVIEW_MODEL` default to `gpt-5.6-luna`. `OPENAI_RESEARCH_MODEL`, `OPENAI_CONCEPT_MODEL`, and `OPENAI_FINAL_MODEL` default to `gpt-5.6-terra`.
 6. Start the app with `npm run dev`.
 
 Keep `.env` out of source control. The password helper hides terminal input when run interactively. If the OpenAI key is missing, intake stays usable and saved, while research and interview actions explain what the server needs without discarding completed work.

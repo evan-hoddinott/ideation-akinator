@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
+	import FinalizationRoom from '$lib/components/FinalizationRoom.svelte';
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
 	import SageStage from '$lib/components/SageStage.svelte';
@@ -16,11 +17,24 @@
 	import {
 		createDemoPortfolio,
 		createDemoProject,
+		createDemoFinalPlan,
+		createDemoFocusedResearchJob,
 		createDemoResearchJob,
 		demoIntakeInsights,
 		isDemoProject,
 		nextDemoInterview
 	} from '$lib/demo';
+	import {
+		createProjectFinalization,
+		finalizationFingerprint,
+		parseFinalProjectPlan,
+		parseFocusedResearchJobView,
+		type FinalRecalculationRequest,
+		type FocusedResearchJobView,
+		type FocusedResearchRequest,
+		type SelectedConceptInput,
+		type SelectedFeatureInput
+	} from '$lib/finalization';
 	import { createFeatureWorkshop, type FeatureWorkshopState } from '$lib/feature-workshop';
 	import {
 		CLARITY_LABELS,
@@ -91,6 +105,9 @@
 	let interviewDialog = $state<HTMLDialogElement>();
 	let conceptBusy = $state(false);
 	let conceptMessage = $state('');
+	let focusedResearchBusy = $state(false);
+	let finalPlanBusy = $state(false);
+	let finalizationMessage = $state('');
 	let textAnswer = $state('');
 	let numberAnswer = $state('');
 	let singleAnswer = $state('');
@@ -129,14 +146,23 @@
 	);
 	const currentStageIndex = $derived(
 		project
-			? { welcome: -1, problem: 0, preferences: 1, research: 2, questions: 3, concepts: 4 }[
-					project.stage
-				]
+			? project.stage === 'concepts'
+				? project.featureWorkshop.status === 'confirmed'
+					? 5
+					: 4
+				: { welcome: -1, problem: 0, preferences: 1, research: 2, questions: 3, focused: 6 }[
+						project.stage
+					]
 			: -1
 	);
-	const researchIsActive = $derived(
+	const broadResearchIsActive = $derived(
 		project?.research.status === 'queued' || project?.research.status === 'running'
 	);
+	const focusedResearchIsActive = $derived(
+		project?.finalization.research.status === 'queued' ||
+			project?.finalization.research.status === 'running'
+	);
+	const researchIsActive = $derived(broadResearchIsActive || focusedResearchIsActive);
 	const currentQuestion = $derived(
 		project?.interview.questions[project.interview.currentQuestionIndex] ?? null
 	);
@@ -167,7 +193,7 @@
 		{ label: 'Questions', glyph: '04' },
 		{ label: 'Four ideas', glyph: '05' },
 		{ label: 'Workshop', glyph: '06' },
-		{ label: 'Final PRD', glyph: '07' }
+		{ label: 'Final plan', glyph: '07' }
 	];
 	const innovationLabels = [
 		'Proven and conventional',
@@ -279,7 +305,8 @@
 			!signature ||
 			project?.stage === 'research' ||
 			project?.stage === 'questions' ||
-			project?.stage === 'concepts'
+			project?.stage === 'concepts' ||
+			project?.stage === 'focused'
 		)
 			return;
 
@@ -316,6 +343,18 @@
 		}
 
 		const timer = window.setInterval(() => void pollResearchJob(jobId), 1_500);
+		return () => window.clearInterval(timer);
+	});
+
+	$effect(() => {
+		const jobId = project?.stage === 'focused' ? project.finalization.research.jobId : null;
+		const status = project?.finalization.research.status;
+		if (!jobId || (status !== 'queued' && status !== 'running')) return;
+		if (isDemoProject(project)) {
+			const timer = window.setTimeout(() => completeDemoFocusedResearch(jobId), 4_500);
+			return () => window.clearTimeout(timer);
+		}
+		const timer = window.setInterval(() => void pollFocusedResearchJob(jobId), 1_500);
 		return () => window.clearInterval(timer);
 	});
 
@@ -477,8 +516,13 @@
 						interview: createInterview(),
 						concepts: createConceptState(),
 						featureWorkshop: createFeatureWorkshop(null),
+						finalization: createProjectFinalization(),
 						completedStages: nextProject.completedStages.filter(
-							(stage) => stage !== 'research' && stage !== 'questions' && stage !== 'concepts'
+							(stage) =>
+								stage !== 'research' &&
+								stage !== 'questions' &&
+								stage !== 'concepts' &&
+								stage !== 'focused'
 						)
 					}
 				: nextProject
@@ -865,7 +909,7 @@
 	}
 
 	async function startBroadResearch() {
-		if (!project || researchBusy || researchIsActive) return;
+		if (!project || researchBusy || broadResearchIsActive) return;
 		const input = broadResearchRequest(project);
 		if (!input) {
 			researchMessage = 'The intake is missing a required budget or preference.';
@@ -879,8 +923,13 @@
 			interview: createInterview(),
 			concepts: createConceptState(),
 			featureWorkshop: createFeatureWorkshop(null),
+			finalization: createProjectFinalization(),
 			completedStages: project.completedStages.filter(
-				(stage) => stage !== 'research' && stage !== 'questions' && stage !== 'concepts'
+				(stage) =>
+					stage !== 'research' &&
+					stage !== 'questions' &&
+					stage !== 'concepts' &&
+					stage !== 'focused'
 			)
 		});
 		performSageEvent('research-started', project);
@@ -955,7 +1004,7 @@
 
 	async function cancelResearchJob(silent = false) {
 		const jobId = project?.research.jobId;
-		if (!jobId || !researchIsActive) return;
+		if (!jobId || !broadResearchIsActive) return;
 		if (project && isDemoProject(project)) {
 			project = saveProject(window.localStorage, {
 				...project,
@@ -1189,10 +1238,11 @@
 		const nextProject = saveProject(window.localStorage, {
 			...project,
 			completedStages: project.completedStages.filter(
-				(stage) => stage !== 'questions' && stage !== 'concepts'
+				(stage) => stage !== 'questions' && stage !== 'concepts' && stage !== 'focused'
 			),
 			concepts: createConceptState(),
 			featureWorkshop: createFeatureWorkshop(null),
+			finalization: createProjectFinalization(),
 			interview: {
 				...project.interview,
 				status: 'active',
@@ -1257,6 +1307,7 @@
 			completedStages: Array.from(new Set([...project.completedStages, 'questions'])),
 			concepts: createConceptState(),
 			featureWorkshop: createFeatureWorkshop(null),
+			finalization: createProjectFinalization(),
 			interview: {
 				...project.interview,
 				status: 'ended-early',
@@ -1356,7 +1407,8 @@
 					stage: 'concepts',
 					completedStages: Array.from(new Set([...project.completedStages, 'concepts'])),
 					concepts: { status: 'ready', portfolio },
-					featureWorkshop: createFeatureWorkshop(portfolio)
+					featureWorkshop: createFeatureWorkshop(portfolio),
+					finalization: createProjectFinalization()
 				});
 				conceptMessage = '';
 				performSageEvent('concept-revealed', project);
@@ -1392,7 +1444,8 @@
 					status: 'ready',
 					portfolio
 				},
-				featureWorkshop: createFeatureWorkshop(portfolio)
+				featureWorkshop: createFeatureWorkshop(portfolio),
+				finalization: createProjectFinalization()
 			});
 			conceptMessage = '';
 			performSageEvent('concept-revealed', project);
@@ -1418,7 +1471,19 @@
 	) {
 		if (!project) return;
 		if (event !== 'blocked') {
-			project = saveProject(window.localStorage, { ...project, featureWorkshop: next });
+			const candidate = { ...project, featureWorkshop: next };
+			const input = focusedResearchRequest(candidate);
+			const fingerprint = input
+				? finalizationFingerprint(input.selectedConcept.id, input.includedFeatures)
+				: null;
+			project = saveProject(window.localStorage, {
+				...candidate,
+				completedStages: candidate.completedStages.filter((stage) => stage !== 'focused'),
+				finalization:
+					fingerprint && fingerprint === project.finalization.configurationFingerprint
+						? project.finalization
+						: createProjectFinalization()
+			});
 		}
 		performSageEvent(
 			event === 'confirmed'
@@ -1430,8 +1495,261 @@
 		);
 	}
 
+	function focusedResearchRequest(session: ProjectSession): FocusedResearchRequest | null {
+		const selectedConceptId = session.featureWorkshop.selectedConceptId;
+		const concept = session.concepts.portfolio?.concepts.find(
+			(candidate) => candidate.id === selectedConceptId
+		);
+		const configuration = session.featureWorkshop.configurations.find(
+			(candidate) => candidate.conceptId === selectedConceptId
+		);
+		const broadResearch = session.research.result;
+		const preferences = session.preferences;
+		if (
+			session.featureWorkshop.status !== 'confirmed' ||
+			!concept ||
+			!configuration ||
+			!broadResearch ||
+			preferences.prototypeBudgetUsd === null ||
+			(preferences.includeProductionPlanning && preferences.productionBudgetUsd === null)
+		)
+			return null;
+
+		const included = configuration.features.filter((feature) => feature.included);
+		const includedIds = new Set(included.map((feature) => feature.id));
+		if (!included.length) return null;
+		const selectedConcept: SelectedConceptInput = {
+			id: concept.id,
+			name: concept.name,
+			pitch: concept.pitch,
+			description: concept.description,
+			targetUser: concept.targetUser,
+			distinctApproach: concept.distinctApproach,
+			prototypeBudget: concept.prototypeBudget,
+			productionBudget: concept.productionBudget,
+			prototypeTimeline: concept.prototypeTimeline
+		};
+		const includedFeatures: SelectedFeatureInput[] = included.map((feature) => ({
+			id: feature.id,
+			name: feature.name,
+			description: feature.description,
+			tier: feature.tier,
+			dependencies: feature.dependencies.filter((id) => includedIds.has(id))
+		}));
+		return {
+			projectId: session.id,
+			topic: session.problemInput.topic,
+			problems: session.problemInput.cards.map((card) => card.text.trim()).filter(Boolean),
+			selectedConcept,
+			includedFeatures,
+			constraints: { ...preferences.constraints },
+			prototypeBudgetUsd: preferences.prototypeBudgetUsd,
+			includeProductionPlanning: preferences.includeProductionPlanning,
+			productionBudgetUsd: preferences.productionBudgetUsd,
+			broadResearch
+		};
+	}
+
+	function enterFinalizationRoom() {
+		if (!project) return;
+		const input = focusedResearchRequest(project);
+		if (!input) {
+			conceptMessage = 'Seal one project with at least one feature before focused research.';
+			return;
+		}
+		const fingerprint = finalizationFingerprint(input.selectedConcept.id, input.includedFeatures);
+		project = saveProject(window.localStorage, {
+			...project,
+			stage: 'focused',
+			finalization:
+				project.finalization.configurationFingerprint === fingerprint
+					? project.finalization
+					: { ...createProjectFinalization(), configurationFingerprint: fingerprint }
+		});
+		finalizationMessage = '';
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	function returnToWorkshop() {
+		if (!project || focusedResearchIsActive || finalPlanBusy) return;
+		project = saveProject(window.localStorage, { ...project, stage: 'concepts' });
+		finalizationMessage = '';
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	function persistFocusedResearchJob(job: FocusedResearchJobView) {
+		if (!project) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			finalization: {
+				...project.finalization,
+				research: { jobId: job.id, status: job.status, result: job.result },
+				plan: job.result ? project.finalization.plan : null
+			}
+		});
+		finalizationMessage = job.message ?? '';
+		if (job.status === 'completed' || job.status === 'partial')
+			performSageEvent('research-complete', project);
+		if (job.status === 'failed') performSageEvent('research-failed', project);
+	}
+
+	async function startFocusedResearch() {
+		if (!project || focusedResearchBusy || focusedResearchIsActive) return;
+		const input = focusedResearchRequest(project);
+		if (!input) {
+			finalizationMessage = 'The sealed project configuration is incomplete.';
+			return;
+		}
+		focusedResearchBusy = true;
+		finalizationMessage = isDemoProject(project)
+			? 'Loading the canned configured-project investigation...'
+			: 'The Sage is fetching the large computer again...';
+		performSageEvent('research-started', project);
+		try {
+			if (isDemoProject(project)) {
+				persistFocusedResearchJob(createDemoFocusedResearchJob(input, 'running'));
+				return;
+			}
+			const response = await fetch(resolve('/api/focused-research/jobs'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(input)
+			});
+			const body: unknown = await response.json();
+			if (!response.ok) {
+				const error = body as { message?: unknown };
+				finalizationMessage =
+					typeof error.message === 'string' ? error.message : 'Focused research could not start.';
+				return;
+			}
+			const job = parseFocusedResearchJobView(body);
+			if (!job) throw new Error('Invalid focused research job');
+			persistFocusedResearchJob(job);
+		} catch {
+			finalizationMessage = 'Focused research could not start. Your chosen project is still saved.';
+		} finally {
+			focusedResearchBusy = false;
+		}
+	}
+
+	function completeDemoFocusedResearch(jobId: string) {
+		if (!project || project.finalization.research.jobId !== jobId || !isDemoProject(project))
+			return;
+		const input = focusedResearchRequest(project);
+		if (!input) return;
+		persistFocusedResearchJob(createDemoFocusedResearchJob(input, 'completed'));
+	}
+
+	async function pollFocusedResearchJob(jobId: string) {
+		if (!project || !focusedResearchIsActive || project.finalization.research.jobId !== jobId)
+			return;
+		try {
+			const response = await fetch(resolve(`/api/focused-research/jobs/${jobId}`));
+			const body: unknown = await response.json();
+			if (!response.ok) {
+				const error = body as { message?: unknown };
+				project = saveProject(window.localStorage, {
+					...project,
+					finalization: {
+						...project.finalization,
+						research: { jobId: null, status: 'failed', result: null },
+						plan: null
+					}
+				});
+				finalizationMessage =
+					typeof error.message === 'string'
+						? error.message
+						: 'The focused research job disappeared.';
+				return;
+			}
+			const job = parseFocusedResearchJobView(body);
+			if (!job) throw new Error('Invalid focused research job');
+			persistFocusedResearchJob(job);
+		} catch {
+			finalizationMessage =
+				'The focused research status could not be refreshed. I will keep trying.';
+		}
+	}
+
+	async function cancelFocusedResearch(silent = false) {
+		const jobId = project?.finalization.research.jobId;
+		if (!project || !jobId || !focusedResearchIsActive) return;
+		if (isDemoProject(project)) {
+			project = saveProject(window.localStorage, {
+				...project,
+				finalization: {
+					...project.finalization,
+					research: { jobId, status: 'cancelled', result: null },
+					plan: null
+				}
+			});
+			if (!silent) finalizationMessage = 'Canned focused research cancelled.';
+			return;
+		}
+		try {
+			const response = await fetch(resolve(`/api/focused-research/jobs/${jobId}`), {
+				method: 'DELETE'
+			});
+			const body: unknown = await response.json();
+			const job = response.ok ? parseFocusedResearchJobView(body) : null;
+			if (job) persistFocusedResearchJob(job);
+		} catch {
+			if (!silent) finalizationMessage = 'The cancellation signal did not reach the server.';
+		}
+	}
+
+	async function generateFinalPlan() {
+		if (!project || finalPlanBusy || !project.finalization.research.result) return;
+		const base = focusedResearchRequest(project);
+		if (!base) return;
+		const input: FinalRecalculationRequest = {
+			...base,
+			focusedResearch: project.finalization.research.result
+		};
+		finalPlanBusy = true;
+		finalizationMessage = isDemoProject(project)
+			? 'Playing the canned recalculation...'
+			: 'The Sage is recalculating every frozen estimate and requirement...';
+		try {
+			let plan;
+			if (isDemoProject(project)) {
+				await new Promise((resolveDelay) => window.setTimeout(resolveDelay, 900));
+				plan = createDemoFinalPlan(input);
+			} else {
+				const response = await fetch(resolve('/api/final-plan'), {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify(input)
+				});
+				const body: unknown = await response.json();
+				if (!response.ok) {
+					const error = body as { message?: unknown };
+					finalizationMessage =
+						typeof error.message === 'string' ? error.message : 'The recalculation failed.';
+					return;
+				}
+				plan = parseFinalProjectPlan(body, input);
+				if (!plan) throw new Error('Invalid final project plan');
+			}
+			if (!project) return;
+			project = saveProject(window.localStorage, {
+				...project,
+				completedStages: Array.from(new Set([...project.completedStages, 'focused'])),
+				finalization: { ...project.finalization, plan }
+			});
+			finalizationMessage = 'Every frozen estimate and requirement has been recalculated.';
+			performSageEvent('concepts-complete', project);
+		} catch {
+			finalizationMessage =
+				'The recalculated project file did not stabilize. Focused research is still saved.';
+		} finally {
+			finalPlanBusy = false;
+		}
+	}
+
 	function startOver() {
 		void cancelResearchJob(true);
+		void cancelFocusedResearch(true);
 		clearProject(window.localStorage);
 		project = null;
 		stateNotice = 'The active project was cleared. The oracle is ready for a new one.';
@@ -1449,6 +1767,9 @@
 		interviewMessage = '';
 		conceptBusy = false;
 		conceptMessage = '';
+		focusedResearchBusy = false;
+		finalPlanBusy = false;
+		finalizationMessage = '';
 		playerNameDraft = '';
 		projectNameDraft = '';
 		customAnswer = '';
@@ -1588,7 +1909,11 @@
 								(index === 1 && project?.completedStages.includes('preferences')) ||
 								(index === 2 && project?.completedStages.includes('research')) ||
 								(index === 3 && project?.completedStages.includes('questions')) ||
-								(index === 4 && project?.completedStages.includes('concepts'))}
+								(index === 4 && project?.completedStages.includes('concepts')) ||
+								(index === 5 &&
+									(project?.featureWorkshop.status === 'confirmed' ||
+										project?.stage === 'focused')) ||
+								(index === 6 && project?.completedStages.includes('focused'))}
 							class:pending={!project || index > currentStageIndex}
 						>
 							<span class="step-glyph">{step.glyph}</span>
@@ -1917,7 +2242,7 @@
 									</div>
 								</div>
 							</SageDialogue>
-						{:else if researchIsActive}
+						{:else if broadResearchIsActive}
 							<ResearchWorkstation
 								active={true}
 								calm={project.personality.calmMode}
@@ -2215,6 +2540,41 @@
 										>
 									</div>
 								</div>
+							</SageDialogue>
+						{/if}
+					{:else if project?.stage === 'focused'}
+						{@const focusedInput = focusedResearchRequest(project)}
+						{#if focusedInput}
+							<FinalizationRoom
+								projectId={project.id}
+								concept={focusedInput.selectedConcept}
+								features={focusedInput.includedFeatures}
+								finalization={project.finalization}
+								personality={project.personality}
+								altitude={sageAltitude}
+								researchBusy={focusedResearchBusy}
+								planBusy={finalPlanBusy}
+								message={finalizationMessage}
+								onStartResearch={startFocusedResearch}
+								onCancelResearch={() => cancelFocusedResearch()}
+								onGeneratePlan={generateFinalPlan}
+								onBack={returnToWorkshop}
+								onToggleMute={toggleSageAudio}
+								onToggleCalm={toggleCalmMode}
+							/>
+						{:else}
+							<SageDialogue
+								altitude={sageAltitude}
+								personality={project.personality}
+								mode="announce"
+								label="THE SEAL IS MISSING"
+								prompt="Return to the workshop and choose one valid configuration."
+								onToggleMute={toggleSageAudio}
+								onToggleCalm={toggleCalmMode}
+							>
+								<button class="answer-button primary" type="button" onclick={returnToWorkshop}
+									>Return to workshop</button
+								>
 							</SageDialogue>
 						{/if}
 					{:else}
@@ -2648,7 +3008,7 @@
 									>
 								</aside>
 							</div>
-						{:else if researchIsActive}
+						{:else if broadResearchIsActive}
 							<div class="research-running" aria-live="polite">
 								<div class="research-orb" aria-hidden="true"><i></i><b>?</b></div>
 								<p class="panel-kicker">LIVE RESEARCH PASS</p>
@@ -2775,7 +3135,7 @@
 							<button
 								class="secondary-button"
 								type="button"
-								disabled={researchIsActive}
+								disabled={broadResearchIsActive}
 								onclick={goToPreferences}>← Back to preferences</button
 							>
 							<button class="text-button" type="button" onclick={() => resetDialog?.showModal()}
@@ -3012,6 +3372,7 @@
 						onGenerate={() => requestConcepts(false)}
 						onRegenerate={() => requestConcepts(true)}
 						onBack={returnToQuestions}
+						onContinue={enterFinalizationRoom}
 						onReveal={reactToConceptReveal}
 						onAllRevealed={reactToAllConcepts}
 						onWorkshopChange={updateFeatureWorkshop}

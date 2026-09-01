@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { parseConceptPortfolio } from './concepts';
 import {
+	createDemoFinalPlan,
+	createDemoFocusedResearchJob,
+	createDemoFocusedResearchResult,
 	createDemoPortfolio,
 	createDemoProject,
 	createDemoResearchJob,
@@ -10,6 +13,14 @@ import {
 	isDemoProject,
 	nextDemoInterview
 } from './demo';
+import {
+	parseFinalProjectPlan,
+	parseFocusedResearchJobView,
+	parseFocusedResearchResult,
+	type FinalRecalculationRequest,
+	type FocusedResearchRequest
+} from './finalization';
+import { createFeatureWorkshop } from './feature-workshop';
 import { parseIntakeInsights } from './intake-insights';
 import { createInterview } from './interview';
 import { parseBroadResearchResult, parseResearchJobView } from './research';
@@ -29,6 +40,17 @@ describe('token-free visual demo', () => {
 		expect(parseResearchJobView(createDemoResearchJob('running'))).not.toBeNull();
 		expect(parseResearchJobView(createDemoResearchJob('completed'))).not.toBeNull();
 		expect(parseConceptPortfolio(createDemoPortfolio())).not.toBeNull();
+		const focused = demoFocusedRequest();
+		const focusedResult = createDemoFocusedResearchResult(focused);
+		expect(parseFocusedResearchResult(focusedResult, focused)).not.toBeNull();
+		expect(
+			parseFocusedResearchJobView(createDemoFocusedResearchJob(focused, 'running'))
+		).not.toBeNull();
+		expect(
+			parseFocusedResearchJobView(createDemoFocusedResearchJob(focused, 'completed'))
+		).not.toBeNull();
+		const finalRequest: FinalRecalculationRequest = { ...focused, focusedResearch: focusedResult };
+		expect(parseFinalProjectPlan(createDemoFinalPlan(finalRequest), finalRequest)).not.toBeNull();
 	});
 
 	it('asks three local questions and then completes', () => {
@@ -42,3 +64,39 @@ describe('token-free visual demo', () => {
 		expect(nextDemoInterview(interview)).toMatchObject({ decision: 'complete', question: null });
 	});
 });
+
+function demoFocusedRequest(): FocusedResearchRequest {
+	const project = createDemoProject(new Date('2026-09-01T10:00:00Z'));
+	const portfolio = createDemoPortfolio(new Date('2026-09-01T10:00:00Z'));
+	const concept = portfolio.concepts[0];
+	const workshop = createFeatureWorkshop(portfolio);
+	const features = workshop.configurations[0].features.filter((feature) => feature.included);
+	return {
+		projectId: project.id,
+		topic: project.problemInput.topic,
+		problems: project.problemInput.cards.map((card) => card.text),
+		selectedConcept: {
+			id: concept.id,
+			name: concept.name,
+			pitch: concept.pitch,
+			description: concept.description,
+			targetUser: concept.targetUser,
+			distinctApproach: concept.distinctApproach,
+			prototypeBudget: concept.prototypeBudget,
+			productionBudget: concept.productionBudget,
+			prototypeTimeline: concept.prototypeTimeline
+		},
+		includedFeatures: features.map((feature) => ({
+			id: feature.id,
+			name: feature.name,
+			description: feature.description,
+			tier: feature.tier,
+			dependencies: feature.dependencies
+		})),
+		constraints: { ...project.preferences.constraints },
+		prototypeBudgetUsd: project.preferences.prototypeBudgetUsd!,
+		includeProductionPlanning: true,
+		productionBudgetUsd: project.preferences.productionBudgetUsd,
+		broadResearch: createDemoResearchResult(new Date('2026-09-01T10:00:00Z'))
+	};
+}

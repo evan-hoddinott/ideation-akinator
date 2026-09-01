@@ -18,6 +18,7 @@
 		onGenerate,
 		onRegenerate,
 		onBack,
+		onContinue,
 		onReveal,
 		onAllRevealed,
 		onWorkshopChange
@@ -30,6 +31,7 @@
 		onGenerate: () => void;
 		onRegenerate: () => void;
 		onBack: () => void;
+		onContinue: () => void;
 		onReveal: () => void;
 		onAllRevealed: () => void;
 		onWorkshopChange: (
@@ -353,6 +355,14 @@
 			</section>
 
 			<FeatureWorkshop {portfolio} {workshop} onChange={onWorkshopChange} />
+			{#if workshop.status === 'confirmed'}
+				<div class="focused-launch">
+					<div>
+						<span>THE PROPHECY IS SEALED</span><b>Now check this exact build against reality.</b>
+					</div>
+					<button type="button" onclick={onContinue}>Begin focused research <i>→</i></button>
+				</div>
+			{/if}
 
 			<button
 				class="defeat-button"
@@ -408,6 +418,49 @@
 		align-items: end;
 		margin-bottom: 24px;
 		text-shadow: 0 2px #160d2b;
+	}
+	.focused-launch {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 20px;
+		margin: 30px 0;
+		padding: 18px;
+		border: 4px ridge #79e3b2;
+		background: linear-gradient(90deg, #0d352e, #171229);
+		box-shadow: 8px 8px #050309;
+	}
+	.focused-launch span,
+	.focused-launch b {
+		display: block;
+	}
+	.focused-launch span {
+		color: #7cf0bc;
+		font:
+			800 10px 'Courier New',
+			monospace;
+		letter-spacing: 0.12em;
+	}
+	.focused-launch b {
+		margin-top: 5px;
+		color: #fff0bc;
+		font:
+			700 18px Georgia,
+			serif;
+	}
+	.focused-launch button {
+		padding: 12px 16px;
+		border: 3px outset #8ef3c8;
+		background: #14604d;
+		color: white;
+		cursor: pointer;
+		font:
+			800 11px 'Courier New',
+			monospace;
+		text-transform: uppercase;
+	}
+	.focused-launch button:active {
+		border-style: inset;
 	}
 	.concept-heading h1 {
 		margin: 4px 0 8px;
