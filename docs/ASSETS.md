@@ -1,5 +1,22 @@
 # Asset record
 
+## Planned 3D Signal Sage source candidates
+
+These are researched candidates for the approved proof-of-style workstream. They have not yet been downloaded into the repository. Final local filenames, retrieval dates, hashes, modifications, and retained license files must be added when an asset is selected.
+
+| Intended use | Candidate | Creator | Formats | Rights status | Decision note |
+| --- | --- | --- | --- | --- | --- |
+| Humanoid body and rig | [Universal Base Characters](https://quaternius.com/packs/universalbasecharacters.html) | Quaternius | FBX, glTF; Blend in Source tier | CC0 | Preferred body foundation; animation-friendly topology and humanoid rig |
+| Wizard clothing | [Modular Character Outfits - Fantasy](https://quaternius.com/packs/modularcharacteroutfitsfantasy.html) | Quaternius | FBX, glTF; Blend in Source tier | CC0 | Preferred source for robe, sleeves, boots, and modular fantasy pieces |
+| Base animation library | [Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html) | Quaternius | FBX, GLB; Blend in Source tier | CC0 | More than 120 clips; use as editable raw material rather than unchanged stock motion |
+| Backup body and animation source | [Ultimate Animated Character Pack](https://quaternius.com/packs/ultimatedanimatedcharacter.html) | Quaternius | FBX, OBJ, Blend | CC0 | More than 50 animated low-poly characters, including wizard-like options |
+| Gaming chair | [Rojatzo's Gaming Chair](https://rojatzo.itch.io/rojatzos-gaming-chair) | Rojatzo | FBX, OBJ | CC0 | Preferred chair shell; simplify or alter proportions during assembly |
+| CRT monitor head shell | [Low-poly Monitor](https://opengameart.org/content/low-poly-monitor) | Mitylernal | Blend, FBX, OBJ | CC0 | 564-triangle starting shell; screen, neck mount, face, and silhouette require custom work |
+
+The final Sage must not look like an unchanged asset-pack character. The body proportions, monitor silhouette, chair, clothing, textures, CRT face, and animation timing form one original assembled design. Avoid personal-use-only marketplace assets and unnecessarily dense models when a modifiable CC0 source is available.
+
+The existing illustrated Signal Sage remains part of the product. It becomes the loading, reduced-motion, unsupported-browser, and 3D initialization failure fallback rather than being discarded.
+
 ## Signal Sage
 
 - File: `static/images/signal-sage.png`

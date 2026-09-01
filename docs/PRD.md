@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Product | Ideation Akinator |
-| Version | 1.1 |
-| Status | Implementation underway; game-personality direction approved for design |
+| Version | 1.2 |
+| Status | Implementation underway; vertical 3D game direction approved for design |
 | Primary URL | `https://idea.battery.rip` |
 | Audience | Solo creators and students |
 | Product type | Personal, password-protected tech demo |
@@ -459,7 +459,7 @@ Character rules:
 - He develops visible theories, changes his mind, and admits when an answer has ruined an excellent theory.
 - He reluctantly proceeds after an early finish and treats a failed concept set as the user defeating him.
 
-The initial pose library should cover neutral, thinking, suspicious, delighted, irritated, shocked, smug, defeated, and `forbidden knowledge`. More poses may be added when a scripted event needs one.
+The primary Sage is a live low-poly 3D character with a CRT monitor head, wizard clothing, oversized expressive hands, and a floating gaming chair. The existing illustrated Sage and its pose library remain as the loading, reduced-motion, unsupported-browser, and failure fallback. The fallback library covers neutral, thinking, suspicious, delighted, irritated, shocked, smug, defeated, and `forbidden knowledge`.
 
 ### 8.3 Dialogue and reaction system
 
@@ -503,7 +503,11 @@ Confidence requirements:
 
 ### 8.5 Stage presentation
 
-The workflow remains one game even as the user moves through rooms. Transitions should feel like the Sage opening another part of the same cursed program rather than navigating to a separate business form.
+The workflow remains one full-height game scene rather than a dashboard or a sequence of business forms. The camera follows the Sage upward through one continuous world. Workflow stages establish broad altitude zones, while answer quality, clarity, contradictions, and important discoveries move the Sage within a zone.
+
+The Sage must visibly initiate major movement before the camera follows. His chair, robe, body, and nearby objects move relative to the background, and the camera follows with a small delay. Foreground, midground, and distant layers move at different speeds. This makes the Sage appear to travel rather than leaving him fixed while a background scrolls behind him.
+
+The active question and its immediate controls remain the primary interface. Large forms do not accumulate as permanent cards. Problems, preferences, budgets, feature sets, research findings, and final documents appear in temporary summoned spellbooks, terminals, scrolls, or dossiers. Closing one returns to the same game scene and camera position.
 
 - Problem cards are clues offered to the Sage.
 - The clarity reading is his ability to understand the clues.
@@ -516,7 +520,7 @@ The workflow remains one game even as the user moves through rooms. Transitions 
 
 ### 8.6 Research theater
 
-Research uses layered fake browser windows and typing around the real progress display. Suggested decorative content includes cat videos, wizard forums, fake banner ads, horoscope pages, `download more RAM`, suspicious toolbars, and a window the Sage hurriedly closes.
+Research uses layered fake browser windows and typing around the real progress display. These windows behave like interruptions and pop-ups rather than forming the base page layout. Suggested decorative content includes cat videos, wizard forums, fake banner ads, horoscope pages, `download more RAM`, suspicious toolbars, Windows 93-style utilities, and a window the Sage hurriedly closes.
 
 Requirements:
 
@@ -541,11 +545,13 @@ Each reveal uses a character pose, short sound, archetype, decorative rarity, an
 
 ### 8.8 Easter eggs and side quests
 
-The app may include rare scripted pop-ups, fake alerts, clickable desktop clutter, joke achievements, secret keyboard sequences, and tiny side quests. They cannot:
+The app may include rare scripted pop-ups, fake alerts, clickable desktop clutter, joke achievements, secret keyboard sequences, and tiny side quests. A rare authored event may briefly cover the scene or active controls for up to two seconds when the Sage immediately notices and removes it. The signature version has the Sage turn toward a popup, wind up, swat it at a timed impact point, and follow through while the window spins offscreen. Ordinary random pop-ups stay outside required controls and always have an obvious close action.
+
+Pop-ups and side quests cannot:
 
 - Change project inputs or generated results.
 - Start an AI call, research job, download, or external navigation without confirmation.
-- Cover a required control with no obvious close action.
+- Leave a required control obstructed after the short authored interruption ends.
 - Appear inside the PDF.
 - Prevent the user from completing the workflow.
 
@@ -553,19 +559,51 @@ There is no serious score or competitive ranking. Joke achievements may exist on
 
 ### 8.9 Visual direction
 
-The interface mixes Windows 98 software, Flash-era browser games, GeoCities occult pages, arcade fortune tellers, and old personal websites. It should feel densely authored rather than randomly broken.
+The interface resembles a lost early-2000s browser game rather than a modern web application wearing retro colors. Its main composition uses a large central character, short dialogue, simple current choices, and a continuous vertical world. It borrows the pacing and suspense of a guessing game but keeps an original character, layout, world, and visual language.
+
+The world is an infinitely tall cursed personal homepage rendered as a physical 2D and 2.5D space. The user begins in a murky server basement and climbs through abandoned guestbooks, broken hit counters, tiled star backgrounds, flaming dividers, webrings, animated mailboxes, `UNDER CONSTRUCTION` scaffolding, popup neighborhoods, internet clouds, and a loud cosmic server shrine. The palette starts dark and constrained, then becomes brighter and stranger as the Sage gains understanding.
 
 Visual ingredients:
 
 - Near-black and deep-purple backgrounds.
 - Electric violet, cyan, acid green, and tarnished gold accents.
 - Star fields, crystal balls, spell books, smoke, sparkles, and low-resolution magic effects.
-- Beveled controls, draggable fake windows, patterned panels, ornamental borders, cursor effects, and glowing focus states.
+- Beveled controls, temporary fake windows, patterned scenery, ornamental borders, cursor effects, and glowing focus states.
 - Era-authentic looping GIFs, pixel icons, fake badges, and banner clutter.
-- A persistent original Signal Sage with multiple reaction poses.
-- Dense desktop layouts with stable form controls and a clear reading order.
+- A dominant original Signal Sage who occupies roughly half of the primary game composition.
+- A full CRT monitor head with a separately animated screen face.
+- A low-poly fantasy body seated in a floating gaming chair.
+- A deliberate clash between a live 3D character and flat GeoCities scenery.
+- One active interaction at a time, with stable form controls and a clear reading order.
 
 Research results, comparisons, requirements, and the PDF stay calmer than the shell. The chaos may surround these documents but cannot make their text unstable or hard to copy.
+
+#### 8.9.1 Character motion language
+
+The Sage should look like a cheap 2003 game model animated with suspiciously expensive care. Motion uses strong silhouettes, large anticipation, extreme follow-through, moving holds, brief freezes, impossible reaches, and occasional graphic deformation. He may lean far outside the chair, rotate independently from it, lose altitude, detach his monitor head slightly in surprise, or overreact to a tiny obstruction.
+
+The renderer and camera run at the display refresh rate, normally 60 frames per second. Character poses use variable-rate animation:
+
+- The chair, camera follow, vertical travel, and environmental parallax remain continuous.
+- The body usually presents 12 unique poses per second by holding each authored pose for two display frames at a 24-frame animation base.
+- Important gestures may switch to 24 unique poses per second for part of a clip.
+- The CRT face may update independently at 8, 12, or 24 frames per second.
+- Fast actions avoid conventional motion blur. Use one-frame stretched geometry, duplicate hands, cursor trails, impact words, lightning scribbles, or other authored smear frames.
+- Elaborate animation is reserved for meaningful reactions. Normal idle motion stays restrained so the character does not constantly perform.
+
+Initial live animation clips should include restrained idle, attentive lean, thinking, approval, confusion, weak-answer slump, chair wobble, controlled ascent, uncontrolled drop, research recline, popup notice and swat, concept reveal, defeat, and forbidden-knowledge reveal.
+
+#### 8.9.2 3D implementation direction
+
+- Assemble the character in Blender from editable low-poly source assets rather than relying on a finished recognizable character.
+- Use a humanoid skeleton for the body, with custom controls or bones for the monitor, chair, robe, and exaggerated actions.
+- Export the model, textures, rig, and named clips as an optimized GLB.
+- Render the model in the Svelte app with Three.js.
+- Use stepped toon lighting, deliberately small textures, rough outlines, and limited graphic post-processing.
+- Drive named animation clips from the existing deterministic Sage event system. Character reactions do not create AI calls.
+- Keep HTML dialogue, forms, dossiers, and pop-ups outside the canvas so they remain readable and directly interactive.
+- Align authored HTML interruptions with known 3D animation contact points rather than adding unnecessary live physics.
+- Load the illustrated Sage fallback when WebGL, the model, or animation initialization fails.
 
 ### 8.10 Asset sourcing
 
@@ -932,10 +970,16 @@ The demo succeeds when a first-time user can complete the entire workflow withou
 ### 18.3 Visual
 
 - The app clearly reflects the retro-internet magic direction.
-- The Signal Sage has distinct poses for normal, thinking, suspicious, delighted, irritated, shocked, smug, defeated, and forbidden states.
-- The shell mixes old desktop software, Flash games, occult personal sites, and arcade fortune tellers without copying Akinator assets.
+- The primary desktop composition is a full-height vertical game scene, not a dashboard with themed cards.
+- The live Signal Sage has a full monitor head, low-poly wizard body, floating gaming chair, and distinct authored reaction clips.
+- Smooth camera and chair travel can coexist with visibly stepped 12-frame and 24-frame character animation.
+- The illustrated Signal Sage remains available as a loading, reduced-motion, unsupported-browser, and failure fallback.
+- The world climbs continuously from a dark server basement toward a bright cosmic internet shrine.
+- Detailed inputs appear in temporary spellbooks, terminals, scrolls, or dossiers without losing workflow state.
+- The shell mixes early 3D browser games, occult personal sites, GeoCities pages, Windows 93-style interruptions, and arcade fortune tellers without copying Akinator assets.
 - Every stored GIF and sound has an asset-record entry and explicit public-release status.
-- Fake research windows remain visibly decorative while real progress and errors stay readable.
+- Fake windows remain visibly decorative interruptions while real progress and errors stay readable.
+- At least one authored popup event synchronizes a real HTML window with the Sage's 3D swat animation.
 - MIDI-style ambience and UI sounds work after user interaction, with persistent mute.
 - Calm mode removes optional motion, audio, pop-ups, fake windows, and reaction delays.
 - The primary desktop workflow works at 1024, 1440, and 1920 pixel widths.
@@ -969,6 +1013,16 @@ Implementation requires separate approval. Once approved, use this order:
 
 Each stage should pass its contract tests before the next AI stage is added. Testing should focus on the full workflow, schema boundaries, feature dependencies, citations, secret handling, and PDF output.
 
+### 19.1 Approved 3D visual workstream
+
+The vertical game redesign is a three-part workstream that can proceed alongside the remaining product slices:
+
+1. **Proof of style:** Assemble a rough low-poly Sage and gaming chair in an isolated scene. Produce restrained idle, controlled ascent, exaggerated reaction, and popup-swat clips. Validate the mix of continuous camera motion and stepped character poses before rebuilding the interface.
+2. **Game-stage integration:** Add the Three.js runtime, connect named clips to existing Sage events, establish loading and fallback behavior, and replace the dashboard composition with the full-height stage and summoned input overlays.
+3. **World and personality pass:** Build the vertical internet zones, parallax transitions, popup and side-quest system, remaining animation clips, graphic effects, audio synchronization, performance controls, and final browser verification.
+
+The proof-of-style scene may use rough source textures and temporary scenery. Animation timing, silhouette, camera behavior, and popup interaction must prove the direction before the model receives a detailed polish pass.
+
 ## 20. Risks and mitigations
 
 | Risk | Impact | Mitigation |
@@ -979,6 +1033,10 @@ Each stage should pass its contract tests before the next AI stage is added. Tes
 | Costs look more certain than they are | The final PDF misleads the user | Use ranges, assumptions, evidence, and confidence language |
 | Feature dependencies become confusing | Users cannot understand why items are selected | Explain each dependency and show the chain before applying it |
 | Retro visuals reduce readability | The joke harms the actual tool | Keep research, comparison, and report panels calmer than the shell |
+| A stock low-poly character makes the redesign feel generic | The app trades dashboard slop for asset-pack slop | Treat source models as kitbash material; alter proportions, silhouette, textures, CRT face, chair, and animation timing before integration |
+| The 3D workstream grows before its style is proven | Time goes into a character that is not funny in motion | Validate one rough isolated scene with idle, ascent, reaction, and popup swat before rebuilding the interface |
+| WebGL or the character asset fails on a browser | The workflow becomes unusable | Keep one optimized character asset, cap render resolution, pause hidden animation, and fall back to the illustrated Sage |
+| Constant elaborate motion becomes exhausting | The character competes with every question | Keep idle motion restrained and reserve large fluid performances for meaningful events |
 | Maximum-chaos presentation interrupts the workflow | Users lose their place or cannot reach a required control | Keep controls stable, limit blocking reactions to two seconds, and provide Calm mode |
 | Random web GIFs cause copyright or reliability problems | Assets disappear or create distribution risk | Store assets locally, keep provenance and public-release status, and maintain replacements for demo-only files |
 | Sound becomes irritating or violates browser expectations | Users mute the site or abandon the workflow | Start after interaction, provide persistent mute, and disable it in Calm mode |
