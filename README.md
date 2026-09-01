@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 5 of 12 are complete locally. They include:
+Implementation slices 1 through 5 of 13 are complete locally. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -23,7 +23,7 @@ Implementation slices 1 through 5 of 12 are complete locally. They include:
 - Local autosave, back navigation, intake validation, and browser-state migration through schema v5.
 - A Node health endpoint at `/health`.
 
-Slice 6 adds four meaningfully different project concepts and their comparison. The app is not deployed yet.
+Slice 6 adds the continuous-game personality layer: persistent Sage reactions, confidence and hypotheses, retro research theater, sound, Easter eggs, and Calm mode. Slice 7 then adds four meaningfully different project concepts and their comparison. The app is not deployed yet.
 
 ## Local setup
 

@@ -3,14 +3,14 @@
 | Field | Value |
 | --- | --- |
 | Product | Ideation Akinator |
-| Version | 1.0 |
-| Status | Implementation-ready product definition, pending implementation approval |
+| Version | 1.1 |
+| Status | Implementation underway; game-personality direction approved for design |
 | Primary URL | `https://idea.battery.rip` |
 | Audience | Solo creators and students |
 | Product type | Personal, password-protected tech demo |
 | Primary language | English |
 | Primary device | Desktop computer |
-| Last updated | 2026-08-31 |
+| Last updated | 2026-09-01 |
 
 ## 1. Product summary
 
@@ -20,7 +20,7 @@ The user chooses and edits the feature set for one proposal. The application the
 
 The product may propose software, hardware, services, or mixed products. It does not build the selected product.
 
-The interface should feel like an early-2000s magic website that somehow became a serious product-planning tool. It should be funny, dark, theatrical, and intentionally a little strange. The research and final report must remain credible even when the interface is playful.
+The interface is a continuous browser game hosted by a chaotic internet wizard. The Signal Sage claims he can guess the product the user will build by studying their problems. This is a presentation theme, not a change to the approved product-planning logic. The research and final report must remain credible even when everything around them is being silly.
 
 ## 2. Product promise
 
@@ -48,6 +48,7 @@ The full workflow should work without the user needing outside product-managemen
 ### 3.2 Secondary goals
 
 - Make product ideation enjoyable for students and solo creators.
+- Make the workflow feel like a continuous guessing game rather than a sequence of ordinary forms.
 - Expose uncertainty instead of presenting weak research as fact.
 - Keep the deployment small enough to run as one Dockerized application on the existing server.
 - Make the AI stages inspectable through structured, stage-specific outputs.
@@ -67,6 +68,8 @@ The first version will not:
 - Promise accurate market-size or cost figures when reliable evidence is unavailable.
 - Optimize the full workflow for phones.
 - Accept uploaded documents, screenshots, survey data, or customer evidence.
+- Become a literal Twenty Questions guesser or replace the approved research and product-generation logic.
+- Copy Akinator artwork, characters, dialogue, or exact screen layouts.
 
 ## 5. Target users
 
@@ -129,6 +132,8 @@ Suggested copy direction:
 
 The screen should set expectations that research takes one to two minutes and that the final result is a PDF, not a built product.
 
+The Sage frames the game as: `Give me your problems and I will guess the product you are destined to build.` The user may provide a first name or nickname and a provisional project name. Both are optional and may be used in scripted dialogue. The welcome screen must state that the Sage will produce four product directions rather than guess an existing real-world object.
+
 ### 7.3 Problem chamber
 
 The user enters several problems that share a topic or general idea. Each problem is its own editable card. The user can add, reorder, or remove cards.
@@ -160,6 +165,8 @@ The meter evaluates:
 - Whether important constraints are present.
 
 The meter does not provide detailed improvement suggestions at this stage. The later questionnaire handles missing information.
+
+In the game presentation, clarity represents how well the Sage understands the user's situation. Each qualitative change may trigger a short scripted reaction or a new Sage expression. The underlying clarity logic does not change.
 
 ### 7.4 Preferences and constraints
 
@@ -193,6 +200,8 @@ Technology choices are soft preferences. The system may recommend another approa
 The AI suggests and selects industry tags based on the problem cards. The user can add custom tags or remove suggested tags.
 
 Once the user removes an automatically selected tag, the app records it as dismissed and does not add it again unless the user manually restores it.
+
+Newly detected industries may appear as short `The Sage detects...` reveals. These reveals are decorative and never delay editing or restore a dismissed tag.
 
 #### Innovation level
 
@@ -253,6 +262,8 @@ Requirements:
 
 The loading screen should show honest stage-level progress, not a fake exact percentage. Example messages can include `Consulting the dusty web`, `Checking what mortals already built`, and `Looking for inconvenient prior art`.
 
+The honest progress state is surrounded by fake retro browser windows, typing, irrelevant cat media, cursed download banners, and other obviously decorative distractions. Decorative windows cannot claim to be real research findings, hide an error, or replace the actual stage label.
+
 ### 7.6 Clarifying interview
 
 After broad research, the app asks one question at a time. A normal interview contains five to ten questions, but the count may change when an answer creates a useful follow-up.
@@ -268,8 +279,16 @@ Requirements:
 - React to earlier answers and resolve important contradictions.
 - Avoid asking for information the user already supplied.
 - Do not show a final confirmation summary before concept generation.
+- Present each question primarily as dialogue from the Signal Sage.
+- Prefer yes-or-no questions when they collect the same information with less effort.
+- Show a visible qualitative Sage-confidence state throughout the interview.
+- Allow short reactions after selected answers without reacting after every answer.
+- Give `Skip` and `I don't know` different scripted reactions.
+- Let the Sage acknowledge when a changed earlier answer invalidates his previous theory.
 
 Ending early lowers the system's confidence but does not block concept generation.
+
+When the user ends early, the Sage reluctantly agrees to guess anyway and uses a short preset joke. This action does not trigger an extra AI call.
 
 ### 7.7 Project summoning
 
@@ -303,6 +322,8 @@ Every project card includes:
 - Major assumptions and risks.
 - Confidence and evidence gaps.
 - Stretch or within-budget label.
+- Decorative archetype, rarity, and icon.
+- A short explanation of why the Sage chose it.
 
 Each project receives a qualitative comparison across:
 
@@ -315,6 +336,10 @@ Each project receives a qualitative comparison across:
 - Technical risk.
 
 The comparison should explain ratings in one or two sentences. Avoid false precision and do not invent numeric market scores.
+
+Concepts are revealed with suspense. The Sage presents one recommended primary guess first, then three alternate guesses. Exactly one concept remains the stretch option and is framed as something the Sage was `not supposed to show you`. Archetypes and rarity labels are jokes, not quality ratings.
+
+If none of the concepts fit, the user may choose `You have defeated the Sage`. After an explicit cost warning and confirmation, this replaces the four concepts with a newly generated, meaningfully different set. It does not rate the previous concepts or change the problem inputs.
 
 ### 7.8 Feature workshop
 
@@ -412,60 +437,174 @@ Confirming it clears:
 
 The password session remains active. Locking the app is a separate action.
 
-## 8. Visual and interaction direction
+## 8. Game personality and presentation
 
-### 8.1 Creative direction
+### 8.1 Core fantasy
 
-The interface draws from early-2000s personal websites, browser games, fortune tellers, and magical question-and-answer sites. It should look intentional, not like a broken modern page.
+The product feels like one continuous guessing game. The Signal Sage claims he can infer the user's future project from their problems, constraints, and answers. Underneath the performance, the workflow remains problem intake, research, adaptive interviewing, and product generation.
+
+The interface may use Akinator-like pacing and suspense, but it must keep its original character, name treatment, artwork, dialogue, and screen composition. It cannot imply affiliation with Akinator.
+
+### 8.2 Signal Sage personality
+
+The Signal Sage is a chaotic internet wizard who lives inside an old computer. He is consistently playful, theatrical, overconfident, easily distracted, and occasionally correct for reasons he refuses to explain.
+
+Character rules:
+
+- The Sage remains visible throughout the workflow.
+- He may lightly tease the user, including acting unimpressed by skipped questions.
+- Teasing stays absurd and playful rather than abusive, discriminatory, or genuinely hostile.
+- He has recurring language about mortals, modems, forbidden spreadsheets, cursed toolbars, suspicious evidence, and transmissions from the web.
+- He may address the user by their optional name and refer to the provisional project name.
+- He develops visible theories, changes his mind, and admits when an answer has ruined an excellent theory.
+- He reluctantly proceeds after an early finish and treats a failed concept set as the user defeating him.
+
+The initial pose library should cover neutral, thinking, suspicious, delighted, irritated, shocked, smug, defeated, and `forbidden knowledge`. More poses may be added when a scripted event needs one.
+
+### 8.3 Dialogue and reaction system
+
+Most personality comes from a local scripted dialogue catalog. Personality must not create a dedicated model call.
+
+The catalog contains several variants for each supported event:
+
+- Session start and returning session.
+- First problem, added problem, removed problem, and unrelated-problem warning.
+- Clarity-state changes.
+- Detected and dismissed industries.
+- Innovation extremes and unusual budgets.
+- Research start, progress, partial result, failure, and completion.
+- First interview question and selected answer types.
+- Skip, unknown, back, changed answer, contradiction, and early finish.
+- Rising confidence and revised hypothesis.
+- Primary guess, alternate guesses, stretch reveal, concept selection, and Sage defeat.
+- Rare idle events and Easter eggs.
+
+Reactions follow these rules:
+
+- Do not react after every action.
+- Use event-specific probabilities, cooldowns, and a project-seeded random order so refresh does not reroll the joke.
+- Most reactions last roughly 600 to 1,200 milliseconds and cannot block the workflow for more than two seconds.
+- A user may advance immediately instead of waiting for a reaction.
+- Do not repeat a line during the same project until its event pool is exhausted.
+- Never insert a joke into saved research facts, requirements, estimates, or PDF content.
+
+### 8.4 Hypotheses and confidence
+
+The Sage keeps a visible theory about what kind of product is forming. Example states include `utterly baffled`, `the modem stirs`, `I have a suspicious theory`, and `your future is embarrassingly obvious`.
+
+Confidence requirements:
+
+- Display confidence as a changing crystal ball, expression, and qualitative label.
+- Base changes on clarity, completed research, answered questions, skipped questions, contradictions, and early finish.
+- Do not present the display as a statistically calibrated probability.
+- Explain selected changes with preset lines derived from known state.
+- An existing AI stage may return a short Sage hypothesis as part of its normal structured response when useful. Do not make a separate reaction or explanation call.
+- Changing an earlier answer must visibly disrupt the current theory before regenerated follow-ups appear.
+
+### 8.5 Stage presentation
+
+The workflow remains one game even as the user moves through rooms. Transitions should feel like the Sage opening another part of the same cursed program rather than navigating to a separate business form.
+
+- Problem cards are clues offered to the Sage.
+- The clarity reading is his ability to understand the clues.
+- Industry tags are detected domains or `mortal institutions implicated in the omen`.
+- Preferences and budgets are limitations placed on the spell.
+- Interview questions are direct Sage dialogue.
+- Research findings are themed as evidence, transmissions, scrolls, or recovered files.
+- Requirements and comparisons use readable themed documents inside the game shell.
+- Stage counters may use phrases such as `the fourth inquiry` while preserving a plain progress label nearby.
+
+### 8.6 Research theater
+
+Research uses layered fake browser windows and typing around the real progress display. Suggested decorative content includes cat videos, wizard forums, fake banner ads, horoscope pages, `download more RAM`, suspicious toolbars, and a window the Sage hurriedly closes.
+
+Requirements:
+
+- Decorative windows are local scripted assets and never trigger AI calls or real browsing.
+- They must be visibly silly and cannot be confused with sources or research findings.
+- The real stage label, cancel action, error state, and recovery action remain visible.
+- Research sources still open as normal citations.
+- The Sage may react to real findings through preset category-level lines.
+- Actual source claims cannot be rewritten for a joke.
+
+### 8.7 Concept reveal and defeat state
+
+The Sage reveals concepts one at a time:
+
+1. Build suspense and reveal the recommended primary guess.
+2. Reveal two alternate guesses with shorter transitions.
+3. Pause, claim he is not allowed to continue, and reveal the stretch concept.
+
+Each reveal uses a character pose, short sound, archetype, decorative rarity, and `why I chose this` note. A skip-animation control reveals the complete comparison immediately.
+
+`You have defeated the Sage` is available when the user rejects all four concepts. It requires confirmation because it starts another paid generation. The replacement request must explicitly seek approaches that differ from the rejected set.
+
+### 8.8 Easter eggs and side quests
+
+The app may include rare scripted pop-ups, fake alerts, clickable desktop clutter, joke achievements, secret keyboard sequences, and tiny side quests. They cannot:
+
+- Change project inputs or generated results.
+- Start an AI call, research job, download, or external navigation without confirmation.
+- Cover a required control with no obvious close action.
+- Appear inside the PDF.
+- Prevent the user from completing the workflow.
+
+There is no serious score or competitive ranking. Joke achievements may exist only as local decorative state.
+
+### 8.9 Visual direction
+
+The interface mixes Windows 98 software, Flash-era browser games, GeoCities occult pages, arcade fortune tellers, and old personal websites. It should feel densely authored rather than randomly broken.
 
 Visual ingredients:
 
 - Near-black and deep-purple backgrounds.
 - Electric violet, cyan, acid green, and tarnished gold accents.
 - Star fields, crystal balls, spell books, smoke, sparkles, and low-resolution magic effects.
-- Pixel icons and small looping GIFs.
-- Beveled controls, patterned panels, ornamental borders, and glowing focus states.
-- A theatrical original guide character or disembodied magical presence.
-- Occasional fake system messages and mystical status copy.
-- Dense desktop layouts that still preserve a clear reading order.
+- Beveled controls, draggable fake windows, patterned panels, ornamental borders, cursor effects, and glowing focus states.
+- Era-authentic looping GIFs, pixel icons, fake badges, and banner clutter.
+- A persistent original Signal Sage with multiple reaction poses.
+- Dense desktop layouts with stable form controls and a clear reading order.
 
-The serious output areas should be calmer than the surrounding shell. Research results, comparisons, requirements, and the PDF need readable typography and stable layouts.
+Research results, comparisons, requirements, and the PDF stay calmer than the shell. The chaos may surround these documents but cannot make their text unstable or hard to copy.
 
-### 8.2 Asset rules
+### 8.10 Asset sourcing
 
-- Do not hotlink random GIFs from other websites.
-- Use original, public-domain, or permissively licensed assets.
-- Store approved assets with the application.
-- Record attribution when a license requires it.
-- Do not copy the Akinator character, artwork, logo, or exact interface.
-- Create an original magical guide and visual identity.
-- Review the product name before any distribution beyond the personal tech demo.
+- Search independent retro-web, personal-site, and Neocities-style collections for era-authentic GIFs and computer-wizard artifacts.
+- Do not hotlink assets. Store selected files with the application so pages do not disappear or track users.
+- Record source URL, creator when known, retrieval date, file hash, and rights status in `docs/ASSETS.md`.
+- Prefer public-domain, licensed, or creator-permitted assets when suitable examples exist.
+- Assets with unclear or third-party rights may be evaluated only in the password-protected personal demo. Mark them `demo-only` and keep a replacement note. Password protection does not establish permission or make them suitable for public release.
+- Generate original assets for Signal Sage poses, project-specific jokes, and niche gaps that cannot be filled well by found material.
+- Do not copy the Akinator character, artwork, logo, sound, or exact interface.
+- Review the name and replace all `demo-only` assets before distribution beyond the personal demo.
 
-### 8.3 Motion
+### 8.11 Audio
 
-Motion should support the joke without making the app miserable to use.
+Sound is required for the game presentation.
 
-- Keep most loops small and peripheral.
-- Avoid full-screen flashing.
-- Respect `prefers-reduced-motion`.
-- Pause decorative animation when the page is hidden.
-- Do not let animation shift form controls or text while the user is reading.
+- Use a looping MIDI-style ambient track and short retro UI sounds.
+- Give the Sage distinct thinking, discovery, error, irritation, and reveal cues.
+- Do not start audio until the user has interacted with the page.
+- Provide a persistent mute control and remember the setting in browser state.
+- Stop or reduce audio while the page is hidden.
+- Store audio locally and track it in the asset record under the same rules as visual assets.
 
-### 8.4 Responsive behavior
+### 8.12 Chaos mode, calm mode, and basic usability
 
-Desktop is the primary target. The supported design baseline is 1024 pixels wide and above.
+The default presentation aims for maximum personality while keeping the actual workflow intact. A low-key `Calm mode` control disables looping GIFs, cursor trails, optional pop-ups, fake research windows, reaction delays, and audio. It does not remove the Sage, hide required context, or change AI results.
 
-The application should remain functional on a phone, but the first release does not need a phone-specific layout or equally polished mobile experience. Long tables may become stacked cards on narrow screens.
+The product does not need a separate accessibility-focused experience, but basic operability remains required:
 
-### 8.5 Accessibility
+- Required controls work by keyboard and have visible labels.
+- Text and controls maintain usable contrast.
+- Color is not the only signal for state.
+- Focus indicators remain visible.
+- Loading, failure, and completion states have machine-readable announcements.
+- Full-screen flashing is prohibited.
+- `prefers-reduced-motion` activates Calm mode defaults.
+- Decorative animation pauses when the page is hidden and cannot move a form control while it is being used.
 
-- All controls must work by keyboard.
-- Every form input needs a visible label.
-- Text and interactive controls must maintain usable contrast.
-- Color cannot be the only signal for clarity, selection, warnings, or scores.
-- GIFs and decorative images need appropriate alternative text or empty alternative text.
-- Focus indicators should match the visual theme and remain obvious.
-- Loading, failure, and completion states need screen-reader announcements.
+Desktop remains the primary target at 1024 pixels and above. The workflow must still function on a phone, but the first release does not require an equally elaborate mobile game layout.
 
 ## 9. Session and state behavior
 
@@ -536,6 +675,10 @@ The implementation should keep these records separate even if the browser stores
 - Created and updated timestamps.
 - Current workflow stage.
 - Completed and invalidated stages.
+- Optional player name and provisional project name.
+- Sage mood, qualitative confidence, and current hypothesis.
+- Seen scripted-event identifiers and joke-achievement state.
+- Audio, mute, and Calm mode preferences.
 
 ### 11.2 Problem input
 
@@ -733,6 +876,8 @@ The server should record operational counters without storing full project conte
 
 AI calls should have per-stage token and tool-call limits. The app should refuse obvious duplicate jobs and make expensive retries deliberate.
 
+Scripted dialogue, expressions, research-window jokes, Easter eggs, and confidence explanations must not create AI calls. When an existing generation can supply a useful hypothesis, include it in that stage's structured response instead of starting another request. `You have defeated the Sage` must disclose that it starts a paid replacement generation and require confirmation.
+
 ## 17. Success criteria
 
 The demo succeeds when a first-time user can complete the entire workflow without outside help:
@@ -742,12 +887,13 @@ The demo succeeds when a first-time user can complete the entire workflow withou
 3. Choose constraints, tags, innovation level, and budgets.
 4. Receive cited broad research.
 5. Answer or skip adaptive questions one at a time.
-6. Receive four distinct concepts, three within budget and one stretch option.
-7. Change the selected features and add a custom feature.
-8. Select one concept.
-9. Complete focused research and final generation.
-10. Download a readable, sourced, polished PDF.
-11. Clear the project through `Start over`.
+6. See the Sage react, revise a visible theory, and become more or less confident without slowing the interview.
+7. Receive a suspenseful reveal of four distinct concepts, three within budget and one forbidden stretch option.
+8. Change the selected features and add a custom feature.
+9. Select one concept.
+10. Complete focused research and final generation.
+11. Download a readable, sourced, polished PDF.
+12. Clear the project through `Start over`.
 
 ## 18. Release acceptance criteria
 
@@ -759,8 +905,14 @@ The demo succeeds when a first-time user can complete the entire workflow withou
 - Removed auto-tags remain removed.
 - Broad research supplies working citations or explicitly reports gaps.
 - The questionnaire asks one question at a time and supports skip, unknown, back, and early finish.
+- The Signal Sage remains visible and presents the workflow as one continuous guessing game.
+- Scripted reactions never create separate AI calls.
+- Skip, unknown, changed-answer, contradiction, and early-finish events have distinct reactions.
+- The visible Sage hypothesis and qualitative confidence respond to meaningful state changes.
 - Every run returns exactly four meaningfully different concepts.
 - Exactly one concept is marked stretch.
+- Concepts reveal one at a time with a skip-animation option.
+- Rejecting all concepts offers a confirmed paid replacement generation.
 - Feature dependencies behave correctly.
 - No estimate changes while the user toggles features.
 - Final generation recalculates all affected sections.
@@ -780,9 +932,12 @@ The demo succeeds when a first-time user can complete the entire workflow withou
 ### 18.3 Visual
 
 - The app clearly reflects the retro-internet magic direction.
-- The guide character and assets are original or properly licensed.
-- Decorative GIFs do not interrupt form use or reading.
-- Reduced-motion mode removes unnecessary animation.
+- The Signal Sage has distinct poses for normal, thinking, suspicious, delighted, irritated, shocked, smug, defeated, and forbidden states.
+- The shell mixes old desktop software, Flash games, occult personal sites, and arcade fortune tellers without copying Akinator assets.
+- Every stored GIF and sound has an asset-record entry and explicit public-release status.
+- Fake research windows remain visibly decorative while real progress and errors stay readable.
+- MIDI-style ambience and UI sounds work after user interaction, with persistent mute.
+- Calm mode removes optional motion, audio, pop-ups, fake windows, and reaction delays.
 - The primary desktop workflow works at 1024, 1440, and 1920 pixel widths.
 - The full workflow remains usable on a narrow screen even though mobile polish is not a launch goal.
 
@@ -803,13 +958,14 @@ Implementation requires separate approval. Once approved, use this order:
 3. Add problem clarity and industry-tag AI contracts.
 4. Add broad research, citations, progress, cancellation, and recovery.
 5. Add the adaptive interview.
-6. Add four-concept generation and comparison.
-7. Add feature selection, custom features, and dependencies.
-8. Add focused research and final recalculation.
-9. Build the structured PDF renderer.
-10. Add Docker packaging, secrets, health checks, and local deployment.
-11. Configure `idea.battery.rip` and the password secret.
-12. Run a fresh-context, end-to-end browser verification.
+6. Add the continuous-game personality layer, scripted reactions, Sage poses, confidence, research theater, audio, Easter eggs, and Calm mode.
+7. Add four-concept generation, suspenseful reveals, comparison, and Sage-defeat regeneration.
+8. Add feature selection, custom features, and dependencies.
+9. Add focused research and final recalculation.
+10. Build the structured PDF renderer.
+11. Add Docker packaging, secrets, health checks, and local deployment.
+12. Configure `idea.battery.rip` and the password secret.
+13. Run a fresh-context, end-to-end browser verification.
 
 Each stage should pass its contract tests before the next AI stage is added. Testing should focus on the full workflow, schema boundaries, feature dependencies, citations, secret handling, and PDF output.
 
@@ -823,7 +979,10 @@ Each stage should pass its contract tests before the next AI stage is added. Tes
 | Costs look more certain than they are | The final PDF misleads the user | Use ranges, assumptions, evidence, and confidence language |
 | Feature dependencies become confusing | Users cannot understand why items are selected | Explain each dependency and show the chain before applying it |
 | Retro visuals reduce readability | The joke harms the actual tool | Keep research, comparison, and report panels calmer than the shell |
-| Random web GIFs cause copyright or reliability problems | Assets disappear or create distribution risk | Store original or licensed assets locally and track attribution |
+| Maximum-chaos presentation interrupts the workflow | Users lose their place or cannot reach a required control | Keep controls stable, limit blocking reactions to two seconds, and provide Calm mode |
+| Random web GIFs cause copyright or reliability problems | Assets disappear or create distribution risk | Store assets locally, keep provenance and public-release status, and maintain replacements for demo-only files |
+| Sound becomes irritating or violates browser expectations | Users mute the site or abandon the workflow | Start after interaction, provide persistent mute, and disable it in Calm mode |
+| Personality adds unnecessary token cost | Cheap jokes become expensive model calls | Use a local event catalog and only piggyback hypotheses on existing structured responses |
 | Product name or styling creates confusion with Akinator | Public distribution may create naming concerns | Use an original guide and review the name before wider release |
 | Browser state becomes incompatible after an update | The active project will not load | Version state and provide a safe migration or start-over path |
 | Server restart interrupts research | The current job is lost | Detect missing jobs and offer a stage retry |
@@ -840,8 +999,9 @@ The following choices do not block this PRD:
 - Shared password value.
 - Cookie lifetime.
 - Temporary job expiration time.
-- Original guide-character design.
-- Final GIF and texture collection.
+- Exact scripted dialogue variants, Easter-egg frequency, and joke-achievement names.
+- Exact GIF, MIDI, sound-effect, and texture collection after asset review.
+- Exact duration and easing of nonblocking reactions.
 - PDF typography and page theme.
 - Whether progress uses polling or server-sent events.
 
@@ -851,4 +1011,3 @@ None of these decisions may change the approved user flow without updating this 
 
 - [OpenAI Responses API reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)
 - [OpenAI model guidance](https://developers.openai.com/api/docs/guides/latest-model)
-
