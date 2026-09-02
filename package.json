@@ -13,10 +13,13 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"auth:hash": "node scripts/hash-password.js",
+		"auth:set": "node scripts/hash-password.js --update-env",
 		"build:sage": "bash scripts/build-sage.sh",
 		"container:build": "./deploy/compose.sh build",
 		"container:up": "./deploy/compose.sh up -d --wait",
 		"container:down": "./deploy/compose.sh down",
+		"deploy:verify": "./deploy/verify-live.sh",
+		"deploy:verify:auth": "./deploy/verify-live.sh --auth",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run"
 	},

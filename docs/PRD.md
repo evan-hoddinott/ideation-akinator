@@ -1108,7 +1108,7 @@ The first dialogue-first implementation pass was completed locally on 2026-09-01
 
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 11 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-02.
+Implementation slices 1 through 12 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-02.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
@@ -1136,7 +1136,12 @@ Implementation slices 1 through 11 of 13 were completed and deployed to `idea.ba
 - The Compose wrapper disables automatic `.env` interpolation and loads the password hash literally. This prevents dollar-sign segments from being treated as environment references.
 - Server logs now attach a validated or generated request identifier to API traffic and report model token totals for intake, interview, concept, research, and final-recalculation stages. Logs continue to exclude prompts, project bodies, credentials, cookies, and generated report content.
 - The previous system service remains in the repository as a hardened rollback definition. It is disabled on the live server after the container passes local and public verification.
-- Slice 12 remains next. It records and verifies the existing public hostname and shared-password configuration against the container deployment.
+- Slice 12 records the live request path from Cloudflare HTTPS through the remotely managed tunnel to `http://localhost:4187`, then into the loopback-only application container. Caddy remains outside this app's request path.
+- The server-side `.env` remains mode `0600` and contains the password hash, independent cookie-signing secret, and provider key. The Cloudflare tunnel credential remains outside this repository.
+- A repo-owned live verification command now checks DNS, local and public health, the anonymous password screen, anonymous API rejection, container health and hardening, tunnel reachability, and retirement of the old service. Its authenticated mode accepts the shared password through a hidden terminal prompt, checks the cookie flags, and proves the session survives refresh without retaining the password or cookie jar.
+- The chosen shared password has been written as a fresh scrypt hash through the non-printing password setter and accepted by the live gate. The value itself remains outside Git and deployment records.
+- Live verification on 2026-09-02 confirmed `idea.battery.rip` resolves through Cloudflare, the tunnel maps it to `http://localhost:4187`, the container is healthy on `127.0.0.1:4187`, and the legacy service remains inactive and disabled.
+- Slice 13 remains next. It runs the final fresh-context end-to-end browser verification against the live deployment.
 
 ## 20. Risks and mitigations
 

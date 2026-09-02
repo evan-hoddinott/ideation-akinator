@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 11 of 13 are complete. They include:
+Implementation slices 1 through 12 of 13 are complete. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -43,8 +43,9 @@ Implementation slices 1 through 11 of 13 are complete. They include:
 - A Node health endpoint at `/health`.
 - A fully local, token-free visual walkthrough with canned intake feedback, research, interview questions, and four concepts. Demo projects are visibly marked, survive refresh, and can be restarted from any stage.
 - A production container that runs as an unprivileged user, binds only to loopback, validates runtime secrets, exposes a health check, and logs request IDs and token counts without logging project text.
+- A recorded and verified `idea.battery.rip` request path through the remotely managed Cloudflare Tunnel, plus repeatable anonymous and authenticated deployment checks.
 
-Slice 12 formalizes the existing `idea.battery.rip` tunnel and shared-password configuration against the container deployment.
+Slice 13 is the final fresh-context browser verification of the complete live workflow.
 
 ## Token-free visual walkthrough
 
@@ -67,13 +68,15 @@ npm run container:up
 
 The container has a read-only root filesystem, a small temporary `/tmp`, no Linux capabilities, `no-new-privileges`, an init process, a process limit, and an `unless-stopped` restart policy. Its startup check names missing or malformed settings without printing their values. The old `deploy/ideation-akinator.service` remains as a hardened rollback option but is not part of the normal container deployment.
 
+Run `npm run deploy:verify` for the safe non-interactive deployment audit. Run `npm run deploy:verify:auth` to include a real hidden password prompt and session-refresh check. The [live deployment record](docs/DEPLOYMENT.md) documents the request path, secret ownership, normal commands, and rollback boundary.
+
 ## Local setup
 
 Requirements: Node.js 22 or later and npm.
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env`.
-3. Run `npm run auth:hash` and place the resulting hash in `APP_PASSWORD_HASH`.
+3. Run `npm run auth:set` to write a new shared-password hash directly to the untracked `.env` file without printing it. Use `npm run auth:hash` only when you need to copy the hash into another secret manager.
 4. Generate `APP_COOKIE_SECRET` with at least 32 random bytes. `openssl rand -base64 48` works on Linux.
 5. Add a server-side `OPENAI_API_KEY`. `OPENAI_INTAKE_MODEL` and `OPENAI_INTERVIEW_MODEL` default to `gpt-5.6-luna`. `OPENAI_RESEARCH_MODEL`, `OPENAI_CONCEPT_MODEL`, and `OPENAI_FINAL_MODEL` default to `gpt-5.6-terra`.
 6. Start the app with `npm run dev`.
