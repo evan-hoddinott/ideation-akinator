@@ -158,6 +158,8 @@ def create_rig():
     add_bone("pelvis", occupant_point((0, 0, 0.92)), occupant_point((0, 0, 1.2)), "chair")
     add_bone("spine", occupant_point((0, 0, 1.1)), occupant_point((0, 0, 1.95)), "pelvis")
     add_bone("head", occupant_point((0, 0, 1.95)), occupant_point((0, 0, 2.55)), "spine")
+    add_bone("robe_secondary", occupant_point((0, -0.05, 1.2)), occupant_point((0, -0.34, 1.05)), "pelvis")
+    add_bone("hat_secondary", occupant_point((0, 0, 2.88)), occupant_point((0.15, 0.02, 3.62)), "head")
     add_bone("upper_arm.L", occupant_point((-0.25, 0, 1.82)), occupant_point((-0.78, 0, 1.65)), "spine")
     add_bone("forearm.L", occupant_point((-0.78, 0, 1.65)), occupant_point((-1.08, -0.02, 1.38)), "upper_arm.L")
     add_bone("hand.L", occupant_point((-1.08, -0.02, 1.38)), occupant_point((-1.23, -0.05, 1.25)), "forearm.L")
@@ -272,7 +274,11 @@ def build_character(armature):
         cube("BootSoleR", (0.22, -1.06, 0.77), (0.18, 0.055, 0.035), case_dark, 0.018, (-0.18, 0, 0.055)),
     ]
     for piece in pelvis_parts:
-        parent_to_bone(piece, armature, "pelvis")
+        parent_to_bone(
+            piece,
+            armature,
+            "robe_secondary" if piece.name in {"RobeLap", "RobeLapTrim"} else "pelvis",
+        )
 
     shoulder_parts = [
         sphere("ShoulderL", occupant_point((-0.48, 0, 1.76)), scaled_shape((0.26, 0.28, 0.24)), navy),
@@ -347,7 +353,11 @@ def build_character(armature):
         cube("HatStarSmallH", occupant_point((-0.24, -0.53, 3.10)), scaled_shape((0.055, 0.018, 0.018), HAT_SCALE), amber, 0.006, (0, 0, -0.15)),
     ]
     for piece in hat_parts:
-        parent_to_bone(piece, armature, "head")
+        parent_to_bone(
+            piece,
+            armature,
+            "hat_secondary" if piece.name not in {"HatBrim", "HatBand"} else "head",
+        )
 
     return {
         "screen": bpy.data.objects["MonitorScreen"],
@@ -440,15 +450,67 @@ def build_actions(armature):
     actions.append(
         create_action(
             armature,
+            "thinking",
+            [
+                (1, {}),
+                (5, {"head": {"rotation": (0.02, 0, -0.18)}, "spine": {"rotation": (0.06, 0, -0.04)}}),
+                (10, {"head": {"rotation": (-0.08, 0, -0.28)}, "upper_arm.L": {"rotation": (0.1, -0.18, -0.72)}, "forearm.L": {"rotation": (-0.2, 0.12, -1.05)}, "hand.L": {"rotation": (0, 0, -0.18)}}),
+                (16, {"head": {"rotation": (0.04, 0, -0.22)}, "upper_arm.L": {"rotation": (0.1, -0.18, -0.66)}, "forearm.L": {"rotation": (-0.2, 0.12, -0.95)}}),
+                (23, {}),
+            ],
+        )
+    )
+    actions.append(
+        create_action(
+            armature,
+            "suspicious",
+            [
+                (1, {}),
+                (4, {"spine": {"rotation": (0.02, 0, -0.12)}, "head": {"rotation": (0.02, 0, 0.34)}}),
+                (9, {"spine": {"rotation": (-0.1, 0, 0.18)}, "head": {"rotation": (-0.06, 0, -0.42)}, "upper_arm.R": {"rotation": (0, 0, -0.46)}, "forearm.R": {"rotation": (0, 0, 0.42)}}),
+                (15, {"spine": {"rotation": (0.02, 0, -0.1)}, "head": {"rotation": (0.04, 0, 0.28)}}),
+                (22, {}),
+            ],
+        )
+    )
+    actions.append(
+        create_action(
+            armature,
+            "shocked",
+            [
+                (1, {}),
+                (3, {"chair": {"location": (0, 0, -0.08)}, "spine": {"rotation": (0.34, 0, 0)}, "head": {"rotation": (0.26, 0, 0)}}),
+                (6, {"chair": {"location": (0, 0, 0.12)}, "spine": {"rotation": (-0.42, 0, 0)}, "head": {"rotation": (-0.34, 0, 0)}, "upper_arm.L": {"rotation": (-0.22, 0, 1.38)}, "upper_arm.R": {"rotation": (0.22, 0, -1.38)}, "forearm.L": {"rotation": (0, 0, -0.55)}, "forearm.R": {"rotation": (0, 0, 0.55)}}),
+                (11, {"chair": {"location": (0, 0, 0.04)}, "spine": {"rotation": (-0.18, 0, 0)}, "head": {"rotation": (-0.12, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 0.92)}, "upper_arm.R": {"rotation": (0, 0, -0.92)}}),
+                (19, {}),
+            ],
+        )
+    )
+    actions.append(
+        create_action(
+            armature,
+            "smug",
+            [
+                (1, {}),
+                (5, {"spine": {"rotation": (-0.08, 0, 0.1)}, "head": {"rotation": (0.08, 0, -0.2)}}),
+                (10, {"spine": {"rotation": (-0.12, 0, 0.16)}, "head": {"rotation": (0.1, 0, -0.28)}, "upper_arm.L": {"rotation": (0, 0, 0.78)}, "upper_arm.R": {"rotation": (0, 0, -0.78)}, "forearm.L": {"rotation": (0, 0, -0.72)}, "forearm.R": {"rotation": (0, 0, 0.72)}}),
+                (17, {"spine": {"rotation": (-0.06, 0, 0.1)}, "head": {"rotation": (0.08, 0, -0.2)}, "upper_arm.L": {"rotation": (0, 0, 0.52)}, "upper_arm.R": {"rotation": (0, 0, -0.52)}}),
+                (24, {}),
+            ],
+        )
+    )
+    actions.append(
+        create_action(
+            armature,
             "popup_swat",
             [
                 (1, {}),
-                (5, {"head": {"rotation": (0, 0, -0.42)}, "spine": {"rotation": (0.02, 0, -0.12)}}),
-                (9, {"spine": {"rotation": (0.08, 0, 0.28)}, "head": {"rotation": (0, 0, -0.58)}, "upper_arm.R": {"rotation": (0.2, -0.25, 1.25)}, "forearm.R": {"rotation": (-0.1, 0.25, 1.1)}}),
-                (12, {"spine": {"rotation": (-0.24, 0, -0.36)}, "head": {"rotation": (0.08, 0, 0.22)}, "upper_arm.R": {"rotation": (-0.2, 0.25, -1.4)}, "forearm.R": {"rotation": (0.2, -0.25, -0.85)}}),
-                (14, {"spine": {"rotation": (-0.16, 0, -0.24)}, "upper_arm.R": {"rotation": (-0.1, 0.1, -0.95)}, "forearm.R": {"rotation": (0.15, -0.2, -0.62)}}),
-                (21, {"head": {"rotation": (0, 0, 0.08)}}),
-                (27, {}),
+                (5, {"head": {"rotation": (0, 0, 0.5)}, "spine": {"rotation": (0.02, 0, 0.16)}}),
+                (9, {"spine": {"rotation": (0.08, 0, -0.26)}, "head": {"rotation": (0, 0, 0.62)}, "upper_arm.L": {"rotation": (-0.22, 0.3, -1.48)}, "forearm.L": {"rotation": (0.12, -0.25, -1.25)}}),
+                (12, {"chair": {"location": (0, 0, 0.07)}, "spine": {"rotation": (-0.3, 0, 0.44)}, "head": {"rotation": (0.08, 0, -0.26)}, "upper_arm.L": {"rotation": (0.24, -0.34, 1.52)}, "forearm.L": {"rotation": (-0.22, 0.28, 0.96)}, "hand.L": {"scale": (1.32, 1.32, 1.32)}}),
+                (15, {"chair": {"location": (0, 0, 0.03)}, "spine": {"rotation": (-0.18, 0, 0.3)}, "upper_arm.L": {"rotation": (0.12, -0.14, 1.06)}, "forearm.L": {"rotation": (-0.1, 0.12, 0.62)}, "hand.L": {"scale": (1.12, 1.12, 1.12)}}),
+                (23, {"head": {"rotation": (0, 0, -0.1)}}),
+                (30, {}),
             ],
         )
     )

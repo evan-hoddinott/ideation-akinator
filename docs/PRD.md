@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 14 are complete and deployed. Slices 15 through 22 remain approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 15 are complete and deployed. Slices 16 through 22 remain approved and pending.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1280,6 +1280,17 @@ Slice 14 was completed and deployed on 2026-09-02 without changing the saved wor
 - The old permanent stage rail and header controls are gone. Sound, Chaos/Calm mode, token-free restart, Start over, and workshop lock live in a compact menu opened by the screen button or Escape.
 - Silkscreen is bundled locally under the SIL Open Font License and recorded in the asset ledger. Evidence documents and the final report retain their calmer reading typography.
 - Automated verification passed Svelte diagnostics, 101 unit tests, formatting, lint, and a production build. Browser verification covered the welcome, problem, preference, research, and interview states at 1,280 and 1,440 pixel desktop widths, including typewriter completion, keyboard focus, audio enablement, pause controls, fixed-viewport overflow, and console errors.
+
+### 19.6 Slice 15 completion record
+
+Slice 15 was completed and deployed on 2026-09-02 without changing the workflow or AI contracts.
+
+- The Sage model now contains distinct thinking, suspicious, shocked, and smug clips in addition to the existing idle, ascent, generic reaction, weak-answer, reveal, and popup-swat performances. Large reactions use authored anticipation, contact, and recovery poses while ordinary speech stays restrained.
+- The CRT face has nine local mood profiles. Eye shape, eye angle, mouth shape, and face color change with the Sage's mood. The centered mouth behaves as an audio meter, widening during speech and growing taller with each synthesized voice pulse even when the player has muted sound.
+- The Sage follows the pointer with a bounded, eased head turn. Authored performances reduce the gaze effect so the cursor cannot pull him out of a reaction pose.
+- The model has separate hat and robe secondary bones. Their small delayed motion runs between authored poses without making the seated character fidget continuously.
+- The Crystal RAM interruption now accepts real pointer input above the dialogue layer. The Sage notices it, winds up, strikes it with the correct side of his body, throws it offscreen, and triggers a stepped `WHAP!` impact before the secret reaction begins.
+- Automated verification passed Svelte diagnostics, 104 unit tests, formatting, lint, and a production build. Browser verification covered live model loading, mood expressions, speech motion, pointer tracking, the complete popup tutorial, fixed viewport dimensions, failed asset requests, and console errors.
 
 ## 20. Risks and mitigations
 

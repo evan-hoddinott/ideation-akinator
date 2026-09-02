@@ -128,6 +128,8 @@
 	let preferenceStep = $state(0);
 	let pauseMenuOpen = $state(false);
 	let sageSpeaking = $state(false);
+	let sageVoicePulse = $state(0);
+	let sageVoiceEnergy = $state(0.5);
 	let previewMuted = $state(true);
 	let previewCalm = $state(false);
 	let oracleAudio: OracleAudio | null = null;
@@ -482,6 +484,8 @@
 	}
 
 	function playSageVoice(profile: SageVoiceProfile) {
+		sageVoicePulse += 1;
+		sageVoiceEnergy = Math.min(1, Math.max(0.15, profile.volume / 0.05));
 		if (visualProject.personality.muted) return;
 		oracleAudio ??= new OracleAudio();
 		oracleAudio.playVoice(profile);
@@ -1980,6 +1984,8 @@
 				altitude={sageAltitude}
 				researching={researchIsActive}
 				speaking={sageSpeaking}
+				voicePulse={sageVoicePulse}
+				voiceEnergy={sageVoiceEnergy}
 				allowPopup={!!project && project.stage !== 'welcome' && !researchIsActive}
 				onSecret={findForbiddenFloppy}
 			/>

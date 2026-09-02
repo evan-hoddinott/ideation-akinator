@@ -2,13 +2,21 @@
 	import { onDestroy, onMount } from 'svelte';
 	import type { AnimationAction } from 'three';
 	import type { SagePersonality } from '$lib/personality';
-	import { clipForMood, type SageClip } from '$lib/sage-stage';
+	import {
+		clipForMood,
+		faceProfileForMood,
+		normalizedCursorTarget,
+		speechMeter,
+		type SageClip
+	} from '$lib/sage-stage';
 
 	let {
 		personality,
 		altitude,
 		researching = false,
 		speaking = false,
+		voicePulse = 0,
+		voiceEnergy = 0.5,
 		allowPopup = true,
 		onSecret
 	}: {
@@ -16,6 +24,8 @@
 		altitude: number;
 		researching?: boolean;
 		speaking?: boolean;
+		voicePulse?: number;
+		voiceEnergy?: number;
 		allowPopup?: boolean;
 		onSecret: () => void;
 	} = $props();
@@ -28,17 +38,20 @@
 	let useFallback = $derived(personality.calmMode || motionFallback || modelFailed);
 	let popupVisible = $state(false);
 	let popupSwatting = $state(false);
+	let popupImpact = $state(false);
 	let playClip: ((clip: SageClip, returnToIdle?: boolean) => void) | null = null;
 	let lastReactionCounter = -1;
 	let lastAltitude = 0;
 	let mounted = false;
 	let threeStarted = false;
 	let cleanupThree = () => {};
+	let cursorX = 0;
+	let cursorY = 0;
 
 	$effect(() => {
 		const counter = personality.eventCounter;
 		const mood = personality.mood;
-		if (!playClip || counter === lastReactionCounter) return;
+		if (!playClip || popupSwatting || counter === lastReactionCounter) return;
 		lastReactionCounter = counter;
 		playClip(clipForMood(mood), true);
 	});
@@ -73,11 +86,26 @@
 		if (popupSwatting) return;
 		popupSwatting = true;
 		playClip?.('popup_swat', true);
-		window.setTimeout(() => onSecret(), 460);
+		window.setTimeout(() => (popupImpact = true), 400);
 		window.setTimeout(() => {
 			popupVisible = false;
+			popupImpact = false;
+		}, 920);
+		window.setTimeout(() => {
 			popupSwatting = false;
-		}, 820);
+			onSecret();
+		}, 1_440);
+	}
+
+	function trackPointer(event: PointerEvent) {
+		const target = normalizedCursorTarget(
+			event.clientX,
+			event.clientY,
+			window.innerWidth,
+			window.innerHeight
+		);
+		cursorX = target.x;
+		cursorY = target.y;
 	}
 
 	onMount(() => {
@@ -85,9 +113,11 @@
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const forcedFallback = new URL(window.location.href).searchParams.has('sageFallback');
 		motionFallback = reduceMotion || forcedFallback;
+		window.addEventListener('pointermove', trackPointer, { passive: true });
 		void startThree();
 		return () => {
 			mounted = false;
+			window.removeEventListener('pointermove', trackPointer);
 		};
 	});
 
@@ -184,7 +214,8 @@
 				activeAction = next;
 				window.clearTimeout(returnTimer);
 				if (returnToIdle && clip !== 'idle') {
-					returnTimer = window.setTimeout(() => playClip?.('idle'), 980);
+					const recoveryDelay = Math.ceil(next.getClip().duration * 1_000) + 80;
+					returnTimer = window.setTimeout(() => playClip?.('idle'), recoveryDelay);
 				}
 			};
 
@@ -201,9 +232,36 @@
 			let lastFrame = performance.now();
 			let frameId = 0;
 			let lastFaceStep = -1;
+			let lastVoicePulse = voicePulse;
+			let lastVoiceAt = 0;
+			let smoothedCursorX = 0;
+			let smoothedCursorY = 0;
 			const eyeLeft = sage.getObjectByName('EyeLeft');
 			const eyeRight = sage.getObjectByName('EyeRight');
 			const mouth = sage.getObjectByName('Mouth');
+			const headBone = sage.getObjectByName('head');
+			const spineBone = sage.getObjectByName('spine');
+			const hatSecondary = sage.getObjectByName('hat_secondary');
+			const robeSecondary = sage.getObjectByName('robe_secondary');
+			const faceParts = [eyeLeft, eyeRight, mouth].filter(
+				(part): part is NonNullable<typeof part> => !!part
+			);
+			for (const part of faceParts) {
+				if (!(part instanceof THREE.Mesh)) continue;
+				part.material = Array.isArray(part.material)
+					? part.material.map((material) => material.clone())
+					: part.material.clone();
+			}
+			const baseFace = new Map(
+				faceParts.map((part) => [
+					part,
+					{
+						position: part.position.clone(),
+						rotation: part.rotation.clone(),
+						scale: part.scale.clone()
+					}
+				])
+			);
 
 			const resize = () => {
 				const width = Math.max(mountContainer.clientWidth, 1);
@@ -237,16 +295,81 @@
 				presentation.position.y = Math.sin(elapsed * 1.7) * 0.035;
 				presentation.rotation.y = (researching ? -0.52 : 0) + Math.sin(elapsed * 0.7) * 0.018;
 
+				if (voicePulse !== lastVoicePulse) {
+					lastVoicePulse = voicePulse;
+					lastVoiceAt = elapsed;
+				}
+				const pulseAge = elapsed - lastVoiceAt;
+				const activeEnergy = pulseAge < 0.11 ? voiceEnergy : 0.34;
+				smoothedCursorX += (cursorX - smoothedCursorX) * Math.min(delta * 4.8, 1);
+				smoothedCursorY += (cursorY - smoothedCursorY) * Math.min(delta * 4.8, 1);
+
+				const authoredPerformance = actionName !== 'idle';
+				const gazeWeight = authoredPerformance ? 0.18 : 1;
+				if (headBone) {
+					headBone.rotation.y += smoothedCursorX * 0.12 * gazeWeight;
+					headBone.rotation.x += -smoothedCursorY * 0.075 * gazeWeight;
+					if (speaking) headBone.rotation.z += Math.sin(elapsed * 8.5) * 0.012;
+				}
+				if (spineBone && speaking && !authoredPerformance) {
+					spineBone.rotation.x += Math.sin(elapsed * 6.5) * 0.012;
+					spineBone.position.y += Math.max(0, Math.sin(elapsed * 13)) * 0.006;
+				}
+				if (hatSecondary) {
+					hatSecondary.rotation.z += Math.sin(elapsed * 2.4 + 0.8) * 0.035;
+					hatSecondary.rotation.x += Math.sin(elapsed * 1.9) * 0.018;
+				}
+				if (robeSecondary) {
+					robeSecondary.rotation.x += Math.sin(elapsed * 1.7 + 1.2) * 0.022;
+					robeSecondary.rotation.z += Math.sin(elapsed * 2.1) * 0.012;
+				}
+
 				const faceFps = actionName === 'popup_swat' ? 24 : personality.mood === 'thinking' ? 8 : 12;
 				const faceStep = Math.floor(elapsed * faceFps);
 				if (faceStep !== lastFaceStep) {
 					lastFaceStep = faceStep;
-					const blink = faceStep % 37 === 0 ? 0.18 : 1;
-					if (eyeLeft) eyeLeft.scale.y = blink;
-					if (eyeRight) eyeRight.scale.y = blink;
+					const profile = faceProfileForMood(personality.mood);
+					const blink = faceStep % 41 === 0 && personality.mood !== 'shocked' ? 0.16 : 1;
+					const meter = speechMeter(speaking, elapsed, activeEnergy);
+					for (const part of faceParts) {
+						const materials =
+							'material' in part
+								? Array.isArray(part.material)
+									? part.material
+									: [part.material]
+								: [];
+						for (const material of materials) {
+							if ('color' in material) material.color.setHex(profile.color);
+							if ('emissive' in material) material.emissive.setHex(profile.color);
+						}
+					}
+					if (eyeLeft) {
+						const base = baseFace.get(eyeLeft)!;
+						eyeLeft.scale.set(
+							base.scale.x * profile.eyeWidth,
+							base.scale.y * profile.leftEyeHeight * blink,
+							base.scale.z
+						);
+						eyeLeft.position.y = base.position.y + profile.eyeLift;
+						eyeLeft.rotation.z = base.rotation.z + profile.eyeTilt;
+					}
+					if (eyeRight) {
+						const base = baseFace.get(eyeRight)!;
+						eyeRight.scale.set(
+							base.scale.x * profile.eyeWidth,
+							base.scale.y * profile.rightEyeHeight * blink,
+							base.scale.z
+						);
+						eyeRight.position.y = base.position.y + profile.eyeLift;
+						eyeRight.rotation.z = base.rotation.z - profile.eyeTilt;
+					}
 					if (mouth) {
-						mouth.scale.x = speaking ? 0.82 + (faceStep % 4) * 0.16 : 0.92;
-						mouth.scale.y = speaking ? 0.82 + ((faceStep + 2) % 3) * 0.12 : 1;
+						const base = baseFace.get(mouth)!;
+						mouth.scale.set(
+							base.scale.x * profile.mouthWidth * meter.width,
+							base.scale.y * profile.mouthHeight * meter.height,
+							base.scale.z
+						);
 					}
 				}
 
@@ -314,9 +437,10 @@
 			<span class="popup-bar">TOTALLY_REAL_PRIZE.EXE <b>×</b></span>
 			<img src="/images/retro/magic-hit.gif" alt="" />
 			<strong>YOU WON 8MB<br />OF CRYSTAL RAM!!!</strong>
-			<small>{popupSwatting ? 'SAGE INTERCEPTION IN PROGRESS' : 'CLICK TO CLAIM / REGRET'}</small>
+			<small>{popupSwatting ? 'BAD WINDOW. BAD.' : 'CLICK TO CLOSE BEFORE HE NOTICES'}</small>
 		</button>
 	{/if}
+	{#if popupImpact}<span class="swat-impact" aria-hidden="true">WHAP!</span>{/if}
 
 	{#if modelFailed}
 		<span class="fallback-note">3D SIGNAL LOST · PORTRAIT CHANNEL ACTIVE</span>
@@ -378,9 +502,9 @@
 
 	.joke-popup {
 		position: absolute;
-		left: -2%;
+		left: 3%;
 		right: auto;
-		top: 18%;
+		top: 25%;
 		width: 220px;
 		padding: 30px 10px 12px;
 		border: 4px outset #ddd;
@@ -392,8 +516,21 @@
 		text-align: center;
 		box-shadow: 10px 12px 0 #06020d99;
 		pointer-events: auto;
-		transform: rotate(3deg);
+		transform: rotate(-2deg);
 		animation: popup-arrival 300ms steps(4, end);
+		cursor: pointer;
+	}
+
+	.joke-popup::after {
+		position: absolute;
+		right: -19px;
+		bottom: -17px;
+		width: 34px;
+		height: 34px;
+		content: '☝';
+		font-size: 27px;
+		filter: drop-shadow(2px 2px #fff);
+		animation: popup-nag 680ms steps(2, end) infinite;
 	}
 
 	.popup-bar {
@@ -429,7 +566,29 @@
 	}
 
 	.joke-popup.swatted {
-		animation: popup-swat 520ms cubic-bezier(0.7, -0.3, 0.9, 0.2) forwards;
+		pointer-events: none;
+		animation: popup-swat 620ms steps(8, end) forwards;
+	}
+
+	.joke-popup.swatted::after {
+		display: none;
+	}
+
+	.swat-impact {
+		position: absolute;
+		z-index: 4;
+		left: 9%;
+		top: 31%;
+		color: #fff65a;
+		font:
+			700 clamp(28px, 5vw, 66px) 'Silkscreen',
+			monospace;
+		letter-spacing: -0.12em;
+		paint-order: stroke fill;
+		-webkit-text-stroke: 8px #4d0b78;
+		text-shadow: 8px 8px 0 #ff2868;
+		transform: rotate(-14deg);
+		animation: impact-pop 520ms steps(6, end) both;
 	}
 
 	.fallback-note {
@@ -447,24 +606,50 @@
 
 	@keyframes popup-arrival {
 		from {
-			transform: translate(80px, -50px) rotate(12deg) scale(0.5);
+			transform: translate(-90px, -40px) rotate(-12deg) scale(0.5);
 			opacity: 0;
 		}
 		to {
-			transform: rotate(3deg) scale(1);
+			transform: rotate(-2deg) scale(1);
 			opacity: 1;
 		}
 	}
 
 	@keyframes popup-swat {
 		0% {
-			transform: rotate(3deg);
+			transform: rotate(-2deg);
 		}
-		20% {
-			transform: translateX(-28px) rotate(-8deg) scale(1.06);
+		18% {
+			transform: translateX(20px) rotate(6deg) scale(1.06);
+			filter: brightness(1);
+		}
+		28% {
+			transform: translate(-22px, 4px) rotate(-13deg) scale(0.96, 1.12);
+			filter: brightness(2.6) saturate(0);
 		}
 		100% {
-			transform: translate(65vw, 30vh) rotate(420deg) scale(0.25);
+			transform: translate(-56vw, -16vh) rotate(-620deg) scale(0.18);
+			opacity: 0;
+		}
+	}
+
+	@keyframes popup-nag {
+		50% {
+			transform: translate(-5px, -5px);
+		}
+	}
+
+	@keyframes impact-pop {
+		0% {
+			transform: rotate(-14deg) scale(0.2);
+			opacity: 0;
+		}
+		32% {
+			transform: rotate(-8deg) scale(1.22);
+			opacity: 1;
+		}
+		100% {
+			transform: rotate(-14deg) scale(0.78);
 			opacity: 0;
 		}
 	}

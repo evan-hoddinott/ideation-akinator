@@ -33,6 +33,7 @@
 .dialogue-layout .workspace.has-companion {
 	display: block;
 	min-height: 100dvh;
+	pointer-events: none;
 }
 .dialogue-layout {
 	height: 100dvh;
@@ -42,6 +43,7 @@
 	position: relative;
 	z-index: 10;
 	min-height: 100dvh;
+	pointer-events: none;
 }
 .legacy-hidden {
 	display: none !important;

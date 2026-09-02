@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-The first 14 of 22 implementation slices are complete. They include:
+The first 15 of 22 implementation slices are complete. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -47,6 +47,7 @@ The first 14 of 22 implementation slices are complete. They include:
 - A fresh-session live browser walkthrough of the complete token-free flow, including report download, PDF page inspection, restart, console checks, and failed-request checks.
 - A PDF pagination regression check that prevents the footer from creating blank trailing pages, plus a legacy favicon response for browsers that request `/favicon.ico` automatically.
 - A fixed-viewport RPG presentation layer with a bottom-center dialogue box, mood portrait, character-by-character speech, synthesized Sage chirps, mouse and keyboard controls, four-choice pagination, game-style innovation and budget meters, and a compact pause menu.
+- A live low-poly Sage performance layer with mood-specific CRT expressions, an audio-meter mouth, cursor-aware head turns, restrained speech motion, secondary hat and robe movement, distinct reaction clips, and a physical popup-swat gag.
 
 The current live workflow was verified at `https://idea.battery.rip` on 2026-09-02.
 

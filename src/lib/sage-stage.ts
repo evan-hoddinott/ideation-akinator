@@ -12,7 +12,150 @@ export const STAGE_ALTITUDES: Record<WorkflowStage, number> = {
 	focused: 0.98
 };
 
-export type SageClip = 'idle' | 'ascend' | 'reaction' | 'popup_swat' | 'weak_answer' | 'reveal';
+export type SageClip =
+	| 'idle'
+	| 'ascend'
+	| 'reaction'
+	| 'thinking'
+	| 'suspicious'
+	| 'shocked'
+	| 'smug'
+	| 'popup_swat'
+	| 'weak_answer'
+	| 'reveal';
+
+export interface SageFaceProfile {
+	eyeWidth: number;
+	leftEyeHeight: number;
+	rightEyeHeight: number;
+	eyeTilt: number;
+	eyeLift: number;
+	mouthWidth: number;
+	mouthHeight: number;
+	color: number;
+}
+
+const DEFAULT_FACE: SageFaceProfile = {
+	eyeWidth: 1,
+	leftEyeHeight: 1,
+	rightEyeHeight: 1,
+	eyeTilt: 0,
+	eyeLift: 0,
+	mouthWidth: 1,
+	mouthHeight: 1,
+	color: 0xff701f
+};
+
+export const SAGE_FACE_PROFILES: Record<SageMood, SageFaceProfile> = {
+	neutral: DEFAULT_FACE,
+	thinking: {
+		...DEFAULT_FACE,
+		leftEyeHeight: 0.58,
+		rightEyeHeight: 0.9,
+		eyeTilt: -0.08,
+		eyeLift: 0.015,
+		mouthWidth: 0.72,
+		color: 0xffb22e
+	},
+	suspicious: {
+		...DEFAULT_FACE,
+		leftEyeHeight: 0.32,
+		rightEyeHeight: 0.72,
+		eyeTilt: -0.14,
+		mouthWidth: 0.62,
+		mouthHeight: 0.72,
+		color: 0xd6ff38
+	},
+	delighted: {
+		...DEFAULT_FACE,
+		eyeWidth: 1.08,
+		leftEyeHeight: 0.72,
+		rightEyeHeight: 0.72,
+		eyeTilt: 0.12,
+		mouthWidth: 1.5,
+		mouthHeight: 1.45,
+		color: 0x50ffd2
+	},
+	irritated: {
+		...DEFAULT_FACE,
+		leftEyeHeight: 0.5,
+		rightEyeHeight: 0.5,
+		eyeTilt: 0.2,
+		mouthWidth: 0.82,
+		mouthHeight: 0.62,
+		color: 0xff3b30
+	},
+	shocked: {
+		...DEFAULT_FACE,
+		eyeWidth: 0.72,
+		leftEyeHeight: 1.5,
+		rightEyeHeight: 1.5,
+		mouthWidth: 0.7,
+		mouthHeight: 2.8,
+		color: 0xffffff
+	},
+	smug: {
+		...DEFAULT_FACE,
+		leftEyeHeight: 0.62,
+		rightEyeHeight: 0.62,
+		eyeTilt: -0.1,
+		eyeLift: 0.01,
+		mouthWidth: 1.25,
+		mouthHeight: 0.68,
+		color: 0xff7ad9
+	},
+	defeated: {
+		...DEFAULT_FACE,
+		leftEyeHeight: 0.26,
+		rightEyeHeight: 0.26,
+		eyeTilt: 0.08,
+		eyeLift: -0.025,
+		mouthWidth: 0.58,
+		mouthHeight: 0.62,
+		color: 0x7f87aa
+	},
+	forbidden: {
+		...DEFAULT_FACE,
+		eyeWidth: 1.1,
+		leftEyeHeight: 1.08,
+		rightEyeHeight: 1.08,
+		eyeTilt: 0.18,
+		mouthWidth: 1.35,
+		mouthHeight: 1.3,
+		color: 0xb67cff
+	}
+};
+
+export function faceProfileForMood(mood: SageMood): SageFaceProfile {
+	return SAGE_FACE_PROFILES[mood];
+}
+
+export function normalizedCursorTarget(
+	clientX: number,
+	clientY: number,
+	viewportWidth: number,
+	viewportHeight: number
+): { x: number; y: number } {
+	if (viewportWidth <= 0 || viewportHeight <= 0) return { x: 0, y: 0 };
+	return {
+		x: Math.max(-1, Math.min(1, (clientX / viewportWidth) * 2 - 1)),
+		y: Math.max(-1, Math.min(1, (clientY / viewportHeight) * 2 - 1))
+	};
+}
+
+export function speechMeter(
+	speaking: boolean,
+	phase: number,
+	energy = 0.5
+): { width: number; height: number } {
+	if (!speaking) return { width: 1, height: 1 };
+	const safeEnergy = Math.max(0, Math.min(1, energy));
+	const beat = (Math.sin(phase * 17) + 1) / 2;
+	return {
+		width: 1.05 + safeEnergy * 0.65 + beat * 0.32,
+		height: 0.8 + safeEnergy * 0.85 + (1 - beat) * 0.5
+	};
+}
 
 export function projectAltitude(project: ProjectSession): number {
 	let localLift = 0;
@@ -53,5 +196,9 @@ export function clipForMood(mood: SageMood): SageClip {
 	if (mood === 'defeated' || mood === 'irritated') return 'weak_answer';
 	if (mood === 'delighted' || mood === 'forbidden') return 'reveal';
 	if (mood === 'neutral') return 'idle';
+	if (mood === 'thinking') return 'thinking';
+	if (mood === 'suspicious') return 'suspicious';
+	if (mood === 'shocked') return 'shocked';
+	if (mood === 'smug') return 'smug';
 	return 'reaction';
 }
