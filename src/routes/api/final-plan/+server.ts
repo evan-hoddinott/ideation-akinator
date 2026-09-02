@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import { parseFinalRecalculationRequest } from '$lib/finalization';
 import { verifySessionToken } from '$lib/server/auth';
 import { generateFinalProjectPlan, InvalidFinalPlanResponseError } from '$lib/server/final-plan-ai';
+import { addTokenUsage, emptyTokenUsage } from '$lib/server/observability';
 import { json } from '@sveltejs/kit';
 import OpenAI from 'openai';
 import type { RequestHandler } from './$types';
@@ -10,7 +11,7 @@ const SESSION_COOKIE = 'ideation_akinator_session';
 const DEFAULT_MODEL = 'gpt-5.6-terra';
 const MAX_BODY_BYTES = 240_000;
 
-export const POST: RequestHandler = async ({ cookies, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ cookies, request, getClientAddress, locals }) => {
 	if (!verifySessionToken(cookies.get(SESSION_COOKIE), env.APP_COOKIE_SECRET ?? ''))
 		return json(
 			{ code: 'not_authenticated', message: 'Lock and reopen the workshop.' },
@@ -64,30 +65,40 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress 
 	const startedAt = Date.now();
 	const model = env.OPENAI_FINAL_MODEL?.trim() || env.OPENAI_CONCEPT_MODEL?.trim() || DEFAULT_MODEL;
 	const openai = new OpenAI({ apiKey, timeout: 120_000, maxRetries: 1 });
+	const tokenUsage = emptyTokenUsage();
 	try {
 		const result = await generateFinalProjectPlan(
 			{
-				create: (parameters, options) =>
-					openai.responses.create(parameters, { signal: options?.signal })
+				create: async (parameters, options) => {
+					const response = await openai.responses.create(parameters, {
+						signal: options?.signal
+					});
+					addTokenUsage(tokenUsage, response);
+					return response;
+				}
 			},
 			model,
 			input,
 			request.signal
 		);
 		console.info('final_recalculation completed', {
+			requestId: locals.requestId,
 			durationMs: Date.now() - startedAt,
 			model,
 			featureCount: input.includedFeatures.length,
-			verdict: input.focusedResearch.verdict
+			verdict: input.focusedResearch.verdict,
+			...tokenUsage
 		});
 		return json(result);
 	} catch (error) {
 		const failureClass =
 			error instanceof InvalidFinalPlanResponseError ? 'invalid_model_output' : 'provider_error';
 		console.warn('final_recalculation failed', {
+			requestId: locals.requestId,
 			durationMs: Date.now() - startedAt,
 			model,
-			failureClass
+			failureClass,
+			...tokenUsage
 		});
 		return json(
 			{

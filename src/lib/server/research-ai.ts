@@ -6,6 +6,7 @@ import {
 	type ResearchCategory,
 	type ResearchSource
 } from '$lib/research';
+import { readTokenUsage, type TokenUsage } from '$lib/server/observability';
 
 const BROAD_RESEARCH_SCHEMA = {
 	type: 'object',
@@ -86,6 +87,7 @@ export interface ResearchProviderSnapshot {
 	outputText: string;
 	consultedSources: ConsultedSource[];
 	errorCode: string | null;
+	usage?: TokenUsage | null;
 }
 
 export interface ResearchProvider {
@@ -303,7 +305,8 @@ export function toProviderSnapshot(value: unknown): ResearchProviderSnapshot {
 		outputText: typeof value.output_text === 'string' ? value.output_text : '',
 		consultedSources: Array.from(sources, ([url, title]) => ({ url, title })),
 		errorCode:
-			isRecord(value.error) && typeof value.error.code === 'string' ? value.error.code : null
+			isRecord(value.error) && typeof value.error.code === 'string' ? value.error.code : null,
+		usage: readTokenUsage(value)
 	};
 }
 

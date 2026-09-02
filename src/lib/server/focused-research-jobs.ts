@@ -7,6 +7,7 @@ import {
 } from '$lib/server/focused-research-ai';
 import type { ResearchProviderSnapshot } from '$lib/server/research-ai';
 import { randomUUID } from 'node:crypto';
+import type { TokenUsage } from '$lib/server/observability';
 
 interface InternalFocusedResearchJob extends FocusedResearchJobView {
 	projectId: string;
@@ -15,6 +16,8 @@ interface InternalFocusedResearchJob extends FocusedResearchJobView {
 	provider: FocusedResearchProvider;
 	providerResponseId: string | null;
 	cancelRequested: boolean;
+	requestId: string | null;
+	model: string | null;
 }
 
 interface FocusedResearchJobManagerOptions {
@@ -49,7 +52,8 @@ export class FocusedResearchJobManager {
 	start(
 		input: FocusedResearchRequest,
 		inputSignature: string,
-		provider: FocusedResearchProvider
+		provider: FocusedResearchProvider,
+		logContext: { requestId?: string; model?: string } = {}
 	): { job: FocusedResearchJobView; reused: boolean } {
 		this.cleanup();
 		const existing = Array.from(this.jobs.values()).find(
@@ -75,7 +79,9 @@ export class FocusedResearchJobManager {
 			result: null,
 			provider,
 			providerResponseId: null,
-			cancelRequested: false
+			cancelRequested: false,
+			requestId: logContext.requestId ?? null,
+			model: logContext.model ?? null
 		};
 		this.jobs.set(job.id, job);
 		void this.run(job);
@@ -107,14 +113,17 @@ export class FocusedResearchJobManager {
 
 	private async run(job: InternalFocusedResearchJob): Promise<void> {
 		const startedAt = this.now();
+		let usage: TokenUsage | null = null;
 		for (let attempt = 0; attempt < 2; attempt += 1) {
 			if (job.cancelRequested) return;
 			this.update(job, 'running', attempt === 0 ? 'starting' : 'retrying-structure', null);
 			try {
 				let snapshot = await job.provider.start(job.request);
+				usage = snapshot.usage ?? usage;
 				job.providerResponseId = snapshot.id;
 				this.update(job, 'running', 'researching', null);
 				snapshot = await this.waitForTerminal(job, snapshot, startedAt);
+				usage = snapshot.usage ?? usage;
 				if (job.cancelRequested || snapshot.status === 'cancelled') {
 					this.update(
 						job,
@@ -137,6 +146,15 @@ export class FocusedResearchJobManager {
 						? 'Focused research finished with cited findings and named gaps.'
 						: 'Focused research verified the configured project with cited evidence.'
 				);
+				console.info('focused_research completed', {
+					requestId: job.requestId,
+					jobId: job.id,
+					durationMs: this.now() - startedAt,
+					model: job.model,
+					status: parsed.partial ? 'partial' : 'completed',
+					sourceCount: parsed.result.sources.length,
+					...(usage ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 })
+				});
 				return;
 			} catch (error) {
 				if (job.cancelRequested) return;
@@ -156,10 +174,13 @@ export class FocusedResearchJobManager {
 						: 'Focused research could not produce a safely cited result. Your chosen project is still saved.'
 				);
 				console.warn('focused_research failed', {
+					requestId: job.requestId,
 					jobId: job.id,
 					durationMs: this.now() - startedAt,
+					model: job.model,
 					failureClass,
-					reason: error instanceof Error ? error.message : 'Unknown research failure'
+					reason: error instanceof Error ? error.message : 'Unknown research failure',
+					...(usage ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 })
 				});
 				return;
 			}

@@ -12,16 +12,25 @@ EnvironmentFile=/home/evanh/ideation-akinator/.env
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=PORT=4187
+Environment=ORIGIN=https://idea.battery.rip
 ExecStart=/home/evanh/.local/bin/node build
 Restart=on-failure
 RestartSec=3
+TimeoutStopSec=30
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=read-only
+ProtectClock=true
+ProtectHostname=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
+ProtectKernelLogs=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]
 WantedBy=multi-user.target

@@ -11,7 +11,7 @@ import type { RequestHandler } from './$types';
 const SESSION_COOKIE = 'ideation_akinator_session';
 const DEFAULT_MODEL = 'gpt-5.6-terra';
 
-export const POST: RequestHandler = async ({ cookies, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ cookies, request, getClientAddress, locals }) => {
 	if (!verifySessionToken(cookies.get(SESSION_COOKIE), env.APP_COOKIE_SECRET ?? '')) {
 		return json(
 			{ code: 'not_authenticated', message: 'Lock and reopen the workshop.' },
@@ -91,8 +91,16 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress 
 		model
 	);
 	const inputSignature = createHash('sha256').update(JSON.stringify(input)).digest('base64url');
-	const { job, reused } = researchJobs.start(input, inputSignature, provider);
-	console.info('broad_research accepted', { jobId: job.id, model, reused });
+	const { job, reused } = researchJobs.start(input, inputSignature, provider, {
+		requestId: locals.requestId,
+		model
+	});
+	console.info('broad_research accepted', {
+		requestId: locals.requestId,
+		jobId: job.id,
+		model,
+		reused
+	});
 	return json(job, { status: reused ? 200 : 202 });
 };
 

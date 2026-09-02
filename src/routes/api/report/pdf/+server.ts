@@ -8,7 +8,7 @@ import type { RequestHandler } from './$types';
 const SESSION_COOKIE = 'ideation_akinator_session';
 const MAX_BODY_BYTES = 500_000;
 
-export const POST: RequestHandler = async ({ cookies, request }) => {
+export const POST: RequestHandler = async ({ cookies, request, locals }) => {
 	if (!verifySessionToken(cookies.get(SESSION_COOKIE), env.APP_COOKIE_SECRET ?? ''))
 		return json(
 			{ code: 'not_authenticated', message: 'Lock and reopen the workshop.' },
@@ -44,6 +44,7 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 	try {
 		const pdf = await renderProjectPdf(report);
 		console.info('pdf_generation completed', {
+			requestId: locals.requestId,
 			projectId: report.projectId,
 			pageBytes: pdf.byteLength,
 			sourceCount: report.sources.length,
@@ -58,7 +59,11 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 			}
 		});
 	} catch {
-		console.warn('pdf_generation failed', { projectId: report.projectId });
+		console.warn('pdf_generation failed', {
+			requestId: locals.requestId,
+			projectId: report.projectId,
+			failureClass: 'pdf_render_error'
+		});
 		return json(
 			{ code: 'pdf_failed', message: 'The PDF forge jammed. The browser report is still intact.' },
 			{ status: 500 }

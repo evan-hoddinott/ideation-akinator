@@ -1,0 +1,31 @@
+name: ideation-akinator
+
+services:
+  app:
+    image: ideation-akinator:local
+    build:
+      context: .
+      target: runtime
+    container_name: ideation-akinator
+    env_file:
+      - path: .env
+        format: raw
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      ORIGIN: https://idea.battery.rip
+      BODY_SIZE_LIMIT: 1M
+    ports:
+      - '127.0.0.1:${IDEATION_AKINATOR_PORT:-4187}:3000'
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    stop_grace_period: 30s

@@ -11,6 +11,7 @@ import {
 	type ResearchProviderSnapshot
 } from '$lib/server/research-ai';
 import { randomUUID } from 'node:crypto';
+import type { TokenUsage } from '$lib/server/observability';
 
 interface InternalResearchJob extends ResearchJobView {
 	projectId: string;
@@ -18,6 +19,8 @@ interface InternalResearchJob extends ResearchJobView {
 	provider: ResearchProvider;
 	providerResponseId: string | null;
 	cancelRequested: boolean;
+	requestId: string | null;
+	model: string | null;
 }
 
 interface ResearchJobManagerOptions {
@@ -52,7 +55,8 @@ export class ResearchJobManager {
 	start(
 		input: BroadResearchRequest,
 		inputSignature: string,
-		provider: ResearchProvider
+		provider: ResearchProvider,
+		logContext: { requestId?: string; model?: string } = {}
 	): { job: ResearchJobView; reused: boolean } {
 		this.cleanup();
 		const existing = Array.from(this.jobs.values()).find(
@@ -77,7 +81,9 @@ export class ResearchJobManager {
 			result: null,
 			provider,
 			providerResponseId: null,
-			cancelRequested: false
+			cancelRequested: false,
+			requestId: logContext.requestId ?? null,
+			model: logContext.model ?? null
 		};
 		this.jobs.set(job.id, job);
 		void this.run(job, input);
@@ -110,14 +116,17 @@ export class ResearchJobManager {
 
 	private async run(job: InternalResearchJob, input: BroadResearchRequest): Promise<void> {
 		const startedAt = this.now();
+		let usage: TokenUsage | null = null;
 		for (let attempt = 0; attempt < 2; attempt += 1) {
 			if (job.cancelRequested) return;
 			this.update(job, 'running', attempt === 0 ? 'starting' : 'retrying-structure', null);
 			try {
 				let snapshot = await job.provider.start(input);
+				usage = snapshot.usage ?? usage;
 				job.providerResponseId = snapshot.id;
 				this.update(job, 'running', 'researching', null);
 				snapshot = await this.waitForTerminal(job, snapshot, startedAt);
+				usage = snapshot.usage ?? usage;
 				if (job.cancelRequested || snapshot.status === 'cancelled') {
 					this.update(
 						job,
@@ -142,6 +151,15 @@ export class ResearchJobManager {
 						? 'Research finished with useful findings and a few named gaps.'
 						: 'Research finished with cited findings across the requested categories.'
 				);
+				console.info('broad_research completed', {
+					requestId: job.requestId,
+					jobId: job.id,
+					durationMs: this.now() - startedAt,
+					model: job.model,
+					status: parsed.partial ? 'partial' : 'completed',
+					sourceCount: parsed.result.sources.length,
+					...(usage ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 })
+				});
 				return;
 			} catch (error) {
 				if (job.cancelRequested) return;
@@ -161,10 +179,13 @@ export class ResearchJobManager {
 						: 'The research could not produce a safely cited brief. Your intake is still saved.'
 				);
 				console.warn('broad_research failed', {
+					requestId: job.requestId,
 					jobId: job.id,
 					durationMs: this.now() - startedAt,
+					model: job.model,
 					failureClass,
-					reason: error instanceof Error ? error.message : 'Unknown research failure'
+					reason: error instanceof Error ? error.message : 'Unknown research failure',
+					...(usage ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 })
 				});
 				return;
 			}

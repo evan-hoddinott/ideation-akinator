@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 10 of 13 are complete. They include:
+Implementation slices 1 through 11 of 13 are complete. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -42,8 +42,9 @@ Implementation slices 1 through 10 of 13 are complete. They include:
 - Local autosave, back navigation, intake validation, and browser-state migration through schema v9.
 - A Node health endpoint at `/health`.
 - A fully local, token-free visual walkthrough with canned intake feedback, research, interview questions, and four concepts. Demo projects are visibly marked, survive refresh, and can be restarted from any stage.
+- A production container that runs as an unprivileged user, binds only to loopback, validates runtime secrets, exposes a health check, and logs request IDs and token counts without logging project text.
 
-Slice 11 audits and hardens the existing container and server packaging against the finished workflow.
+Slice 12 formalizes the existing `idea.battery.rip` tunnel and shared-password configuration against the container deployment.
 
 ## Token-free visual walkthrough
 
@@ -53,15 +54,18 @@ Use `Restart demo` in the header at any point to return to the prefilled problem
 
 ## Server deployment
 
-The current server deployment runs the adapter-node build on `127.0.0.1:4187`. Cloudflare Tunnel maps `https://idea.battery.rip` to that loopback address. The included `deploy/ideation-akinator.service` unit loads secrets from the untracked `.env`, restarts the app after failures, and starts it at boot.
+The server runs the repo-owned container on `127.0.0.1:4187`. Cloudflare Tunnel maps `https://idea.battery.rip` directly to that loopback address. Compose loads the untracked `.env` file literally so the dollar signs in the password hash cannot be interpreted as variables.
 
-After `npm ci` and `npm run build`, install or refresh the unit and restart the app:
+Build and start the production container:
 
 ```sh
-sudo install -m 0644 deploy/ideation-akinator.service /etc/systemd/system/ideation-akinator.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now ideation-akinator.service
+npm run container:build
+npm run container:up
 ```
+
+`container:up` waits for `/health` before returning. Use `./deploy/compose.sh ps` for status and `./deploy/compose.sh logs --tail=100 app` for operational logs. Run `npm run container:down` to stop it.
+
+The container has a read-only root filesystem, a small temporary `/tmp`, no Linux capabilities, `no-new-privileges`, an init process, a process limit, and an `unless-stopped` restart policy. Its startup check names missing or malformed settings without printing their values. The old `deploy/ideation-akinator.service` remains as a hardened rollback option but is not part of the normal container deployment.
 
 ## Local setup
 

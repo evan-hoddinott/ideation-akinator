@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { parseIntakeInsightsRequest } from '$lib/intake-insights';
 import { generateIntakeInsights, InvalidModelResponseError } from '$lib/server/intake-ai';
+import { addTokenUsage, emptyTokenUsage } from '$lib/server/observability';
 import { verifySessionToken } from '$lib/server/auth';
 import { json } from '@sveltejs/kit';
 import OpenAI from 'openai';
@@ -9,7 +10,7 @@ import type { RequestHandler } from './$types';
 const SESSION_COOKIE = 'ideation_akinator_session';
 const DEFAULT_MODEL = 'gpt-5.6-luna';
 
-export const POST: RequestHandler = async ({ cookies, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ cookies, request, getClientAddress, locals }) => {
 	const cookieSecret = env.APP_COOKIE_SECRET ?? '';
 	if (!verifySessionToken(cookies.get(SESSION_COOKIE), cookieSecret)) {
 		return json(
@@ -57,26 +58,39 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress 
 	const startedAt = Date.now();
 	const model = env.OPENAI_INTAKE_MODEL?.trim() || DEFAULT_MODEL;
 	const openai = new OpenAI({ apiKey, timeout: 15_000, maxRetries: 1 });
+	const tokenUsage = emptyTokenUsage();
 
 	try {
 		const insights = await generateIntakeInsights(
 			{
-				create: async (parameters, options) =>
-					openai.responses.create(parameters, { signal: options?.signal })
+				create: async (parameters, options) => {
+					const response = await openai.responses.create(parameters, {
+						signal: options?.signal
+					});
+					addTokenUsage(tokenUsage, response);
+					return response;
+				}
 			},
 			model,
 			input,
 			request.signal
 		);
-		console.info('intake_insights completed', { durationMs: Date.now() - startedAt, model });
+		console.info('intake_insights completed', {
+			requestId: locals.requestId,
+			durationMs: Date.now() - startedAt,
+			model,
+			...tokenUsage
+		});
 		return json(insights);
 	} catch (error) {
 		const failureClass =
 			error instanceof InvalidModelResponseError ? 'invalid_model_output' : 'provider_error';
 		console.warn('intake_insights failed', {
+			requestId: locals.requestId,
 			durationMs: Date.now() - startedAt,
 			model,
-			failureClass
+			failureClass,
+			...tokenUsage
 		});
 		return json(
 			{

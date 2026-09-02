@@ -14,6 +14,9 @@
 		"format": "prettier --write .",
 		"auth:hash": "node scripts/hash-password.js",
 		"build:sage": "bash scripts/build-sage.sh",
+		"container:build": "./deploy/compose.sh build",
+		"container:up": "./deploy/compose.sh up -d --wait",
+		"container:down": "./deploy/compose.sh down",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run"
 	},

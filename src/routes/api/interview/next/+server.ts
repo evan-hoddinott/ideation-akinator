@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { parseInterviewNextRequest } from '$lib/interview';
 import { generateInterviewTurn, InvalidInterviewResponseError } from '$lib/server/interview-ai';
+import { addTokenUsage, emptyTokenUsage } from '$lib/server/observability';
 import { verifySessionToken } from '$lib/server/auth';
 import { json } from '@sveltejs/kit';
 import OpenAI from 'openai';
@@ -10,7 +11,7 @@ const SESSION_COOKIE = 'ideation_akinator_session';
 const DEFAULT_MODEL = 'gpt-5.6-luna';
 const MAX_BODY_BYTES = 48_000;
 
-export const POST: RequestHandler = async ({ cookies, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ cookies, request, getClientAddress, locals }) => {
 	const cookieSecret = env.APP_COOKIE_SECRET ?? '';
 	if (!verifySessionToken(cookies.get(SESSION_COOKIE), cookieSecret)) {
 		return json(
@@ -67,31 +68,41 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress 
 	const startedAt = Date.now();
 	const model = env.OPENAI_INTERVIEW_MODEL?.trim() || DEFAULT_MODEL;
 	const openai = new OpenAI({ apiKey, timeout: 30_000, maxRetries: 1 });
+	const tokenUsage = emptyTokenUsage();
 	try {
 		const result = await generateInterviewTurn(
 			{
-				create: async (parameters, options) =>
-					openai.responses.create(parameters, { signal: options?.signal })
+				create: async (parameters, options) => {
+					const response = await openai.responses.create(parameters, {
+						signal: options?.signal
+					});
+					addTokenUsage(tokenUsage, response);
+					return response;
+				}
 			},
 			model,
 			input,
 			request.signal
 		);
 		console.info('interview_turn completed', {
+			requestId: locals.requestId,
 			durationMs: Date.now() - startedAt,
 			model,
 			questionCount: input.questions.length,
-			decision: result.decision
+			decision: result.decision,
+			...tokenUsage
 		});
 		return json(result);
 	} catch (error) {
 		const failureClass =
 			error instanceof InvalidInterviewResponseError ? 'invalid_model_output' : 'provider_error';
 		console.warn('interview_turn failed', {
+			requestId: locals.requestId,
 			durationMs: Date.now() - startedAt,
 			model,
 			questionCount: input.questions.length,
-			failureClass
+			failureClass,
+			...tokenUsage
 		});
 		return json(
 			{

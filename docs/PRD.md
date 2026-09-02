@@ -1108,7 +1108,7 @@ The first dialogue-first implementation pass was completed locally on 2026-09-01
 
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 10 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-02.
+Implementation slices 1 through 11 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-02.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
@@ -1130,7 +1130,13 @@ Implementation slices 1 through 10 of 13 were completed and deployed to `idea.ba
 - Broad and focused sources share one stable numbered ledger. Claims, competitor rows, and evidence-backed risks point to that ledger without another model call.
 - The authenticated PDF endpoint renders the same structured report package instead of scraping browser HTML. The PDF has a branded cover, populated table of contents, page numbers, repeated competitor-table headers, clickable links, retrieval dates, and budget assumptions.
 - Demo reports and PDFs label their evidence as illustrative. PDF creation remains token-free and does not invoke OpenAI or web search.
-- Slice 11 remains next. It audits and hardens the existing container and system-service packaging for the complete workflow.
+- Slice 11 replaces the direct Node process with a repo-owned multi-stage container. Compose exposes only `127.0.0.1:4187`, waits for `/health`, restarts unless stopped, and preserves the direct Cloudflare Tunnel route.
+- The runtime image contains production dependencies only, runs as the unprivileged `node` user, has a read-only root filesystem, drops every Linux capability, sets `no-new-privileges`, and uses a bounded temporary directory and process count.
+- Startup validates the password hash, signing secret, and OpenAI key before serving. `.dockerignore` excludes secrets, Git history, local artifacts, dependencies, and prior builds.
+- The Compose wrapper disables automatic `.env` interpolation and loads the password hash literally. This prevents dollar-sign segments from being treated as environment references.
+- Server logs now attach a validated or generated request identifier to API traffic and report model token totals for intake, interview, concept, research, and final-recalculation stages. Logs continue to exclude prompts, project bodies, credentials, cookies, and generated report content.
+- The previous system service remains in the repository as a hardened rollback definition. It is disabled on the live server after the container passes local and public verification.
+- Slice 12 remains next. It records and verifies the existing public hostname and shared-password configuration against the container deployment.
 
 ## 20. Risks and mitigations
 
