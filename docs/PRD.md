@@ -1108,7 +1108,7 @@ The first dialogue-first implementation pass was completed locally on 2026-09-01
 
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 9 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-01.
+Implementation slices 1 through 10 of 13 were completed by 2026-09-02. Slices 1 through 9 were deployed to `idea.battery.rip` before Slice 10 work began.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
@@ -1125,7 +1125,12 @@ Implementation slices 1 through 9 of 13 were completed and deployed to `idea.bat
 - Focused research returns a visible `supported`, `caution`, or `weakened` verdict. A weakened result remains attached to the chosen project and cannot silently replace it or remove a feature.
 - Final recalculation uses a separate non-web structured-output contract. It preserves the selected concept and exact confirmed feature IDs while updating ranges, timeline, requirements, technology or hardware, dependencies, difficulty, competitor positioning, risks, validation steps, and development phases.
 - The browser stores the focused source ledger and recalculated project file in schema v9. Editing or replacing the sealed configuration invalidates those later results.
-- Slice 10 remains next. It renders the saved recalculated project file as the polished in-browser report and downloadable cited PDF.
+- Slice 10 renders the saved recalculated project file as a full-screen in-browser product brief. It keeps the report visually calmer than the surrounding game while retaining the retro document-viewer frame.
+- The browser report includes the approved problem, user, research, concept, feature, requirement, budget, technology, hardware, competitor, positioning, risk, validation, phase, and source sections.
+- Broad and focused sources share one stable numbered ledger. Claims, competitor rows, and evidence-backed risks point to that ledger without another model call.
+- The authenticated PDF endpoint renders the same structured report package instead of scraping browser HTML. The PDF has a branded cover, populated table of contents, page numbers, repeated competitor-table headers, clickable links, retrieval dates, and budget assumptions.
+- Demo reports and PDFs label their evidence as illustrative. PDF creation remains token-free and does not invoke OpenAI or web search.
+- Slice 11 remains next. It audits and hardens the existing container and system-service packaging for the complete workflow.
 
 ## 20. Risks and mitigations
 

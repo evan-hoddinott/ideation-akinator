@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
+	import ProjectReportViewer from '$lib/components/ProjectReport.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
 	import SummonedScroll from '$lib/components/SummonedScroll.svelte';
 	import type {
@@ -8,6 +9,7 @@
 		SelectedFeatureInput
 	} from '$lib/finalization';
 	import type { SagePersonality } from '$lib/personality';
+	import type { ProjectReport } from '$lib/report';
 
 	let {
 		projectId,
@@ -18,10 +20,14 @@
 		altitude,
 		researchBusy,
 		planBusy,
+		report,
+		pdfBusy,
+		pdfMessage,
 		message,
 		onStartResearch,
 		onCancelResearch,
 		onGeneratePlan,
+		onDownloadPdf,
 		onBack,
 		onToggleMute,
 		onToggleCalm
@@ -34,10 +40,14 @@
 		altitude: number;
 		researchBusy: boolean;
 		planBusy: boolean;
+		report: ProjectReport | null;
+		pdfBusy: boolean;
+		pdfMessage: string;
 		message: string;
 		onStartResearch: () => void;
 		onCancelResearch: () => void;
 		onGeneratePlan: () => void;
+		onDownloadPdf: () => void;
 		onBack: () => void;
 		onToggleMute: () => void;
 		onToggleCalm: () => void;
@@ -45,6 +55,7 @@
 
 	let researchOpen = $state(false);
 	let planOpen = $state(false);
+	let reportOpen = $state(false);
 	const active = $derived(
 		finalization.research.status === 'queued' || finalization.research.status === 'running'
 	);
@@ -128,9 +139,11 @@
 					>Inspect focused research</button
 				>
 				{#if plan}
-					<button type="button" class="primary" onclick={() => (planOpen = true)}
-						>Unfurl recalculated plan</button
-					>
+					<button type="button" class="secondary" onclick={() => (planOpen = true)}
+						>Inspect recalculation</button
+					>{#if report}<button type="button" class="primary" onclick={() => (reportOpen = true)}
+							>Open finished prophecy</button
+						>{/if}
 				{:else}
 					<button type="button" class="primary" disabled={planBusy} onclick={onGeneratePlan}
 						>{planBusy ? 'Recalculating everything...' : 'Recalculate my project'}</button
@@ -304,14 +317,23 @@
 							</ul>
 						</li>{/each}
 				</ol>
-				<div class="pdf-future">
-					<b>PDF FORGE LOCKED UNTIL SLICE 10</b><span
-						>The structured plan is saved. The next slice turns it into the polished downloadable
-						document.</span
-					>
-				</div>
+				{#if report}<div class="pdf-future ready">
+						<b>THE PDF FORGE IS HOT</b><span
+							>The finished browser report and cited PDF use this exact recalculated file.</span
+						><button type="button" onclick={() => (reportOpen = true)}>Open finished report</button>
+					</div>{/if}
 			</div>
 		</SummonedScroll>
+	{/if}
+	{#if report}
+		<ProjectReportViewer
+			open={reportOpen}
+			{report}
+			downloading={pdfBusy}
+			message={pdfMessage}
+			onClose={() => (reportOpen = false)}
+			onDownload={onDownloadPdf}
+		/>
 	{/if}
 {:else}
 	<SageDialogue
@@ -528,6 +550,24 @@
 		font:
 			800 12px 'Courier New',
 			monospace;
+	}
+	.pdf-future.ready {
+		border-style: double;
+		border-color: #30745c;
+		background: #dbead8;
+	}
+	.pdf-future button {
+		justify-self: center;
+		margin-top: 6px;
+		padding: 8px 12px;
+		border: 3px outset #80758a;
+		background: #245e4c;
+		color: white;
+		cursor: pointer;
+		font:
+			700 10px 'Courier New',
+			monospace;
+		text-transform: uppercase;
 	}
 	@media (max-width: 700px) {
 		.plan-numbers {

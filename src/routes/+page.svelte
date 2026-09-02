@@ -70,6 +70,7 @@
 		type ProjectConstraints,
 		type ProjectSession
 	} from '$lib/project-state';
+	import { buildProjectReport, safeReportFilename } from '$lib/report';
 	import { projectAltitude } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
@@ -108,6 +109,8 @@
 	let focusedResearchBusy = $state(false);
 	let finalPlanBusy = $state(false);
 	let finalizationMessage = $state('');
+	let pdfBusy = $state(false);
+	let pdfMessage = $state('');
 	let textAnswer = $state('');
 	let numberAnswer = $state('');
 	let singleAnswer = $state('');
@@ -128,6 +131,7 @@
 	const visualProject = $derived(project ?? stagePreview);
 	const demoMode = $derived(isDemoProject(project));
 	const sageAltitude = $derived(project ? projectAltitude(project) : 0.04);
+	const finalReport = $derived(project ? buildProjectReport(project) : null);
 
 	const insightSignature = $derived(
 		project
@@ -1747,6 +1751,54 @@
 		}
 	}
 
+	async function downloadFinalPdf() {
+		if (!finalReport || pdfBusy) return;
+		pdfBusy = true;
+		pdfMessage = 'The Sage is feeding the finished file into the PDF forge...';
+		try {
+			const response = await fetch(resolve('/api/report/pdf'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(finalReport)
+			});
+			if (!response.ok) {
+				let message = 'The PDF forge jammed. The browser report is still intact.';
+				try {
+					const body: unknown = await response.json();
+					if (
+						typeof body === 'object' &&
+						body !== null &&
+						'message' in body &&
+						typeof body.message === 'string'
+					)
+						message = body.message;
+				} catch {
+					// Keep the stable forge error when a proxy returns a non-JSON error page.
+				}
+				throw new Error(message);
+			}
+			const blob = await response.blob();
+			if (blob.type !== 'application/pdf' || blob.size < 1_000)
+				throw new Error('The forge returned an empty artifact. Try the download again.');
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = safeReportFilename(finalReport.productName);
+			document.body.append(link);
+			link.click();
+			link.remove();
+			window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+			pdfMessage = `PDF forged. ${blob.size.toLocaleString('en-US')} bytes escaped the machine.`;
+		} catch (error) {
+			pdfMessage =
+				error instanceof Error
+					? error.message
+					: 'The PDF forge jammed. The browser report is still intact.';
+		} finally {
+			pdfBusy = false;
+		}
+	}
+
 	function startOver() {
 		void cancelResearchJob(true);
 		void cancelFocusedResearch(true);
@@ -1770,6 +1822,8 @@
 		focusedResearchBusy = false;
 		finalPlanBusy = false;
 		finalizationMessage = '';
+		pdfBusy = false;
+		pdfMessage = '';
 		playerNameDraft = '';
 		projectNameDraft = '';
 		customAnswer = '';
@@ -2554,10 +2608,14 @@
 								altitude={sageAltitude}
 								researchBusy={focusedResearchBusy}
 								planBusy={finalPlanBusy}
+								report={finalReport}
+								{pdfBusy}
+								{pdfMessage}
 								message={finalizationMessage}
 								onStartResearch={startFocusedResearch}
 								onCancelResearch={() => cancelFocusedResearch()}
 								onGeneratePlan={generateFinalPlan}
+								onDownloadPdf={downloadFinalPdf}
 								onBack={returnToWorkshop}
 								onToggleMute={toggleSageAudio}
 								onToggleCalm={toggleCalmMode}

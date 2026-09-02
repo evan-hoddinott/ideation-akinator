@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 9 of 13 are complete. They include:
+Implementation slices 1 through 10 of 13 are complete. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -35,15 +35,19 @@ Implementation slices 1 through 9 of 13 are complete. They include:
 - A visible supported, caution, or weakened verdict that can recommend changes without silently replacing the user's selected project.
 - Final recalculation of cost ranges, timeline, functional and measurable nonfunctional requirements, technology or hardware recommendations, dependencies, difficulty, positioning, risks, validation steps, and development phases.
 - Strict preservation of the sealed concept and feature list through final recalculation, with a required material warning when research weakens the idea.
+- A full-screen finished report that presents the saved project as a readable product brief instead of another control panel.
+- One numbered source ledger across both research passes, with in-report citation links, retrieval dates, evidence summaries, and an unmistakable demo-evidence warning.
+- A server-generated PDF with a branded cover, table of contents, page numbers, repeated competitor-table headers, clickable source links, budgets with assumptions, requirements, risks, validation, and development phases.
+- Deterministic report and PDF generation. Opening or downloading the deliverable does not start another AI call.
 - Local autosave, back navigation, intake validation, and browser-state migration through schema v9.
 - A Node health endpoint at `/health`.
 - A fully local, token-free visual walkthrough with canned intake feedback, research, interview questions, and four concepts. Demo projects are visibly marked, survive refresh, and can be restarted from any stage.
 
-Slice 10 turns the saved recalculated plan into the polished browser preview and downloadable cited PDF.
+Slice 11 audits and hardens the existing container and server packaging against the finished workflow.
 
 ## Token-free visual walkthrough
 
-After signing in, choose `Run the token-free visual demo`. The app loads a fictional campus-transit project and lets you click through the complete implemented flow, including focused research and final recalculation, without calling any AI or research endpoint. The canned research uses clearly labeled illustrative links and must not be treated as live evidence.
+After signing in, choose `Run the token-free visual demo`. The app loads a fictional campus-transit project and lets you click through the complete implemented flow, including focused research, final recalculation, the finished report, and PDF download, without calling any AI or research endpoint. The canned research uses clearly labeled illustrative links and must not be treated as live evidence.
 
 Use `Restart demo` in the header at any point to return to the prefilled problem stage. Starting a normal project continues to use the configured providers.
 
