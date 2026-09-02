@@ -1108,7 +1108,7 @@ The first dialogue-first implementation pass was completed locally on 2026-09-01
 
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 10 of 13 were completed by 2026-09-02. Slices 1 through 9 were deployed to `idea.battery.rip` before Slice 10 work began.
+Implementation slices 1 through 10 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-02.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
