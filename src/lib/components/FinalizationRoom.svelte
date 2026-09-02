@@ -10,6 +10,7 @@
 	} from '$lib/finalization';
 	import type { SagePersonality } from '$lib/personality';
 	import type { ProjectReport } from '$lib/report';
+	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
 
 	let {
 		projectId,
@@ -29,8 +30,8 @@
 		onGeneratePlan,
 		onDownloadPdf,
 		onBack,
-		onToggleMute,
-		onToggleCalm
+		onSpeakCharacter,
+		onSpeakingChange
 	}: {
 		projectId: string;
 		concept: SelectedConceptInput;
@@ -49,8 +50,8 @@
 		onGeneratePlan: () => void;
 		onDownloadPdf: () => void;
 		onBack: () => void;
-		onToggleMute: () => void;
-		onToggleCalm: () => void;
+		onSpeakCharacter: (profile: SageVoiceProfile) => void;
+		onSpeakingChange: (speaking: boolean) => void;
 	} = $props();
 
 	let researchOpen = $state(false);
@@ -82,8 +83,8 @@
 		label="THE SECOND INTERNET"
 		meta={`${features.length} confirmed features`}
 		prompt={`Shall I investigate the exact ${concept.name} configuration?`}
-		{onToggleMute}
-		{onToggleCalm}
+		{onSpeakCharacter}
+		{onSpeakingChange}
 	>
 		<div class="finalization-dialogue">
 			<p>
@@ -125,8 +126,8 @@
 		prompt={result.verdict === 'weakened'
 			? 'I have bad news and, worse, citations.'
 			: 'I checked your exact build. It mostly survived.'}
-		{onToggleMute}
-		{onToggleCalm}
+		{onSpeakCharacter}
+		{onSpeakingChange}
 	>
 		<div class="finalization-dialogue">
 			<p>{result.summary}</p>
@@ -342,8 +343,8 @@
 		mode="announce"
 		label="THE SECOND SIGNAL BROKE"
 		prompt={message || 'The large computer has betrayed the chosen prophecy.'}
-		{onToggleMute}
-		{onToggleCalm}
+		{onSpeakCharacter}
+		{onSpeakingChange}
 	>
 		<div class="finalization-dialogue">
 			<p>Your selected concept and confirmed features are still saved.</p>

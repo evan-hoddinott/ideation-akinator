@@ -8,12 +8,14 @@
 		personality,
 		altitude,
 		researching = false,
+		speaking = false,
 		allowPopup = true,
 		onSecret
 	}: {
 		personality: SagePersonality;
 		altitude: number;
 		researching?: boolean;
+		speaking?: boolean;
 		allowPopup?: boolean;
 		onSecret: () => void;
 	} = $props();
@@ -242,7 +244,10 @@
 					const blink = faceStep % 37 === 0 ? 0.18 : 1;
 					if (eyeLeft) eyeLeft.scale.y = blink;
 					if (eyeRight) eyeRight.scale.y = blink;
-					if (mouth) mouth.scale.x = 0.88 + (faceStep % 3) * 0.06;
+					if (mouth) {
+						mouth.scale.x = speaking ? 0.82 + (faceStep % 4) * 0.16 : 0.92;
+						mouth.scale.y = speaking ? 0.82 + ((faceStep + 2) % 3) * 0.12 : 1;
+					}
 				}
 
 				outline.render(scene, camera);
@@ -321,10 +326,10 @@
 <style>
 	.live-sage-stage {
 		position: fixed;
-		left: clamp(30px, 4vw, 90px);
-		top: calc(56% - (var(--sage-altitude) * 25vh));
-		width: min(49vw, 820px);
-		height: min(calc(84vh - (var(--sage-altitude) * 20vh)), 900px);
+		left: clamp(36px, 7vw, 130px);
+		top: calc(46% - (var(--sage-altitude) * 18vh));
+		width: min(58vw, 880px);
+		height: min(calc(82vh - (var(--sage-altitude) * 10vh)), 900px);
 		z-index: 7;
 		pointer-events: none;
 		transform: translateY(-50%);

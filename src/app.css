@@ -1,3 +1,18 @@
+@font-face {
+	font-family: 'Silkscreen';
+	src: url('/fonts/Silkscreen-Regular.ttf') format('truetype');
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'Silkscreen';
+	src: url('/fonts/Silkscreen-Bold.ttf') format('truetype');
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+}
+
 :root {
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-synthesis: none;
@@ -17,12 +32,16 @@
 .dialogue-layout .workspace,
 .dialogue-layout .workspace.has-companion {
 	display: block;
-	min-height: 100vh;
+	min-height: 100dvh;
+}
+.dialogue-layout {
+	height: 100dvh;
+	overflow: hidden;
 }
 .dialogue-workbench {
 	position: relative;
 	z-index: 10;
-	min-height: 100vh;
+	min-height: 100dvh;
 }
 .legacy-hidden {
 	display: none !important;
@@ -42,44 +61,128 @@
 		8px/1.35 'Courier New',
 		monospace;
 }
-.dialogue-layout .progress-rail {
-	width: 48px;
-	padding: 7px 5px;
-	border-color: #4f4960;
-	background: rgb(7 5 22 / 78%);
+.vertical-game .workspace,
+.vertical-game .workspace.has-companion {
+	display: block;
+	min-height: 100dvh;
+	z-index: 10;
 }
-.dialogue-layout .rail-orb {
-	width: 30px;
-	height: 30px;
-	margin-bottom: 8px;
-}
-.dialogue-layout .progress-rail ol {
-	position: relative;
+.game-hud {
+	position: fixed;
+	z-index: 40;
+	top: 14px;
+	right: 16px;
+	display: flex;
+	align-items: center;
 	gap: 8px;
+	pointer-events: none;
 }
-.dialogue-layout .progress-rail ol::before {
-	content: '';
+.game-hud > * {
+	pointer-events: auto;
+}
+.game-hud .demo-badge {
+	background: rgb(8 6 17 / 88%);
+	font-family: 'Silkscreen', monospace;
+}
+.pause-button {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	min-height: 32px;
+	padding: 6px 9px;
+	border: 3px outset #aaa4b2;
+	color: #eee7fa;
+	background: #20162e;
+	box-shadow: 4px 5px 0 rgb(1 0 5 / 58%);
+	font:
+		9px/1 'Silkscreen',
+		monospace;
+	cursor: pointer;
+}
+.pause-button span {
+	color: #ffc94a;
+	letter-spacing: -0.18em;
+}
+.pause-button:hover,
+.pause-button:focus-visible {
+	border-color: #ffc94a;
+	background: #4b2c62;
+}
+.pause-menu {
 	position: absolute;
-	left: 50%;
-	top: 8px;
-	bottom: 8px;
-	width: 2px;
-	background: #443761;
-	transform: translateX(-50%);
+	top: 41px;
+	right: 0;
+	display: grid;
+	gap: 7px;
+	width: min(278px, calc(100vw - 24px));
+	padding: 6px 10px 12px;
+	border: 4px outset #b6b0be;
+	color: #efe8f5;
+	background: #c0c0c0;
+	box-shadow: 8px 10px 0 rgb(2 1 9 / 72%);
+	animation: pause-open 140ms steps(3, end);
 }
-.dialogue-layout .progress-rail li {
-	position: relative;
-	z-index: 1;
-	min-height: 24px;
+.pause-menu header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: -2px -6px 3px;
+	padding: 4px 5px 4px 7px;
+	color: white;
+	background: linear-gradient(90deg, #170082, #5b175f);
+	font:
+		8px/1 'Silkscreen',
+		monospace;
 }
-.dialogue-layout .progress-rail .step-glyph {
-	width: 23px;
-	height: 23px;
-	font-size: 7px;
-	background: #0d0927;
+.pause-menu header button {
+	width: 20px;
+	height: 18px;
+	padding: 0;
+	border: 2px outset #ddd;
+	color: #111;
+	background: #c0c0c0;
 }
-.dialogue-layout .progress-rail li.active .step-glyph {
-	box-shadow: 0 0 12px #91f7ff;
+.pause-menu p {
+	margin: 2px 0 4px;
+	color: #2c2032;
+	font:
+		9px/1.4 'Silkscreen',
+		monospace;
+}
+.pause-menu > button,
+.pause-menu form button {
+	width: 100%;
+	min-height: 34px;
+	padding: 7px 9px;
+	border: 3px outset #eee;
+	color: #21182a;
+	background: #d3ced7;
+	font:
+		8px/1.3 'Silkscreen',
+		monospace;
+	text-align: left;
+	cursor: pointer;
+}
+.pause-menu > button:hover,
+.pause-menu > button:focus-visible,
+.pause-menu form button:hover,
+.pause-menu form button:focus-visible {
+	color: #fff;
+	background: #5d3375;
+}
+.pause-menu small {
+	color: #5d5265;
+	font:
+		7px/1.4 'Silkscreen',
+		monospace;
+}
+@keyframes pause-open {
+	from {
+		clip-path: inset(0 0 100% 100%);
+	}
+	to {
+		clip-path: inset(0);
+	}
 }
 .dialogue-loader {
 	display: flex;
@@ -103,9 +206,9 @@
 .dialogue-form > p {
 	margin: 0;
 	font:
-		11px/1.5 'Courier New',
+		9px/1.55 'Silkscreen',
 		monospace;
-	color: #3f3547;
+	color: #d8d1df;
 }
 .compact-field {
 	display: grid;
@@ -114,9 +217,9 @@
 .compact-field > span,
 .welcome-name-grid.game-name-grid > label > span {
 	font:
-		700 8px/1.3 'Courier New',
+		700 8px/1.3 'Silkscreen',
 		monospace;
-	color: #4b3a5a;
+	color: #bdb2cd;
 	letter-spacing: 0.04em;
 }
 .compact-field small,
@@ -132,13 +235,13 @@
 	width: 100%;
 	min-width: 0;
 	padding: 10px 11px;
-	border: 3px inset #d9d5df;
+	border: 3px solid #8d829b;
 	border-radius: 0;
 	outline: none;
-	color: #1f1726;
-	background: #f8f5fa;
+	color: #fffbed;
+	background: #17121f;
 	font:
-		11px/1.45 'Courier New',
+		11px/1.45 'Silkscreen',
 		monospace;
 	resize: vertical;
 }
@@ -147,7 +250,8 @@
 .game-name-grid input:focus,
 .scroll-problem-list textarea:focus,
 .scroll-constraint-grid input:focus {
-	box-shadow: 0 0 0 3px #8a4cab;
+	border-color: #ffc94a;
+	box-shadow: 0 0 0 2px #624093;
 }
 .main-response textarea {
 	min-height: 92px;
@@ -158,10 +262,10 @@
 	align-items: center;
 	gap: 5px 12px;
 	padding: 8px 10px;
-	border: 2px solid #a391ad;
-	background: #d5ceda;
+	border: 2px solid #605672;
+	background: #15111d;
 	font:
-		8px/1.3 'Courier New',
+		8px/1.3 'Silkscreen',
 		monospace;
 }
 .clarity-whisper > div:first-child {
@@ -170,34 +274,34 @@
 	gap: 8px;
 }
 .clarity-whisper span {
-	color: #62586b;
+	color: #a9a0b4;
 }
 .clarity-whisper b {
-	color: #651d7a;
+	color: #ffc94a;
 }
 .clarity-whisper small {
 	grid-column: 1 / -1;
-	color: #5b5162;
+	color: #9b92a6;
 }
 .mini-reading-track {
 	height: 7px;
-	border: 2px inset #ded9e2;
-	background: #aca4b1;
+	border: 2px inset #4c4557;
+	background: #292330;
 }
 .mini-reading-track i {
 	display: block;
 	height: 100%;
-	background: repeating-linear-gradient(90deg, #5ff4df 0 11px, #2db7bd 12px 14px);
+	background: repeating-linear-gradient(90deg, #ffc94a 0 11px, #8d52c7 12px 14px);
 	transition: width 260ms steps(5, end);
 }
 .dialogue-warning {
 	margin: 0;
 	padding: 8px 10px;
 	border-left: 4px solid #9c2d35;
-	color: #651f26 !important;
-	background: #efc8c6;
+	color: #ffd0d6 !important;
+	background: #421923;
 	font:
-		9px/1.4 'Courier New',
+		9px/1.4 'Silkscreen',
 		monospace !important;
 }
 .dialogue-primary-actions {
@@ -212,11 +316,12 @@
 .game-choice-list button,
 .innovation-choices button,
 .detected-tags button {
-	border: 3px outset #eee;
+	position: relative;
+	border: 2px solid #80758f;
 	border-radius: 0;
 	cursor: pointer;
 	font:
-		700 9px/1.25 'Courier New',
+		700 9px/1.35 'Silkscreen',
 		monospace;
 }
 .answer-button {
@@ -224,13 +329,13 @@
 	padding: 9px 13px;
 }
 .answer-button.primary {
-	color: white;
-	background: linear-gradient(#632083, #401161);
-	border-color: #c69ee0;
+	color: #fffbed;
+	background: #3c205a;
+	border-color: #b899dc;
 }
 .answer-button.secondary {
-	color: #23182d;
-	background: #cbc5cf;
+	color: #d8d1df;
+	background: #201926;
 }
 .answer-button.full {
 	width: 100%;
@@ -240,21 +345,42 @@
 	cursor: not-allowed;
 	opacity: 0.48;
 }
+.answer-button:not(:disabled):hover,
+.answer-button:not(:disabled):focus-visible,
+.game-choice-list button:not(:disabled):hover,
+.game-choice-list button:not(:disabled):focus-visible {
+	padding-left: 28px;
+	border-color: #ffc94a;
+	color: #fff8d8;
+	background: #53316d;
+}
+.answer-button:not(:disabled):hover::before,
+.answer-button:not(:disabled):focus-visible::before,
+.game-choice-list button:not(:disabled):hover::before,
+.game-choice-list button:not(:disabled):focus-visible::before {
+	content: '☞';
+	position: absolute;
+	left: 8px;
+	top: 50%;
+	color: #ffc94a;
+	font: 15px/1 serif;
+	transform: translateY(-50%);
+}
 .quiet-game-action {
 	justify-self: start;
 	padding: 3px 0;
 	border: 0;
-	color: #4e236d;
+	color: #bea3dc;
 	background: transparent;
 	font:
-		700 8px 'Courier New',
+		700 8px 'Silkscreen',
 		monospace;
 	text-decoration: underline;
 	cursor: pointer;
 }
 .game-tag-editor {
-	border: 3px inset #d8d3dc;
-	background: #f2eef4;
+	border: 2px solid #655b70;
+	background: #17121f;
 }
 .game-tag-editor .tag-list {
 	min-height: 48px;
@@ -274,8 +400,8 @@
 	align-items: center;
 	gap: 6px;
 	padding: 8px 9px;
-	color: #173f3c;
-	background: #aef0d9;
+	color: #d7fff3;
+	background: #15382f;
 }
 .detected-tags button small {
 	color: #65536b;
@@ -295,8 +421,8 @@
 	gap: 6px;
 	min-height: 90px;
 	padding: 8px;
-	color: #2c2032;
-	background: #d1cad4;
+	color: #d8d0df;
+	background: #201925;
 	text-align: left;
 }
 .innovation-choices button b {
@@ -312,9 +438,72 @@
 }
 .innovation-choices button.chosen,
 .game-choice-list button.chosen {
-	border-style: inset;
-	background: #bff1dc;
-	box-shadow: inset 0 0 0 2px #247c63;
+	border-color: #ffc94a;
+	background: #4d2b64;
+	box-shadow: inset 0 0 0 2px #8b60ff;
+}
+.rpg-meter {
+	display: grid;
+	gap: 12px;
+	padding: 12px;
+	border: 2px solid #6f627c;
+	background: #16111d;
+}
+.rpg-meter header {
+	display: grid;
+	grid-template-columns: 42px minmax(0, 1fr);
+	align-items: center;
+	gap: 12px;
+	color: #f1e9f7;
+	font:
+		9px/1.4 'Silkscreen',
+		monospace;
+}
+.rpg-meter header b {
+	display: grid;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	border: 2px solid #ffc94a;
+	color: #ffc94a;
+	background: #2b193b;
+	font-size: 17px;
+}
+.rpg-meter input[type='range'] {
+	width: 100%;
+	accent-color: #ffc94a;
+	cursor: ew-resize;
+}
+.rpg-meter-ticks {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 5px;
+}
+.rpg-meter-ticks i {
+	height: 9px;
+	border: 1px solid #655c70;
+	background: #292230;
+}
+.rpg-meter-ticks i.active {
+	border-color: #d2a43e;
+	background: #ffc94a;
+	box-shadow: 0 0 6px rgb(255 201 74 / 45%);
+}
+.rpg-budget {
+	align-content: start;
+}
+.budget-track {
+	display: block;
+	height: 10px;
+	padding: 1px;
+	border: 2px solid #5c5267;
+	background: #211b27;
+}
+.budget-track i {
+	display: block;
+	height: 100%;
+	background: repeating-linear-gradient(90deg, #73e9ed 0 10px, #3f8a98 10px 12px);
+	transition: width 120ms steps(8, end);
 }
 .game-budget-grid {
 	display: grid;
@@ -326,10 +515,11 @@
 	align-items: center;
 	gap: 9px;
 	padding: 9px;
-	border: 3px outset #dcd7e0;
-	background: #d1cad4;
+	border: 2px solid #655b70;
+	color: #d8d0df;
+	background: #1c1622;
 	font:
-		8px 'Courier New',
+		8px 'Silkscreen',
 		monospace;
 }
 .game-toggle input {
@@ -345,14 +535,14 @@
 .game-choice-list button {
 	min-height: 43px;
 	padding: 9px 12px;
-	color: #24172c;
-	background: #d7d0dc;
+	color: #e7dfed;
+	background: #1c1622;
 	text-align: left;
 }
 .game-choice-list button:hover,
 .game-choice-list button:focus-visible {
-	background: #cbb3db;
-	box-shadow: 0 0 0 3px #7d4698;
+	background: #53316d;
+	box-shadow: 0 0 0 2px #ffc94a;
 }
 .game-choice-list.multiple button span {
 	display: inline-block;
@@ -392,10 +582,10 @@
 .minor-answer-actions button {
 	padding: 3px 5px;
 	border: 0;
-	color: #5e5365;
+	color: #aaa0b4;
 	background: transparent;
 	font:
-		7px 'Courier New',
+		7px 'Silkscreen',
 		monospace;
 	text-decoration: underline;
 	cursor: pointer;
@@ -2242,9 +2432,9 @@ textarea::placeholder {
 .vertical-game .workspace,
 .vertical-game .workspace.has-companion {
 	position: relative;
-	z-index: 4;
+	z-index: 10;
 	display: block;
-	min-height: 100vh;
+	min-height: 100dvh;
 }
 .vertical-game .progress-rail {
 	position: fixed;

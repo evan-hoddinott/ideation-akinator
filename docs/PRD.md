@@ -106,13 +106,13 @@ Password gate
     -> Start over
 ```
 
-The application should show the current stage and completed stages at all times. The user can move backward before final generation. Editing earlier answers invalidates later generated results and requires the affected stages to run again.
+The application communicates progress through the Sage's altitude, scenery, expressions, and dialogue rather than a permanent stage rail. The user can move backward before final generation through summoned history objects. Editing earlier answers invalidates later generated results and requires the affected stages to run again.
 
 ## 7. Navigation and screens
 
 ### 7.1 Password gate
 
-The app opens with a themed password screen. There are no usernames. A valid shared password creates a secure session cookie.
+The app opens with a restrained fake-computer boot and password sequence rather than a conventional landing page. There are no usernames. A valid shared password creates a secure session cookie.
 
 Requirements:
 
@@ -121,10 +121,15 @@ Requirements:
 - Do not reveal whether a password was close or why it failed.
 - Keep the authenticated session across refreshes.
 - Provide a clear way to lock the app again.
+- Keep the first pass easy to revise. Do not turn login into a long cinematic.
+- Use a short DOS-like boot, CRT flash, command-line password response, successful-login title card, and compact main menu.
+- Show `Continue` only when saved project state exists. Also provide `New divination` and `Token-free demo`.
+- Returning authenticated sessions use a shortened boot before resuming.
+- Wrong passwords may trigger several local scripted responses without revealing authentication details or creating model calls.
 
 ### 7.2 Welcome screen
 
-The welcome screen explains the workflow in plain language and starts a new project.
+The welcome sequence explains the workflow through short Sage dialogue and starts a new project. It does not use a split marketing hero, large landing-page headline, or paragraph-length sales copy.
 
 Suggested copy direction:
 
@@ -482,17 +487,21 @@ The catalog contains several variants for each supported event:
 Reactions follow these rules:
 
 - Do not react after every action.
-- Use event-specific probabilities, cooldowns, and a project-seeded random order so refresh does not reroll the joke.
+- Use event-specific probabilities and cooldowns. Do not repeat a line, research loop, popup joke, or Purl interruption during the same project.
 - Most reactions last roughly 600 to 1,200 milliseconds and cannot block the workflow for more than two seconds.
-- A user may advance immediately instead of waiting for a reaction.
-- Do not repeat a line during the same project until its event pool is exhausted.
+- Normal dialogue can be advanced. Important authored actions, including the popup-swat tutorial, workstation entrance, chair turn, print handoff, and concept-mail opening, play to their intended contact point before controls return.
 - Never insert a joke into saved research facts, requirements, estimates, or PDF content.
+- Scripted mistakes, erased lines, censored swearing, cursor-aware reactions, callbacks, and comments about skipped performances never create model calls.
 
 #### 8.3.1 Dialogue-first interaction
 
-The Sage and his dialogue are the primary interface. The current workflow must not depend on a permanent right-side workbench. When the Sage is asking a question, no large application window competes with him for attention.
+The Sage and his dialogue are the primary interface. The current workflow must not depend on a permanent right-side workbench. When the Sage is asking a question, no large application window competes with him for attention. The Sage stays slightly off center and occupies roughly 55 to 65 percent of the scene.
 
-Dialogue uses a small operating-system window tethered to the Sage's CRT head. It follows his movement with a slight delay and stays inside the viewport. It opens in three or four held frames: title bar, empty window, dialogue, then response controls. The window may use fake chrome such as `SAGE.EXE`, a close button, and a title-bar status, but required dialogue cannot be accidentally dismissed.
+Dialogue uses one fixed-size hybrid RPG and retro-operating-system box near the lower part of the viewport. It is visibly an RPG conversation box, includes a hand-authored pixel portrait of the Sage's current expression, and retains restrained fake-computer details. It does not resize as letters appear. Its height is chosen before the line begins and remains stable until the conversation advances.
+
+The dialogue director reveals letters with a typewriter animation. Clicking anywhere inside the box while text is appearing completes the current sentence. Clicking again advances the conversation. Dialogue is divided into short conversational sentences rather than document-like pages. The box may adapt between a small set of predetermined heights, but it cannot grow while a line is typing.
+
+Visible non-space characters drive a short original synthesized voice blip. The system rate-limits blips so fast text does not become noise and leaves spaces and punctuation silent. Commas, sentence endings, questions, and ellipses create distinct pauses. The Sage's base voice resembles a smug robotic game-show host. Mood changes pitch, speed, filtering, color, and the centered CRT audio-meter mouth. The meter spreads wider while talking and grows taller with loudness. Finishing or skipping a line stops its voice immediately.
 
 The dialogue director has four presentation states:
 
@@ -501,17 +510,17 @@ The dialogue director has four presentation states:
 - `announce` reports clarity changes, research milestones, warnings, and reveals.
 - `wait` fills an existing model or research delay with local scripted lines.
 
-Immediate response controls appear beneath or inside the dialogue window. Single-choice answers submit when selected after a brief visible confirmation. Every generated choice question includes `Something else`, which opens an inline text field in the same dialogue window. Multiple-choice questions allow the user to combine listed choices with one custom response. The saved answer keeps the custom text as answer data rather than converting it into an invented option identifier.
+Immediate response controls appear inside the same box in a consistent bottom-center RPG menu. Answers appear only after the Sage finishes speaking. The menu supports mouse, arrow-key, Enter, and Space interaction with a hand-shaped selection cursor. Four or fewer choices use a compact two-by-two arrangement. Longer choice sets paginate instead of introducing page scrolling. Single-choice answers submit after a brief visible confirmation and remain visible while the Sage begins his reaction. Every generated choice question includes `Something else`, which unfolds an in-theme text field without changing the box size. Multiple-choice questions allow the user to combine listed choices with one custom response. The saved answer keeps the custom text as answer data rather than converting it into an invented option identifier. Innovation and budget controls use RPG-style meters.
 
-Secondary actions such as skip, unknown, back, answer history, and early finish remain available but do not compete with the current answers. `Why are you asking?` may reveal the existing rationale in a smaller attached window without creating another model call.
+Secondary actions such as skip, unknown, back, and early finish remain available but do not compete with the current answers. Past dialogue disappears. Revising an earlier answer summons a themed history object rather than reopening a permanent form. `Why are you asking?` may reveal the existing rationale in a smaller attached window without creating another model call. Skipping dialogue or a performance is available through a hidden keyboard action. It completes the underlying demo wait immediately and triggers an immediate annoyed response from the self-aware Sage.
 
 ### 8.4 Hypotheses and confidence
 
-The Sage keeps a visible theory about what kind of product is forming. Example states include `utterly baffled`, `the modem stirs`, `I have a suspicious theory`, and `your future is embarrassingly obvious`.
+The Sage keeps a theory about what kind of product is forming. Example states include `utterly baffled`, `the modem stirs`, `I have a suspicious theory`, and `your future is embarrassingly obvious`. His expression and altitude communicate the theory during the run. The numeric product score remains hidden until the final sequence.
 
 Confidence requirements:
 
-- Display confidence as a changing crystal ball, expression, and qualitative label.
+- Display confidence through expression, altitude, and occasional qualitative dialogue rather than a permanent meter.
 - Base changes on clarity, completed research, answered questions, skipped questions, contradictions, and early finish.
 - Do not present the display as a statistically calibrated probability.
 - Explain selected changes with preset lines derived from known state.
@@ -520,7 +529,7 @@ Confidence requirements:
 
 ### 8.5 Stage presentation
 
-The workflow remains one full-height game scene rather than a dashboard or a sequence of business forms. The camera follows the Sage upward through one continuous world. Workflow stages establish broad altitude zones, while answer quality, clarity, contradictions, and important discoveries move the Sage within a zone.
+The workflow remains one full-height game scene rather than a dashboard or a sequence of business forms. The browser page is designed around a fixed viewport and requires no normal scrolling during the primary path. The camera follows the Sage upward through one continuous history of the internet. Workflow stages may cross between eras. Answer quality, clarity, evidence, contradictions, feasibility, and important discoveries determine altitude without showing the final numeric score early.
 
 The Sage must visibly initiate major movement before the camera follows. His chair, robe, body, and nearby objects move relative to the background, and the camera follows with a small delay. Foreground, midground, and distant layers move at different speeds. This makes the Sage appear to travel rather than leaving him fixed while a background scrolls behind him.
 
@@ -532,7 +541,7 @@ The screen has three visual layers:
 2. Temporary physical information objects such as scrolls, clue scraps, recovered files, and evidence folders.
 3. Decorative interruptions such as fake pop-ups and the research workstation.
 
-A real work window appears only when the user asks to inspect, revise, or compare detailed information. The permanent workflow rail becomes a compact altitude gauge. Activating it opens a world map or stage history, then returns to the unobstructed scene.
+A real work window appears only when the user asks to inspect, revise, or compare detailed information. No permanent workflow rail, altitude gauge, world map, or stage label competes with the Sage. A small pause menu contains mute, Calm mode, settings, and reset. Reset may remain the only persistent control.
 
 - Problem cards are clues offered to the Sage.
 - The clarity reading is his ability to understand the clues.
@@ -541,25 +550,25 @@ A real work window appears only when the user asks to inspect, revise, or compar
 - Interview questions are direct Sage dialogue.
 - Research findings are themed as evidence, transmissions, scrolls, or recovered files.
 - Requirements and comparisons use readable themed documents inside the game shell.
-- Stage counters may use phrases such as `the fourth inquiry` while preserving a plain progress label nearby.
+- Stage counters may appear inside dialogue when they clarify a question, but no permanent progress label remains on screen.
 
 Problems begin as one dialogue-led text response. Saved problems become small clue scraps in the world. `Review my clues` summons the complete problem editor. Preferences run as short Sage questions for technology, detected industries, innovation, budget, production planning, and material constraints. A summoned spellbook provides the full preference editor when the user wants to revise several values at once.
 
-Information review uses summoned scrolls rather than permanent panels. The Sage performs a gesture, then the scroll unfurls in roughly 10 to 12 held visual steps. The first view contains a readable summary and an action to extend the scroll into the complete document. Closing it rolls the scroll up and preserves the Sage's position. Research briefs, concept dossiers, feature plans, and the final PRD may reuse this behavior. Dense comparisons may open as a wider two-page scroll.
+Information review uses summoned scrolls and cursed retro email rather than permanent panels. The Sage performs a gesture, then a scroll unfurls in roughly 10 to 12 held visual steps. The first view contains a readable summary and an action to extend the document internally. Normal browser scrolling is not required. Closing the object rolls it up or dismisses the email and preserves the Sage's position. Research briefs, concept dossiers, feature plans, comparisons, and the final PRD may reuse these objects.
 
 ### 8.6 Research theater
 
 Long research uses an authored workstation performance. This applies to broad research and later focused research. Short generation waits may reuse the typing loop without replaying the full entrance.
 
-At research start, the Sage warns the user not to inspect his browsing history, spins his chair around, and travels offscreen. He returns pushing an oversized beige computer workstation on squeaky wheels. The prop includes a large CRT, tower, oversized keyboard, cheap speakers, tangled cables, stickers, a cup holder, and one visibly uncooperative wheel. He parks it, turns his chair and body toward the workstation, cracks his ball hands, and begins typing.
+At research start, the Sage warns the user not to inspect his browsing history and wheels fully offscreen. A squeaky wheel is heard before he returns while physically pushing an oversized beige computer workstation into the fixed camera frame. The prop includes a large CRT, tower, printer, oversized keyboard, cheap speakers, tangled cables, stickers, a cup holder, and one visibly uncooperative wheel. The computer is comically too large for him. He parks it badly, bumps it with the chair, struggles to reach the keyboard, and repositions himself. His entire chair and body turn 180 degrees so the back of the gaming chair faces the user and his hands reach the workstation. His monitor head counter-rotates far enough to keep its face aimed toward the user. He cracks his spherical hands and types with them.
 
-The workstation screen cycles through a deterministic, project-seeded montage of decorative distractions. It may include local cat GIFs, a locally stored and asset-recorded Minecraft Beta-era GIF for the private demo, Minesweeper, wizard forums, fake searches, `download more RAM`, suspicious toolbars, `ACTUAL_RESEARCH_DO_NOT_DELETE`, a desktop full of `final_FINAL_2` files, and brief glimpses of plausible research before the Sage changes tabs. These scenes are jokes. They never represent sources or claims.
+The workstation screen cycles through randomized decorative distractions without repeating one during the same project. It may include locally stored cat GIFs, Minecraft Beta footage, Minesweeper, wizard forums, fake searches, `download more RAM`, suspicious toolbars, `ACTUAL_RESEARCH_DO_NOT_DELETE`, a desktop full of `final_FINAL_2` files, recognizable period software, and brief glimpses of plausible research before the Sage changes tabs. Purl may walk across a game, close a tab, or interfere with the desktop. These scenes are jokes. They never represent sources or claims.
 
 The real job state appears on a separate readable strip attached to the workstation. It names the current research phase, source count when available, cancel action, failure state, and recovery action. The screen montage cannot obscure or imitate this strip.
 
-When research completes, the Sage notices the result, strikes the keyboard, ejects or produces a glowing recovered file, turns toward the user, and summons the research scroll. The scroll first shows the number of recovered sources, important findings, and known gaps. `Inspect recovered files` extends it into the full cited brief.
+When research completes, the Sage notices the result, strikes the keyboard, and sends it to the printer. He makes a scripted joke about federal printer tracking and yellow ink. The printer produces the research scroll. He grabs it with one spherical hand above and one below, turns toward the user, and holds the paper extremely close to the camera. The paper fills most of the viewport while the user sees his hands, the edges of his monitor, and the workstation behind him. The first view shows the number of recovered sources, important findings, and known gaps. `Inspect recovered files` extends it internally into the full cited brief.
 
-The workstation entrance and exit play once. Research of unpredictable length uses a pool of loopable actions such as normal typing, one-handed typing while watching a game, leaning close to the CRT, smacking the monitor, reconnecting a cable, changing tabs when observed, briefly falling asleep, and celebrating an advertisement as if it were evidence. Completion interrupts the loop cleanly. If the job finishes unusually quickly, the app completes the short entrance before moving to the result. The user may skip the theatrical entrance without cancelling research.
+The workstation entrance and print handoff play once. Research of unpredictable length uses a randomized pool of loopable actions such as normal typing, one-handed typing while watching a game, leaning close to the CRT, smacking the monitor, reconnecting a cable, changing tabs when observed, briefly falling asleep, and celebrating an advertisement as if it were evidence. No loop repeats during the same project. Token-free mode simulates an average real wait whose duration varies by task and pauses while the page is hidden. There is no visible fast-preview control. A hidden skip action completes the simulated job immediately, then the Sage notices and complains.
 
 Requirements:
 
@@ -573,19 +582,25 @@ Requirements:
 
 ### 8.7 Concept reveal and defeat state
 
-The Sage reveals concepts one at a time:
+Concept generation completes with the recognizable AOL `You've got mail` voice sample. An original cursed mail client opens after the Sage notices and clicks the notification. Purl authored the messages. The Sage opens them one at a time:
 
 1. Build suspense and reveal the recommended primary guess.
 2. Reveal two alternate guesses with shorter transitions.
 3. Pause, claim he is not allowed to continue, and reveal the stretch concept.
 
-Each reveal uses a character pose, short sound, archetype, decorative rarity, and `why I chose this` note. A skip-animation control reveals the complete comparison immediately.
+Each message downloads an attachment into a project folder, then opens a short concept dossier with a character pose, sound, archetype, decorative rarity, and `why I chose this` note. Rejecting a concept visibly moves its message to Trash. The Sage writes a complaint to Purl about the rejected idea. The stretch concept arrives from a Saudi-oil-prince scam address. It looks quarantined, rare, and dangerously glitched, but contains a genuinely strong buildable idea. Opening it may trigger a controlled popup storm. A hidden skip action reveals the complete comparison immediately and makes the Sage complain.
+
+Feature selection uses an RPG menu with mouse and keyboard controls. Selecting a feature animates its file into the downloaded project folder. Literal drag and drop may exist, but it cannot be the only way to select a feature. Dependencies remain explicit and protected. Longer feature sets paginate instead of requiring page scrolling.
 
 `You have defeated the Sage` is available when the user rejects all four concepts. It requires confirmation because it starts another paid generation. The replacement request must explicitly seek approaches that differ from the rejected set.
 
 ### 8.8 Easter eggs and side quests
 
-The app may include rare scripted pop-ups, fake alerts, clickable desktop clutter, joke achievements, secret keyboard sequences, and tiny side quests. A rare authored event may briefly cover the scene or active controls for up to two seconds when the Sage immediately notices and removes it. The signature version has the Sage turn toward a popup, wind up, swat it at a timed impact point, and follow through while the window spins offscreen. Ordinary random pop-ups stay outside required controls and always have an obvious close action.
+The app includes randomized scripted pop-ups, fake alerts, clickable desktop clutter, secret achievements, keyboard sequences, and tiny side interactions without overloading the viewport. Popups use fake antivirus warnings, AIM-style messages, WeatherBug nonsense, wizard-forum drama, chain emails, download accelerators, desktop pets, fake errors, bad advertisements, and guestbook notifications. They may use recognizable period brands as parody inside the private demo. Ordinary random pop-ups stay outside required controls, never fill the entire screen, and always have an obvious close or drag interaction.
+
+The first popup acts as a tutorial without tutorial text. The Sage initially ignores it, comments on whether the player intends to clean it up, waits until it becomes unbearable, then clearly looks at it, anticipates, winds up, makes visible contact with one spherical hand, and follows through while the window spins away. The animation must read as a swat when viewed without sound. Later special popups can trigger authored Sage interactions while ordinary ones remain draggable and dismissible by the player.
+
+Purl is a recurring pixel cat and the Sage's inexplicably familiar, annoying companion. Purl believes she is helping, usually makes things worse, and returns after the Sage shoos her away. She communicates through cat emoji, Wingdings-like symbols, and roughly decipherable nonsense rather than normal prose. Purl appears at random without repeating the same event in one run, interferes with fake research applications, writes the concept emails, unlocks a secret achievement, and performs exactly one genuinely useful action during a completed run.
 
 Pop-ups and side quests cannot:
 
@@ -595,13 +610,19 @@ Pop-ups and side quests cannot:
 - Appear inside the PDF.
 - Prevent the user from completing the workflow.
 
-There is no serious score or competitive ranking. Joke achievements may exist only as local decorative state.
+The completed run has one score. The results sequence first reveals the product score before joke modifiers, then applies secret achievement multipliers with Balatro-like pacing, sounds, card movement, and escalating totals. The final score receives a stamped qualitative label and a prewritten Sage comment, which may include an absurd project valuation. Achievement effects have a documented cap so they cannot completely erase the product assessment. Negative achievements are allowed. Achievements and the current score reset with `Start over`.
+
+A password-protected global high-score board stores submitted final scores without requiring an account. Submission is optional and uses a short player alias. The board shows the final score, stamped label, project name, and completion time. The server validates the base score and multiplier identifiers before accepting an entry.
+
+The score room contains the final PRD download. Opening it triggers a fake paywall based on the recorded token spend. It never charges money or permanently blocks the document. The gag resolves into the real download control. A deliberately bad hidden credits page loads in visible fragments and lists downloaded asset provenance when opened.
 
 ### 8.9 Visual direction
 
 The interface resembles a lost early-2000s browser game rather than a modern web application wearing retro colors. Its main composition uses a large central character, short dialogue, simple current choices, and a continuous vertical world. It borrows the pacing and suspense of a guessing game but keeps an original character, layout, world, and visual language.
 
-The world is an infinitely tall cursed personal homepage rendered as a physical 2D and 2.5D space. The user begins in a murky server basement and climbs through abandoned guestbooks, broken hit counters, tiled star backgrounds, flaming dividers, webrings, animated mailboxes, `UNDER CONSTRUCTION` scaffolding, popup neighborhoods, internet clouds, and a loud cosmic server shrine. The palette starts dark and constrained, then becomes brighter and stranger as the Sage gains understanding.
+The world is an infinitely tall history of the internet rendered as a connected 2D and 2.5D space. There is no basement. It begins with DOS and BBS imagery, then climbs through early web and GeoCities, AOL and Windows 98, the dot-com era, Windows XP, Flash games, MySpace, early YouTube, social media, smartphones, cloud computing, modern algorithmic feeds, medium-strength AI-slop parody, and a cosmic future where the final result appears. Scenery communicates each era without year labels. Era boundaries use dithered pixel transitions while the camera moves programmatically. The user does not scroll the page to travel.
+
+Visual fidelity follows the timeline. Early zones use restricted palettes and coarse pixels. Later zones add animated GIFs, glossy operating-system chrome, Flash-like vectors, compressed video, mobile-feed clutter, and sterile modern layouts. The Sage remains the same low-poly character throughout. Era styling may influence temporary windows and scenery, but his RPG dialogue box remains visually consistent because it belongs to him. Interactive background objects provide small reactions without becoming required controls.
 
 Visual ingredients:
 
@@ -633,6 +654,10 @@ The renderer and camera run at the display refresh rate, normally 60 frames per 
 
 Initial live animation clips should include restrained idle, attentive lean, thinking, approval, confusion, weak-answer slump, chair wobble, controlled ascent, uncontrolled drop, research recline, workstation exit, workstation push-in, workstation parking, turn-to-keyboard, research typing loops, research completion, popup notice and swat, scroll summoning, concept reveal, defeat, and forbidden-knowledge reveal.
 
+The revision pass preserves the current Sage's small-wizard-in-a-large-chair silhouette and low-poly style while allowing rig, material, and facial-control changes. His amber glowing cartoon eyes remain simple by default. Mood may change their color or replace them briefly with pixel emoji and symbols. The monitor wobbles during emphatic speech. The hat and robe use exaggerated secondary motion. Hands remain spherical.
+
+The popup swat must be rebuilt as readable action rather than a vague reaction clip. The Sage tracks the window with his eyes, anticipates in the opposite direction, winds up, makes a clear hand-to-window contact pose, holds one impact frame, and follows through. The popup moves only after visible contact. The animation introduces draggable popups without tutorial text.
+
 #### 8.9.2 3D implementation direction
 
 - Assemble the character in Blender from editable low-poly source assets rather than relying on a finished recognizable character.
@@ -647,11 +672,13 @@ Initial live animation clips should include restrained idle, attentive lean, thi
 
 ### 8.10 Asset sourcing
 
-- Search independent retro-web, personal-site, and Neocities-style collections for era-authentic GIFs and computer-wizard artifacts.
+- Online asset collection is a required implementation activity rather than a fallback. Search independent retro-web sites, archives, personal pages, Neocities-style collections, software museums, GIF collections, sound archives, and period interface repositories for authentic GIFs, MIDI, icons, fonts, cursors, textures, banners, buttons, audio, desktop pets, and computer artifacts.
 - Do not hotlink assets. Store selected files with the application so pages do not disappear or track users.
 - Record source URL, creator when known, retrieval date, file hash, and rights status in `docs/ASSETS.md`.
 - Prefer public-domain, licensed, or creator-permitted assets when suitable examples exist.
-- Assets with unclear or third-party rights may be evaluated only in the password-protected personal demo. Mark them `demo-only` and keep a replacement note. Password protection does not establish permission or make them suitable for public release.
+- Copyrighted, recognizable, unclear-rights, and third-party assets are allowed in this password-protected internal demo. Mark them `demo-only` and keep a replacement note. This includes recognizable period brands, archived advertisements, the popular AOL `You've got mail` voice sample, and decorative footage used in research theater. They must be replaced or cleared before public distribution.
+- Preserve crunchy source resolution, compression, limited palettes, and rough animation when safe. Convert obsolete or unsafe formats such as SWF into inert browser-safe images, audio, or video rather than executing old code.
+- Mix famous recognizable artifacts with obscure authentic finds. Original parody text may reuse the composition of archived banner advertisements.
 - Generate original assets for Signal Sage poses, project-specific jokes, and niche gaps that cannot be filled well by found material.
 - Do not copy the Akinator character, artwork, logo, sound, or exact interface.
 - Review the name and replace all `demo-only` assets before distribution beyond the personal demo.
@@ -660,11 +687,13 @@ Initial live animation clips should include restrained idle, attentive lean, thi
 
 Sound is required for the game presentation.
 
-- Use a looping MIDI-style ambient track and short retro UI sounds.
+- Use MIDI-style music in every era. Instrumentation and composition change with the period while remaining part of one soundtrack, including tracker-like early computing, General MIDI, Y2K electronic music, Flash-game energy, compressed social-web pop, sterile modern ambience, and cosmic synth.
+- Use short retro UI sounds, the internal-demo AOL mail sample, printer sounds, workstation noises, popup impacts, score-counting cues, and original synthesized dialogue chirps.
 - Give the Sage distinct thinking, discovery, error, irritation, and reveal cues.
 - Do not start audio until the user has interacted with the page.
 - Provide a persistent mute control and remember the setting in browser state.
-- Stop or reduce audio while the page is hidden.
+- Pause timed performances and stop or reduce audio while the page is hidden.
+- The app can detect blocked or suspended playback and its own mute setting. It cannot reliably detect browser-tab or operating-system mute. The Sage may complain only about states the app can actually observe.
 - Store audio locally and track it in the asset record under the same rules as visual assets.
 
 ### 8.12 Chaos mode, calm mode, and basic usability
@@ -991,13 +1020,15 @@ The demo succeeds when a first-time user can complete the entire workflow withou
 - The visible Sage hypothesis and qualitative confidence respond to meaningful state changes.
 - Every run returns exactly four meaningfully different concepts.
 - Exactly one concept is marked stretch.
-- Concepts reveal one at a time with a skip-animation option.
+- Concepts arrive as one-at-a-time cursed email messages with a hidden skip action.
 - Rejecting all concepts offers a confirmed paid replacement generation.
 - Feature dependencies behave correctly.
 - No estimate changes while the user toggles features.
 - Final generation recalculates all affected sections.
 - The PDF includes every required section and clickable citations.
 - `Start over` clears the project and leaves authentication intact.
+- `Start over` poofs the Sage's chair away, drops him through the connected internet eras, and catches him in a new chair at the beginning.
+- The final sequence shows the base product score before applying capped secret achievement multipliers, stamps a qualitative label, offers optional global high-score submission, resolves the fake token-spend paywall, and downloads the real PRD.
 
 ### 18.2 Quality
 
@@ -1016,19 +1047,24 @@ The demo succeeds when a first-time user can complete the entire workflow withou
 - The live Signal Sage has a full monitor head, low-poly wizard body, floating gaming chair, and distinct authored reaction clips.
 - Smooth camera and chair travel can coexist with visibly stepped 12-frame and 24-frame character animation.
 - The illustrated Signal Sage remains available as a loading, reduced-motion, unsupported-browser, and failure fallback.
-- The world climbs continuously from a dark server basement toward a bright cosmic internet shrine.
+- The world climbs continuously through a connected visual history of the internet without a basement or visible year labels.
+- Product quality drives continuous altitude within and across eras. The browser moves the world programmatically and does not require page scrolling.
+- Era boundaries use visibly pixelated dither transitions. Scenery, temporary windows, and MIDI instrumentation match the period while the Sage and his RPG dialogue box remain consistent.
 - Detailed inputs appear in temporary spellbooks, terminals, scrolls, or dossiers without losing workflow state.
-- The permanent right-side workbench is absent during ordinary questions. The Sage's tethered operating-system dialogue window presents the real prompt and its immediate answers.
-- The dialogue window follows the Sage, stays inside the viewport, and opens with visibly held retro frames.
+- The permanent right-side workbench, progress rail, altitude gauge, and world map are absent during ordinary questions.
+- A fixed-size hybrid RPG and operating-system dialogue box presents short typewritten sentences, a mood-matched pixel portrait, original synthesized voice blips, and bottom-center answers.
+- Dialogue and response controls support mouse and keyboard. Choice sets paginate instead of forcing page scrolling.
 - Every generated choice question supports a saved custom response through an inline `Something else` control.
 - Information scrolls unfurl in choppy held steps, remain readable, and return the player to the same stage position when closed.
 - The shell mixes early 3D browser games, occult personal sites, GeoCities pages, Windows 93-style interruptions, and arcade fortune tellers without copying Akinator assets.
 - Every stored GIF and sound has an asset-record entry and explicit public-release status.
 - Fake windows remain visibly decorative interruptions while real progress and errors stay readable.
-- Long research includes the authored Sage exit, wheeled-computer entrance, workstation typing loop, decorative screen montage, and completion handoff to a cited research scroll.
+- Long research includes the authored Sage exit, physical workstation push-in, fixed-camera parking gag, full chair turnaround, spherical-hand typing, randomized nonrepeating screen montage, printing, tracking-dot joke, and close-camera paper handoff.
 - The workstation's real progress, cancellation, failure, and recovery controls remain distinct from the decorative CRT content.
-- At least one authored popup event synchronizes a real HTML window with the Sage's 3D swat animation.
-- MIDI-style ambience and UI sounds work after user interaction, with persistent mute.
+- The first popup synchronizes a real HTML window with an unmistakable eye-track, anticipation, contact, impact hold, and follow-through swat animation.
+- Purl appears as a recurring pixel cat, communicates through decipherable cat symbols, interferes with decorative applications, writes concept emails, and performs one useful action per completed run.
+- Online-sourced era assets are stored locally, recorded in the asset ledger, and marked for internal-demo or public use.
+- Era-specific MIDI-style music, Sage dialogue chirps, workstation sounds, mail, printer, popup, and score cues work after user interaction, with persistent mute.
 - Calm mode removes optional motion, audio, pop-ups, fake windows, and reaction delays.
 - The primary desktop workflow works at 1024, 1440, and 1920 pixel widths.
 - The full workflow remains usable on a narrow screen even though mobile polish is not a launch goal.
@@ -1147,6 +1183,104 @@ All 13 implementation slices were completed and deployed to `idea.battery.rip` b
 - Visual inspection of the downloaded PDF found that footer text below PDFKit's content boundary created blank trailing pages. The footer and table-of-contents note now stay inside the safe page area, and a regression test locks the fixture to eight populated pages. The final live walkthrough produced nine populated pages because its interview added content, with no blank tail.
 - A legacy `/favicon.ico` was added after the first browser pass found the incidental request returning `404`. The deployed icon now returns `200`.
 
+### 19.3 Approved presentation revision
+
+The following revision was approved on 2026-09-02 after the first 13 slices reached production. It changes the game's presentation while preserving the completed problem, preference, research, interview, concept, feature, focused-research, recalculation, report, PDF, authentication, and deployment contracts. None of this section is considered implemented or deployed until its new slice and browser acceptance pass are complete.
+
+#### 19.3.1 Composition and interaction contract
+
+- Build every ordinary desktop state around a fixed viewport. Normal page scrolling remains possible as a failure-safe, but the primary path cannot require it.
+- Keep the low-poly Sage slightly off center and make him the largest visual subject. Everything else is temporary and subordinate.
+- Replace the current floating speech window with the fixed-size hybrid RPG dialogue system in Section 8.3.1.
+- Use one consistent bottom-center response area. Mouse and keyboard controls have equal support.
+- Paginate choices and use internal scrolling only inside a deliberately presented scroll, email, report, or history object.
+- Remove the permanent altitude gauge and stage map. Put mute, Calm mode, settings, lock, and reset inside a compact pause menu. Reset may remain visible on its own.
+- Keep an 8-bit RPG font for dialogue, a period bitmap font for fake applications, and a calm readable face for evidence and final documents.
+
+#### 19.3.2 Sage performance contract
+
+- Preserve the current low-poly character, amber face, small body, oversized gaming chair, robe, hat, and spherical hands.
+- Add mood-driven glowing eyes, occasional pixel emoji, the centered audio-meter mouth, monitor wobble, robe and hat follow-through, restrained listening poses, cursor tracking, scripted self-correction, and censored readable swearing.
+- Prioritize talking and listening, suspicion, thinking, approval, disappointment, confusion, self-satisfied laughter, obvious lying, concept reveal, popup swat, and the workstation performance.
+- Rebuild the popup swat around readable contact. It introduces popup interaction without displaying tutorial instructions.
+- The user may advance conversational typing. Major physical animations play through their authored contact point before controls return.
+
+#### 19.3.3 Connected internet-era world
+
+- Replace the former basement, GeoCities, popup-neighborhood, and cosmic-zone structure with one connected history of the internet.
+- Begin with DOS and BBS imagery. Continue through early personal sites, GeoCities, AOL, Windows 98, dot-com advertising, Windows XP, Flash games, MySpace, early YouTube, social and mobile feeds, cloud software, the algorithmic web, medium-strength AI-slop parody, and a cosmic future.
+- Let stages cross eras. A hidden evolving product assessment determines altitude. Better clarity, evidence, feasibility, and differentiation raise the Sage. Contradictions and weak evidence may lower him.
+- Communicate eras through scenery rather than year labels. Improve graphical fidelity as the Sage rises while preserving crunchy source assets.
+- Give every era enough furniture, windows, signs, cables, icons, structures, and animated details to feel inhabited rather than barren. Preserve clear negative space around the Sage and active dialogue.
+- Move the scene programmatically. Dithered pixel transitions blend era boundaries without asking the user to scroll.
+- On reset, the chair poofs away, the Sage falls through the connected eras, and a replacement chair catches him at the start.
+- Era-specific temporary interfaces are allowed when they remain readable. The Sage's dialogue box does not change with the era.
+
+#### 19.3.4 Research and interruption contract
+
+- Use the full fixed-camera workstation choreography in Section 8.6 for both long research stages.
+- Vary token-free wait duration according to the task and approximate an average real run. Do not expose a fast-preview control.
+- Randomize research loops and popup events. Do not repeat one during the same project.
+- Pause waits and decorative animation while the page is hidden.
+- Keep popups small enough that the core scene remains visible. Let the player drag or dismiss ordinary ones.
+- Introduce Purl as the recurring pixel-cat assistant described in Section 8.8.
+
+#### 19.3.5 Concept mail and feature configuration
+
+- Use the popular AOL voice sample to announce the cursed mail client in the internal demo.
+- Have Purl send four separate messages. The Sage opens them one at a time and downloads each concept attachment.
+- Move rejected ideas to Trash and have the Sage complain to Purl.
+- Send the stretch concept through a Saudi-oil-prince scam message. Present it as glitched, rare, suspicious, and unexpectedly good rather than malicious or unbuildable.
+- Configure features through a paginated RPG menu. Animate selected feature files into the project folder. Optional literal drag and drop cannot replace click or keyboard selection.
+
+#### 19.3.6 Final score room
+
+- Reveal one final run score only after the product plan finishes.
+- Show the product base score first. It reflects problem clarity, evidence quality, differentiation, feasibility, budget fit, known risk, and interview completeness. It is the Sage's estimate, not a calibrated forecast of commercial success.
+- Apply capped secret positive and negative achievement multipliers afterward with Balatro-like sequencing. Show the pre-multiplier value, each revealed modifier, and the final total.
+- Stamp the result with a qualitative label and select a local prewritten Sage comment. The comment may assign an absurd monetary valuation.
+- Keep achievements secret before reveal and reset them with `Start over`.
+- Offer optional submission to the password-protected global high-score board. Use a short user-provided alias and store the project name, final score, label, and completion time. Do not require an account. Recalculate or validate score inputs on the server, rate-limit submissions, and accept one board entry per signed completed run.
+- Keep leaderboard data in persistent server storage outside the container's read-only root filesystem so deploys do not erase it.
+- Place the PRD download inside the score room. A fake paywall derives its joke amount from recorded token usage, performs no payment operation, and always resolves to the real download.
+- Hide an intentionally broken-looking credits page in the score room. It loads in visible fragments and exposes the local asset ledger when opened.
+
+#### 19.3.7 Login direction
+
+- Replace the current split landing page with a short fake-computer boot, command-line password response, CRT flash, successful-login title card, and compact main menu.
+- Keep the first implementation restrained and easy to revise.
+- Offer `Continue` when a saved project exists, plus `New divination` and `Token-free demo`.
+- Use local randomized wrong-password reactions without weakening rate limits or revealing validation details.
+- Use a shortened boot for an already authenticated returning session.
+
+### 19.4 Revision implementation sequence
+
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 14 are complete and deployed. Slices 15 through 22 remain approved and pending.
+
+14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
+15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
+16. Build the complete research workstation performance. Add the physical push-in, fixed-camera parking gag, 180-degree chair turn, keyboard interaction, randomized nonrepeating loops, task-based token-free timing, printer sequence, tracking-dot joke, and close-camera scroll presentation.
+17. Replace the background system with the connected internet-era world, continuous score-driven altitude, programmatic upward travel, dithered transitions, era-specific temporary UI styling, interactive scenery, reset fall, and period-changing MIDI soundtrack.
+18. Expand the interruption system with the full popup pool, draggable ordinary windows, recognizable parody software, downloaded web assets, Purl's recurring events, Purl research interference, one useful Purl action, secret achievements, and the maintained asset ledger.
+19. Replace concept presentation with the AOL-style cursed mail sequence, four one-at-a-time Purl messages, attachment downloads, Trash reactions, the glitched oil-prince stretch message, and paginated RPG feature configuration with animated project files.
+20. Build the final score room, base score calculation, capped secret modifiers, stamps, comments, absurd valuation, optional password-protected global leaderboard, fake token-spend paywall, real PRD download, and deliberately broken hidden credits page.
+21. Replace the landing page with the restrained fake boot, command-line password interaction, title card, saved-project-aware main menu, wrong-password reactions, and shortened authenticated resume.
+22. Run the integration and polish pass. Verify every real and token-free path, all major animations and waits, no repeated event within one run, fixed-viewport behavior, keyboard and mouse parity, audio recovery, hidden skip behavior, leaderboard validation, asset loading, PDF download, browser errors, responsive fallback, container health, public deployment, and a fresh-context live walkthrough.
+
+### 19.5 Slice 14 completion record
+
+Slice 14 was completed and deployed on 2026-09-02 without changing the saved workflow or AI contracts.
+
+- Ordinary workflow stages now use a fixed desktop viewport with the low-poly Sage as the primary subject and a fixed-size RPG dialogue box at the bottom center. The concept room and long-form final report keep their existing specialized layouts until their later presentation slices.
+- Sage reactions and stage prompts play as short queued conversational turns. Text appears character by character with punctuation pauses, click or Space/Enter completes the active line, and required responses remain hidden until the current speech finishes.
+- The dialogue frame includes a mood-specific pixelated Sage portrait. The three-dimensional Sage mouth now changes width and height while dialogue is speaking.
+- A local deterministic Web Audio voice produces mood-dependent synthesized chirps without an AI call. It follows the existing persisted mute and Calm mode settings and begins only after the player enables sound.
+- Responses share one bottom-center area. Arrow keys move through visible buttons, mouse controls remain available, and generated option groups paginate at four choices per page.
+- The five-level innovation selector and prototype and production budgets now use RPG-style meters without changing their stored values or validation.
+- The old permanent stage rail and header controls are gone. Sound, Chaos/Calm mode, token-free restart, Start over, and workshop lock live in a compact menu opened by the screen button or Escape.
+- Silkscreen is bundled locally under the SIL Open Font License and recorded in the asset ledger. Evidence documents and the final report retain their calmer reading typography.
+- Automated verification passed Svelte diagnostics, 101 unit tests, formatting, lint, and a production build. Browser verification covered the welcome, problem, preference, research, and interview states at 1,280 and 1,440 pixel desktop widths, including typewriter completion, keyboard focus, audio enablement, pause controls, fixed-viewport overflow, and console errors.
+
 ## 20. Risks and mitigations
 
 | Risk | Impact | Mitigation |
@@ -1167,6 +1301,9 @@ All 13 implementation slices were completed and deployed to `idea.battery.rip` b
 | Random web GIFs cause copyright or reliability problems | Assets disappear or create distribution risk | Store assets locally, keep provenance and public-release status, and maintain replacements for demo-only files |
 | Sound becomes irritating or violates browser expectations | Users mute the site or abandon the workflow | Start after interaction, provide persistent mute, and disable it in Calm mode |
 | Personality adds unnecessary token cost | Cheap jokes become expensive model calls | Use a local event catalog and only piggyback hypotheses on existing structured responses |
+| Hidden altitude is mistaken for a proven success forecast | Users over-trust a playful score | Reveal the inputs at the end and label the score as the Sage's product estimate rather than a calibrated commercial forecast |
+| A public client fabricates leaderboard scores | The high-score board becomes meaningless | Recalculate or validate score inputs on the server, sign completed runs, accept one entry per run, and rate-limit submissions |
+| Fixed-viewport presentation clips controls or documents | A player cannot finish without awkward browser scrolling | Keep required controls inside measured safe areas, paginate choices, scroll only summoned documents internally, and retain a failure-safe page overflow mode |
 | Product name or styling creates confusion with Akinator | Public distribution may create naming concerns | Use an original guide and review the name before wider release |
 | Browser state becomes incompatible after an update | The active project will not load | Version state and provide a safe migration or start-over path |
 | Server restart interrupts research | The current job is lost | Detect missing jobs and offer a stage retry |

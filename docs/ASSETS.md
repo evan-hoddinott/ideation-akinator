@@ -122,3 +122,16 @@ All third-party files are stored locally. They are decoration only and are label
 - Retrieved: 2026-09-01
 - SHA-256: `4c7f57cf0212d3a21ace15dd54cdd73769a7519bf4d4bb096d9311bd2f69fbbb`
 - Playback note: the browser reads note events from the local MIDI file and renders them with low-volume Web Audio oscillators. Playback begins only after the user enables sound.
+
+## Interface type
+
+### Silkscreen
+
+- Files: `static/fonts/Silkscreen-Regular.ttf`, `static/fonts/Silkscreen-Bold.ttf`, and `static/fonts/Silkscreen-OFL.txt`
+- Creator: Jason Kottke and the Silkscreen Project Authors
+- Source: [Google Fonts Silkscreen repository](https://github.com/google/fonts/tree/main/ofl/silkscreen)
+- License: SIL Open Font License 1.1
+- Retrieved: 2026-09-02
+- SHA-256 regular: `c845473330b94c2079ce9af01c51ac8ba2d99c24f4d14c039843bbb8e642ebd8`
+- SHA-256 bold: `768476aa712d4f5c3e18d3bce80f980a8bd3f72b7094d22ec5e768df3acfed61`
+- Use note: locally bundled for Sage dialogue, response menus, meters, and pause controls; research documents retain a calmer reading face

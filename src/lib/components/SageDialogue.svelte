@@ -1,6 +1,14 @@
 <script lang="ts">
+	import { onDestroy, onMount, tick } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import type { SagePersonality } from '$lib/personality';
+	import {
+		pageBounds,
+		sageVoiceProfile,
+		segmentDialogue,
+		shouldVoiceCharacter,
+		typingDelay
+	} from '$lib/rpg-dialogue';
 
 	let {
 		altitude,
@@ -11,8 +19,8 @@
 		meta = '',
 		children,
 		footer,
-		onToggleMute,
-		onToggleCalm
+		onSpeakCharacter = () => {},
+		onSpeakingChange = () => {}
 	}: {
 		altitude: number;
 		personality: SagePersonality;
@@ -22,49 +30,235 @@
 		meta?: string;
 		children: Snippet;
 		footer?: Snippet;
-		onToggleMute: () => void;
-		onToggleCalm: () => void;
+		onSpeakCharacter?: (profile: ReturnType<typeof sageVoiceProfile>) => void;
+		onSpeakingChange?: (speaking: boolean) => void;
 	} = $props();
 
-	const modeLabels = {
-		ask: 'AWAITING MORTAL INPUT',
-		react: 'SAGE REACTION',
-		announce: 'TRANSMISSION RECEIVED',
-		wait: 'QUESTIONABLE THINKING'
+	let displayedText = $state('');
+	let segments = $state<string[]>([]);
+	let segmentIndex = $state(0);
+	let typing = $state(false);
+	let responsesReady = $state(false);
+	let responseElement = $state<HTMLDivElement>();
+	let choicePage = $state(0);
+	let choicePageTotal = $state(1);
+	let typingTimer: number | null = null;
+	let choiceObserver: MutationObserver | null = null;
+	let signature = '';
+	let lastQueuedLineId = '';
+
+	const portraitSource = $derived(`/images/sage/${personality.mood}.webp`);
+	const modeGlyphs = {
+		ask: '?',
+		react: '!',
+		announce: '*',
+		wait: '...'
 	};
+
+	$effect(() => {
+		const nextSignature = `${mode}:${prompt}:${personality.lineId}:${personality.line}`;
+		if (nextSignature === signature) return;
+		signature = nextSignature;
+		choicePage = 0;
+		responsesReady = false;
+
+		const queue: string[] = [];
+		if (
+			personality.line &&
+			personality.line !== prompt &&
+			personality.lineId !== lastQueuedLineId
+		) {
+			queue.push(...segmentDialogue(personality.line));
+			lastQueuedLineId = personality.lineId;
+		}
+		queue.push(...segmentDialogue(prompt));
+		segments = queue;
+		segmentIndex = 0;
+		startTyping(queue[0] ?? '...');
+	});
+
+	$effect(() => {
+		void choicePage;
+		if (!responsesReady) return;
+		void tick().then(refreshChoicePage);
+	});
+
+	onMount(() => {
+		if (!responseElement) return;
+		choiceObserver = new MutationObserver(() => refreshChoicePage());
+		choiceObserver.observe(responseElement, { childList: true, subtree: true });
+	});
+
+	onDestroy(() => {
+		clearTypingTimer();
+		choiceObserver?.disconnect();
+		onSpeakingChange(false);
+	});
+
+	function clearTypingTimer() {
+		if (typingTimer !== null) window.clearTimeout(typingTimer);
+		typingTimer = null;
+	}
+
+	function startTyping(text: string) {
+		clearTypingTimer();
+		displayedText = '';
+		typing = true;
+		responsesReady = false;
+		onSpeakingChange(true);
+		let index = 0;
+
+		const reveal = () => {
+			if (index >= text.length) {
+				typing = false;
+				onSpeakingChange(false);
+				responsesReady = segmentIndex >= segments.length - 1;
+				if (responsesReady) void tick().then(refreshChoicePage);
+				return;
+			}
+
+			const character = text[index];
+			displayedText += character;
+			if (!personality.muted && shouldVoiceCharacter(character, index)) {
+				onSpeakCharacter(sageVoiceProfile(personality.mood, character, index));
+			}
+			index += 1;
+			typingTimer = window.setTimeout(reveal, personality.calmMode ? 1 : typingDelay(character));
+		};
+
+		reveal();
+	}
+
+	function advanceDialogue() {
+		if (typing) {
+			clearTypingTimer();
+			displayedText = segments[segmentIndex] ?? displayedText;
+			typing = false;
+			onSpeakingChange(false);
+			responsesReady = segmentIndex >= segments.length - 1;
+			if (responsesReady) void tick().then(refreshChoicePage);
+			return;
+		}
+
+		if (segmentIndex >= segments.length - 1) return;
+		segmentIndex += 1;
+		startTyping(segments[segmentIndex]);
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent) {
+		const target = event.target as HTMLElement | null;
+		const editing =
+			target?.matches('input, textarea, select') ||
+			target?.getAttribute('contenteditable') === 'true';
+		if (editing) return;
+
+		if (!responsesReady && (event.key === 'Enter' || event.key === ' ')) {
+			event.preventDefault();
+			advanceDialogue();
+			return;
+		}
+
+		if (!responsesReady || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key))
+			return;
+		const choices = visibleChoices();
+		if (choices.length === 0) return;
+		event.preventDefault();
+		const activeIndex = choices.indexOf(document.activeElement as HTMLButtonElement);
+		const direction = event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 1;
+		choices[(activeIndex + direction + choices.length) % choices.length].focus();
+	}
+
+	function visibleChoices(): HTMLButtonElement[] {
+		if (!responseElement) return [];
+		return Array.from(
+			responseElement.querySelectorAll<HTMLButtonElement>('button:not([disabled])')
+		).filter((button) => !button.hidden && button.offsetParent !== null);
+	}
+
+	function refreshChoicePage() {
+		if (!responseElement) return;
+		const list = responseElement.querySelector<HTMLElement>('.game-choice-list');
+		if (!list) {
+			choicePageTotal = 1;
+			return;
+		}
+		const buttons = Array.from(list.children).filter(
+			(child): child is HTMLButtonElement => child instanceof HTMLButtonElement
+		);
+		const bounds = pageBounds(choicePage, buttons.length);
+		choicePage = bounds.page;
+		choicePageTotal = bounds.total;
+		buttons.forEach((button, index) => {
+			button.hidden = index < bounds.start || index >= bounds.end;
+		});
+	}
+
+	function changeChoicePage(direction: -1 | 1) {
+		choicePage = Math.min(Math.max(choicePage + direction, 0), choicePageTotal - 1);
+	}
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <section
 	class="sage-dialogue-stage"
 	data-mode={mode}
-	style={`--dialogue-altitude: ${altitude}`}
+	data-mood={personality.mood}
+	data-altitude={altitude.toFixed(2)}
+	class:typing
 	aria-label={label}
 >
-	<div class="dialogue-tether" aria-hidden="true"><i></i><i></i><i></i></div>
 	<div class="sage-speech-window">
 		<header class="speech-titlebar">
-			<div><span class="signal-light"></span><b>SAGE.EXE</b><small>{modeLabels[mode]}</small></div>
-			<div class="speech-tools">
-				<button type="button" onclick={onToggleMute} aria-label="Toggle sound">
-					{personality.muted ? '♫×' : '♫'}
-				</button>
-				<button type="button" onclick={onToggleCalm} aria-label="Toggle Calm mode">
-					{personality.calmMode ? 'C' : '!!'}
-				</button>
-				<span aria-hidden="true">×</span>
-			</div>
+			<span><i aria-hidden="true"></i>{label}</span>
+			{#if meta}<small>{meta}</small>{/if}
+			<b aria-hidden="true">{modeGlyphs[mode]}</b>
 		</header>
 
-		<div class="speech-content">
-			<div class="speech-label-row">
-				<span>{label}</span>
-				{#if meta}<small>{meta}</small>{/if}
+		<div class="rpg-panel">
+			<figure class="sage-portrait" aria-hidden="true">
+				<img src={portraitSource} alt="" />
+				<span></span>
+			</figure>
+
+			<div class="dialogue-column">
+				<button
+					class="dialogue-copy"
+					type="button"
+					onclick={advanceDialogue}
+					aria-label={typing ? 'Finish this sentence' : 'Continue dialogue'}
+				>
+					<span class="spoken-text">{displayedText}</span>
+					{#if typing}<i class="typing-cursor" aria-hidden="true"></i>{/if}
+					{#if !typing && !responsesReady}<i class="continue-cursor" aria-hidden="true">▼</i>{/if}
+				</button>
+				<span class="screen-reader-line" aria-live="polite">
+					{typing ? '' : (segments[segmentIndex] ?? '')}
+				</span>
+
+				<div
+					class="dialogue-responses"
+					class:ready={responsesReady}
+					aria-hidden={!responsesReady}
+					bind:this={responseElement}
+				>
+					{#if responsesReady}{@render children()}{/if}
+				</div>
+
+				{#if responsesReady && choicePageTotal > 1}
+					<nav class="choice-pager" aria-label="More answers">
+						<button type="button" disabled={choicePage === 0} onclick={() => changeChoicePage(-1)}
+							>◀</button
+						>
+						<span>{choicePage + 1} / {choicePageTotal}</span>
+						<button
+							type="button"
+							disabled={choicePage >= choicePageTotal - 1}
+							onclick={() => changeChoicePage(1)}>▶</button
+						>
+					</nav>
+				{/if}
 			</div>
-			<p class="sage-prompt">{prompt}</p>
-			{#if personality.line && personality.line !== prompt}
-				<p class="sage-aside"><span>CRT MUTTERING</span>{personality.line}</p>
-			{/if}
-			<div class="dialogue-responses">{@render children()}</div>
 		</div>
 	</div>
 	{#if footer}<div class="dialogue-footer">{@render footer()}</div>{/if}
@@ -74,257 +268,305 @@
 	.sage-dialogue-stage {
 		position: fixed;
 		z-index: 13;
-		left: clamp(340px, 35vw, 650px);
-		top: calc(31vh - (var(--dialogue-altitude) * 21vh));
-		width: min(54vw, 760px);
-		max-height: min(76vh, 760px);
+		left: 50%;
+		bottom: clamp(12px, 2.4vh, 28px);
+		width: min(920px, calc(100vw - 48px));
+		height: clamp(270px, 40vh, 390px);
 		pointer-events: none;
-		transition: top 760ms cubic-bezier(0.16, 0.9, 0.22, 1);
+		transform: translateX(-50%);
 	}
 
 	.sage-speech-window {
-		position: relative;
-		max-height: min(68vh, 690px);
-		overflow: auto;
-		border: 4px outset #c9c5d3;
-		background: #c0c0c0;
+		height: 100%;
+		padding: 5px;
+		border: 4px outset #a8a2b4;
+		background: #b9b5c1;
 		box-shadow:
-			10px 12px 0 rgb(3 1 12 / 62%),
-			0 0 30px rgb(105 78 255 / 18%);
+			8px 10px 0 rgb(2 1 9 / 72%),
+			0 0 0 2px #080611,
+			0 0 30px rgb(108 76 255 / 24%);
 		pointer-events: auto;
-		animation: speech-open 260ms steps(4, end) both;
-		scrollbar-color: #433861 #aaa5b3;
+		animation: speech-open 180ms steps(3, end) both;
 	}
 
 	.speech-titlebar {
-		position: sticky;
-		z-index: 3;
-		top: 0;
-		display: flex;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto auto;
 		align-items: center;
-		justify-content: space-between;
-		min-height: 30px;
-		padding: 4px 5px 4px 8px;
-		color: white;
-		background: linear-gradient(90deg, #160098, #6d146c 72%, #180096);
+		gap: 12px;
+		height: 25px;
+		padding: 0 7px;
+		color: #f5f0ff;
+		background: linear-gradient(90deg, #170082, #5b175f 72%, #170082);
 		font:
-			700 9px/1 'Courier New',
+			10px/1 'Silkscreen',
 			monospace;
-		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
-	.speech-titlebar > div,
-	.speech-tools {
+	.speech-titlebar span {
 		display: flex;
 		align-items: center;
 		gap: 7px;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.speech-titlebar i {
+		width: 7px;
+		height: 7px;
+		background: #5cff8b;
+		box-shadow: 0 0 7px #5cff8b;
 	}
 
 	.speech-titlebar small {
 		color: #9ffbff;
-		font-size: 7px;
+		font-size: 8px;
+		white-space: nowrap;
 	}
 
-	.signal-light {
-		width: 7px;
-		height: 7px;
-		border: 1px solid #d9ffdf;
-		background: #4dff75;
-		box-shadow: 0 0 6px #4dff75;
+	.speech-titlebar b {
+		min-width: 26px;
+		color: #ffd75a;
+		font-size: 11px;
+		text-align: right;
 	}
 
-	.speech-tools {
-		gap: 3px;
-	}
-
-	.speech-tools button,
-	.speech-tools > span {
+	.rpg-panel {
 		display: grid;
-		place-items: center;
-		width: 23px;
-		height: 19px;
-		padding: 0;
-		border: 2px outset #eee;
-		color: #171126;
-		background: #c0c0c0;
-		font:
-			700 9px/1 'Courier New',
-			monospace;
+		grid-template-columns: 112px minmax(0, 1fr);
+		gap: 17px;
+		height: calc(100% - 25px);
+		padding: 16px;
+		border: 4px solid #f5f0df;
+		background:
+			repeating-linear-gradient(0deg, rgb(255 255 255 / 2%) 0 2px, transparent 2px 4px), #08070d;
+		box-shadow: inset 0 0 0 3px #262231;
 	}
 
-	.speech-tools button {
+	.sage-portrait {
+		position: relative;
+		align-self: start;
+		width: 112px;
+		height: 112px;
+		margin: 0;
+		overflow: hidden;
+		border: 3px solid #f5f0df;
+		background: radial-gradient(circle at 50% 35%, #302060, #080611 70%);
+		box-shadow: 4px 4px 0 #46356f;
+	}
+
+	.sage-portrait img {
+		position: absolute;
+		left: 50%;
+		top: 94%;
+		width: 188%;
+		max-width: none;
+		image-rendering: pixelated;
+		filter: contrast(1.12) saturate(1.08);
+		transform: translate(-50%, -50%);
+	}
+
+	.sage-portrait span {
+		position: absolute;
+		inset: 0;
+		background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(4 1 12 / 32%) 3px 4px);
+		pointer-events: none;
+	}
+
+	.dialogue-column {
+		display: grid;
+		grid-template-rows: 94px minmax(0, 1fr) auto;
+		min-width: 0;
+		min-height: 0;
+	}
+
+	.dialogue-copy {
+		position: relative;
+		display: block;
+		width: 100%;
+		min-width: 0;
+		padding: 3px 28px 8px 0;
+		border: 0;
+		color: #fffbed;
+		background: transparent;
+		font:
+			14px/1.7 'Silkscreen',
+			monospace;
+		text-align: left;
+		text-shadow: 2px 2px 0 #351963;
 		cursor: pointer;
 	}
 
-	.speech-content {
-		padding: clamp(14px, 2vw, 23px);
-		color: #171125;
-		background:
-			linear-gradient(rgb(62 25 115 / 5%) 1px, transparent 1px),
-			linear-gradient(90deg, rgb(62 25 115 / 5%) 1px, transparent 1px), #e6e1ea;
-		background-size: 16px 16px;
+	.spoken-text {
+		white-space: pre-wrap;
 	}
 
-	.speech-label-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 10px;
-		margin-bottom: 9px;
-		font:
-			700 8px/1 'Courier New',
-			monospace;
-		letter-spacing: 0.1em;
-		color: #5c317f;
+	.typing-cursor {
+		display: inline-block;
+		width: 8px;
+		height: 14px;
+		margin-left: 3px;
+		vertical-align: -2px;
+		background: #ffc94a;
+		animation: cursor-blink 400ms steps(2, end) infinite;
 	}
 
-	.speech-label-row small {
-		color: #625d69;
-		letter-spacing: 0;
-	}
-
-	.sage-prompt {
-		max-width: 690px;
-		margin: 0;
-		font:
-			700 clamp(1.2rem, 2.2vw, 2rem)/1.08 Georgia,
-			serif;
-		color: #161023;
-	}
-
-	.sage-aside {
-		margin: 12px 0 0;
-		padding: 8px 10px;
-		border-left: 4px solid #7a3aa0;
-		color: #41364c;
-		background: #d6cce0;
-		font:
-			10px/1.45 'Courier New',
-			monospace;
-	}
-
-	.sage-aside span {
-		display: block;
-		margin-bottom: 4px;
-		font-size: 7px;
-		font-weight: 700;
-		letter-spacing: 0.12em;
-		color: #741177;
+	.continue-cursor {
+		position: absolute;
+		right: 3px;
+		bottom: 8px;
+		color: #ffc94a;
+		font-style: normal;
+		animation: continue-bob 500ms steps(2, end) infinite;
 	}
 
 	.dialogue-responses {
-		margin-top: 16px;
+		min-height: 0;
+		overflow: auto;
+		opacity: 0;
+		pointer-events: none;
+		scrollbar-color: #7f6aa4 #15121e;
+	}
+
+	.dialogue-responses.ready {
+		opacity: 1;
+		pointer-events: auto;
+		animation: responses-in 120ms steps(2, end);
+	}
+
+	.choice-pager {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 9px;
+		padding-top: 5px;
+		color: #aaa0bd;
+		font:
+			9px/1 'Silkscreen',
+			monospace;
+	}
+
+	.choice-pager button {
+		width: 30px;
+		height: 23px;
+		padding: 0;
+		border: 2px outset #aaa4b1;
+		color: #fff4cb;
+		background: #392653;
+		cursor: pointer;
+	}
+
+	.choice-pager button:disabled {
+		opacity: 0.3;
+		cursor: default;
 	}
 
 	.dialogue-footer {
 		display: flex;
 		justify-content: flex-end;
 		gap: 7px;
-		padding: 8px 4px 0;
+		padding-top: 7px;
 		pointer-events: auto;
 	}
 
-	.dialogue-tether {
+	.screen-reader-line {
 		position: absolute;
-		left: -52px;
-		top: 64px;
-		width: 58px;
-		height: 45px;
-		filter: drop-shadow(3px 4px #05020d88);
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 
-	.dialogue-tether i {
-		position: absolute;
-		display: block;
-		width: 18px;
-		height: 18px;
-		border: 3px outset #c9c5d3;
-		background: #d9d3df;
-		transform: rotate(45deg);
-	}
-
-	.dialogue-tether i:nth-child(1) {
-		right: 0;
-		top: 0;
-	}
-
-	.dialogue-tether i:nth-child(2) {
-		right: 19px;
-		top: 14px;
-		width: 13px;
-		height: 13px;
-	}
-
-	.dialogue-tether i:nth-child(3) {
-		right: 37px;
-		top: 28px;
-		width: 9px;
-		height: 9px;
-	}
-
-	[data-mode='wait'] .signal-light {
+	[data-mode='wait'] .speech-titlebar i {
 		background: #ffd94d;
 		box-shadow: 0 0 6px #ffd94d;
-		animation: signal-blink 600ms steps(2, end) infinite;
+		animation: cursor-blink 600ms steps(2, end) infinite;
 	}
 
 	[data-mode='announce'] .speech-titlebar {
-		background: linear-gradient(90deg, #00605d, #247247 72%, #00605d);
+		background: linear-gradient(90deg, #005c58, #216346 72%, #005c58);
+	}
+
+	[data-mood='irritated'] .rpg-panel,
+	[data-mood='defeated'] .rpg-panel {
+		box-shadow: inset 0 0 0 3px #672735;
 	}
 
 	@keyframes speech-open {
-		0% {
-			clip-path: inset(0 82% 92% 0);
+		from {
+			clip-path: inset(48% 48% 48% 48%);
 			opacity: 0;
 		}
-		35% {
-			clip-path: inset(0 0 88% 0);
-			opacity: 1;
-		}
-		100% {
+		to {
 			clip-path: inset(0);
 			opacity: 1;
 		}
 	}
 
-	@keyframes signal-blink {
+	@keyframes cursor-blink {
 		50% {
-			opacity: 0.35;
+			opacity: 0.25;
 		}
 	}
 
-	@media (max-width: 980px) {
-		.sage-dialogue-stage {
-			left: 39vw;
-			width: 58vw;
+	@keyframes continue-bob {
+		50% {
+			transform: translateY(3px);
+		}
+	}
+
+	@keyframes responses-in {
+		from {
+			transform: translateY(5px);
+			opacity: 0;
 		}
 	}
 
 	@media (max-width: 760px) {
 		.sage-dialogue-stage {
-			left: 8px;
-			right: 8px;
-			top: 44vh;
-			width: auto;
-			max-height: 52vh;
+			bottom: 8px;
+			width: calc(100vw - 16px);
+			height: min(390px, 58vh);
 		}
 
-		.sage-speech-window {
-			max-height: 46vh;
+		.rpg-panel {
+			grid-template-columns: 72px minmax(0, 1fr);
+			gap: 10px;
+			padding: 10px;
 		}
 
-		.dialogue-tether {
+		.sage-portrait {
+			width: 72px;
+			height: 72px;
+		}
+
+		.dialogue-copy {
+			font-size: 11px;
+			line-height: 1.55;
+		}
+
+		.dialogue-column {
+			grid-template-rows: 72px minmax(0, 1fr) auto;
+		}
+
+		.speech-titlebar small {
 			display: none;
 		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.sage-dialogue-stage {
-			transition: none;
-		}
-
 		.sage-speech-window,
-		.signal-light {
+		.typing-cursor,
+		.continue-cursor,
+		.dialogue-responses.ready,
+		[data-mode='wait'] .speech-titlebar i {
 			animation: none;
 		}
 	}

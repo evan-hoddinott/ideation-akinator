@@ -1,4 +1,5 @@
 import type { SageSoundCue } from '$lib/personality';
+import type { SageVoiceProfile } from '$lib/rpg-dialogue';
 
 interface MidiNote {
 	time: number;
@@ -58,6 +59,19 @@ export class OracleAudio {
 				this.cueGain
 			);
 		}
+	}
+
+	playVoice(profile: SageVoiceProfile): void {
+		if (!this.enabled) return;
+		const context = this.ensureContext();
+		this.scheduleTone(
+			context.currentTime,
+			profile.frequency,
+			profile.duration,
+			profile.volume,
+			profile.waveform,
+			this.cueGain
+		);
 	}
 
 	private ensureContext(): AudioContext {

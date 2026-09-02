@@ -71,6 +71,7 @@
 		type ProjectSession
 	} from '$lib/project-state';
 	import { buildProjectReport, safeReportFilename } from '$lib/report';
+	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
 	import { projectAltitude } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
@@ -125,10 +126,23 @@
 	let preferenceReviewOpen = $state(false);
 	let researchScrollOpen = $state(false);
 	let preferenceStep = $state(0);
+	let pauseMenuOpen = $state(false);
+	let sageSpeaking = $state(false);
+	let previewMuted = $state(true);
+	let previewCalm = $state(false);
 	let oracleAudio: OracleAudio | null = null;
 	let reducedMotionApplied = false;
 	const stagePreview = createProject(new Date(0), 'stage-preview');
-	const visualProject = $derived(project ?? stagePreview);
+	const visualProject = $derived(
+		project ?? {
+			...stagePreview,
+			personality: {
+				...stagePreview.personality,
+				muted: previewMuted,
+				calmMode: previewCalm
+			}
+		}
+	);
 	const demoMode = $derived(isDemoProject(project));
 	const sageAltitude = $derived(project ? projectAltitude(project) : 0.04);
 	const finalReport = $derived(project ? buildProjectReport(project) : null);
@@ -147,17 +161,6 @@
 		project?.problemInput.clarityLabel
 			? CLARITY_LABELS.indexOf(project.problemInput.clarityLabel) + 1
 			: 0
-	);
-	const currentStageIndex = $derived(
-		project
-			? project.stage === 'concepts'
-				? project.featureWorkshop.status === 'confirmed'
-					? 5
-					: 4
-				: { welcome: -1, problem: 0, preferences: 1, research: 2, questions: 3, focused: 6 }[
-						project.stage
-					]
-			: -1
 	);
 	const broadResearchIsActive = $derived(
 		project?.research.status === 'queued' || project?.research.status === 'running'
@@ -190,15 +193,6 @@
 		'Any final limitations before I open the terrible web?'
 	];
 
-	const workflow = [
-		{ label: 'Problem', glyph: '01' },
-		{ label: 'Preferences', glyph: '02' },
-		{ label: 'Research', glyph: '03' },
-		{ label: 'Questions', glyph: '04' },
-		{ label: 'Four ideas', glyph: '05' },
-		{ label: 'Workshop', glyph: '06' },
-		{ label: 'Final plan', glyph: '07' }
-	];
 	const innovationLabels = [
 		'Proven and conventional',
 		'Familiar with a small twist',
@@ -294,7 +288,7 @@
 	$effect(() => {
 		if (!stateReady) return;
 		const onVisibility = () => {
-			if (!oracleAudio || !project || project.personality.muted) return;
+			if (!oracleAudio || visualProject.personality.muted) return;
 			void oracleAudio.setEnabled(document.visibilityState === 'visible');
 		};
 		document.addEventListener('visibilitychange', onVisibility);
@@ -399,6 +393,8 @@
 			stage: 'problem' as const,
 			personality: {
 				...nextProject.personality,
+				muted: project ? nextProject.personality.muted : previewMuted,
+				calmMode: project ? nextProject.personality.calmMode : previewCalm,
 				playerName: playerNameDraft.trim().slice(0, 50),
 				projectName: projectNameDraft.trim().slice(0, 50)
 			}
@@ -418,7 +414,15 @@
 	}
 
 	function beginDemo() {
-		const demo = createDemoProject();
+		const createdDemo = createDemoProject();
+		const demo = {
+			...createdDemo,
+			personality: {
+				...createdDemo.personality,
+				muted: previewMuted,
+				calmMode: previewCalm
+			}
+		};
 		const reaction = reactToSageEvent(
 			demo.personality,
 			'project-started',
@@ -477,8 +481,24 @@
 		oracleAudio.playCue(cue);
 	}
 
+	function playSageVoice(profile: SageVoiceProfile) {
+		if (visualProject.personality.muted) return;
+		oracleAudio ??= new OracleAudio();
+		oracleAudio.playVoice(profile);
+	}
+
+	function setSageSpeaking(speaking: boolean) {
+		sageSpeaking = speaking;
+	}
+
 	function toggleSageAudio() {
-		if (!project) return;
+		if (!project) {
+			previewMuted = !previewMuted;
+			oracleAudio ??= new OracleAudio();
+			void oracleAudio.setEnabled(!previewMuted);
+			if (!previewMuted) oracleAudio.playCue('reveal');
+			return;
+		}
 		const muted = !project.personality.muted;
 		project = saveProject(window.localStorage, {
 			...project,
@@ -490,7 +510,14 @@
 	}
 
 	function toggleCalmMode() {
-		if (!project) return;
+		if (!project) {
+			previewCalm = !previewCalm;
+			if (previewCalm) {
+				previewMuted = true;
+				void oracleAudio?.setEnabled(false);
+			}
+			return;
+		}
 		const calmMode = !project.personality.calmMode;
 		const nextProject = {
 			...project,
@@ -506,6 +533,18 @@
 
 	function findForbiddenFloppy() {
 		performSageEvent('secret-found');
+	}
+
+	function togglePauseMenu() {
+		pauseMenuOpen = !pauseMenuOpen;
+	}
+
+	function handleAppKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Escape') return;
+		const target = event.target as HTMLElement | null;
+		if (target?.closest('dialog[open]')) return;
+		event.preventDefault();
+		togglePauseMenu();
 	}
 
 	function persist(nextProject: ProjectSession) {
@@ -859,6 +898,11 @@
 			}
 		});
 		preferenceError = '';
+	}
+
+	function budgetMeterPercent(value: number | null): number {
+		if (value === null || value <= 0) return 0;
+		return Math.min(100, (Math.log10(value + 1) / 5) * 100);
 	}
 
 	function setProductionPlanning(includeProductionPlanning: boolean) {
@@ -1800,6 +1844,8 @@
 	}
 
 	function startOver() {
+		const retainedMuted = project?.personality.muted ?? previewMuted;
+		const retainedCalm = project?.personality.calmMode ?? previewCalm;
 		void cancelResearchJob(true);
 		void cancelFocusedResearch(true);
 		clearProject(window.localStorage);
@@ -1832,6 +1878,10 @@
 		preferenceReviewOpen = false;
 		researchScrollOpen = false;
 		preferenceStep = 0;
+		pauseMenuOpen = false;
+		sageSpeaking = false;
+		previewMuted = retainedMuted;
+		previewCalm = retainedCalm;
 		void oracleAudio?.setEnabled(false);
 		resetDialog?.close();
 	}
@@ -1844,6 +1894,8 @@
 		content="Turn a stubborn problem into four researched product ideas and a practical PRD."
 	/>
 </svelte:head>
+
+<svelte:window onkeydown={handleAppKeydown} />
 
 <div class="star-field" aria-hidden="true"></div>
 
@@ -1927,61 +1979,53 @@
 				personality={visualProject.personality}
 				altitude={sageAltitude}
 				researching={researchIsActive}
+				speaking={sageSpeaking}
 				allowPopup={!!project && project.stage !== 'welcome' && !researchIsActive}
 				onSecret={findForbiddenFloppy}
 			/>
 		{/if}
-		<header class="site-header">
-			<a class="wordmark" href={resolve('/')} aria-label="Ideation Akinator home">
-				<span class="wordmark-star" aria-hidden="true">✦</span>
-				<span><b>IDEATION</b> AKINATOR</span>
-			</a>
-			<div class="header-tools">
-				<span class="demo-badge" class:token-free={demoMode}
-					>{demoMode ? '0 TOKEN WALKTHROUGH' : 'PRIVATE TECH DEMO'}</span
-				>
-				{#if demoMode}
-					<button class="restart-demo-button" type="button" onclick={restartDemo}
-						>Restart demo</button
-					>
-				{/if}
-				<form method="POST" action="?/logout">
-					<button class="text-button" type="submit">Lock workshop</button>
-				</form>
-			</div>
+		<header class="game-hud">
+			{#if demoMode}<span class="demo-badge token-free">NO TOKENS</span>{/if}
+			<button
+				class="pause-button"
+				type="button"
+				onclick={togglePauseMenu}
+				aria-expanded={pauseMenuOpen}
+				aria-controls="game-pause-menu"
+			>
+				<span aria-hidden="true">▮▮</span> Menu
+			</button>
+			{#if pauseMenuOpen}
+				<section id="game-pause-menu" class="pause-menu" aria-label="Game menu">
+					<header>
+						<span>SAGE_OS</span><button type="button" onclick={togglePauseMenu}>×</button>
+					</header>
+					<p>THE RITUAL IS PAUSED</p>
+					<button type="button" onclick={toggleSageAudio}>
+						{visualProject.personality.muted ? 'Sound: off' : 'Sound: on'}
+					</button>
+					<button type="button" onclick={toggleCalmMode}>
+						{visualProject.personality.calmMode ? 'Chaos: restrained' : 'Chaos: enabled'}
+					</button>
+					{#if demoMode}<button type="button" onclick={restartDemo}>Restart demo</button>{/if}
+					{#if project}
+						<button
+							type="button"
+							onclick={() => {
+								pauseMenuOpen = false;
+								resetDialog?.showModal();
+							}}>Start over</button
+						>
+					{/if}
+					<form method="POST" action="?/logout">
+						<button type="submit">Lock workshop</button>
+					</form>
+					<small>ESC closes this extremely advanced menu.</small>
+				</section>
+			{/if}
 		</header>
 
 		<div class="workspace" class:has-companion={project && project.stage !== 'welcome'}>
-			<aside class="progress-rail" aria-label="Project progress">
-				<div class="rail-orb" aria-hidden="true"><span>?</span></div>
-				<p class="rail-kicker">THE RITUAL</p>
-				<ol>
-					{#each workflow as step, index (step.glyph)}
-						<li
-							class:active={index === currentStageIndex}
-							class:complete={(index === 0 && project?.completedStages.includes('problem')) ||
-								(index === 1 && project?.completedStages.includes('preferences')) ||
-								(index === 2 && project?.completedStages.includes('research')) ||
-								(index === 3 && project?.completedStages.includes('questions')) ||
-								(index === 4 && project?.completedStages.includes('concepts')) ||
-								(index === 5 &&
-									(project?.featureWorkshop.status === 'confirmed' ||
-										project?.stage === 'focused')) ||
-								(index === 6 && project?.completedStages.includes('focused'))}
-							class:pending={!project || index > currentStageIndex}
-						>
-							<span class="step-glyph">{step.glyph}</span>
-							<span>{step.label}</span>
-						</li>
-					{/each}
-				</ol>
-				<div class="rail-note">
-					<span class="status-light" aria-hidden="true"></span>
-					Saved in this browser
-				</div>
-				{#if demoMode}<div class="rail-demo-stamp">LOCAL TAPE<br />NO AI CALLS</div>{/if}
-			</aside>
-
 			{#if visualProject.stage !== 'concepts'}
 				<main class="dialogue-workbench">
 					{#if stateNotice}
@@ -1995,8 +2039,8 @@
 							mode="wait"
 							label="RESTORING THE PROPHECY"
 							prompt="Hold still. I am checking beneath the browser cushions."
-							onToggleMute={toggleSageAudio}
-							onToggleCalm={toggleCalmMode}
+							onSpeakCharacter={playSageVoice}
+							onSpeakingChange={setSageSpeaking}
 						>
 							<div class="dialogue-loader"><i></i><span>Reading saved project...</span></div>
 						</SageDialogue>
@@ -2009,8 +2053,8 @@
 							prompt={filledProblemCount === 0
 								? 'What mortal inconvenience summoned you?'
 								: 'Is there another problem from this same cursed situation?'}
-							onToggleMute={toggleSageAudio}
-							onToggleCalm={toggleCalmMode}
+							onSpeakCharacter={playSageVoice}
+							onSpeakingChange={setSageSpeaking}
 						>
 							<div class="dialogue-form problem-response">
 								<label class="compact-field">
@@ -2120,8 +2164,8 @@
 							label={`LIMITATION ${preferenceStep + 1} OF 5`}
 							meta="one ridiculous constraint at a time"
 							prompt={preferencePrompts[preferenceStep] ?? preferencePrompts[0]}
-							onToggleMute={toggleSageAudio}
-							onToggleCalm={toggleCalmMode}
+							onSpeakCharacter={playSageVoice}
+							onSpeakingChange={setSageSpeaking}
 						>
 							<div class="dialogue-form preference-response">
 								{#if preferenceStep === 0}
@@ -2159,26 +2203,41 @@
 										<button type="button" onclick={() => addTag('industry')}>Add</button>
 									</div>
 								{:else if preferenceStep === 2}
-									<div class="innovation-choices">
-										{#each innovationLabels as label, index (label)}
-											<button
-												class:chosen={project.preferences.innovationLevel === index + 1}
-												type="button"
-												onclick={() => setInnovationLevel((index + 1) as InnovationLevel)}
-												><b>{index + 1}</b><span>{label}</span></button
-											>
-										{/each}
+									<div class="rpg-meter innovation-meter">
+										<header>
+											<b>{project.preferences.innovationLevel}</b>
+											<span>{innovationLabels[project.preferences.innovationLevel - 1]}</span>
+										</header>
+										<input
+											type="range"
+											min="1"
+											max="5"
+											step="1"
+											value={project.preferences.innovationLevel}
+											oninput={(event) => setInnovationLevel(event.currentTarget.valueAsNumber)}
+											aria-label="Innovation level"
+										/>
+										<div class="rpg-meter-ticks" aria-hidden="true">
+											{#each innovationLabels as anchor, index (anchor)}<i
+													data-label={anchor}
+													class:active={index + 1 <= project.preferences.innovationLevel}
+												></i>{/each}
+										</div>
 									</div>
 								{:else if preferenceStep === 3}
 									<div class="game-budget-grid">
-										<label class="compact-field"
+										<label class="compact-field rpg-budget"
 											><span>Prototype budget in USD</span><input
 												type="number"
 												min="0"
 												value={project.preferences.prototypeBudgetUsd ?? ''}
 												oninput={(event) => setBudget('prototype', event.currentTarget)}
 												placeholder="2500"
-											/></label
+											/><span class="budget-track" aria-hidden="true"
+												><i
+													style={`width: ${budgetMeterPercent(project.preferences.prototypeBudgetUsd)}%`}
+												></i></span
+											></label
 										>
 										<label class="game-toggle"
 											><input
@@ -2187,14 +2246,19 @@
 												onchange={(event) => setProductionPlanning(event.currentTarget.checked)}
 											/><span>Also plan production costs</span></label
 										>
-										{#if project.preferences.includeProductionPlanning}<label class="compact-field"
+										{#if project.preferences.includeProductionPlanning}<label
+												class="compact-field rpg-budget"
 												><span>Production budget in USD</span><input
 													type="number"
 													min="0"
 													value={project.preferences.productionBudgetUsd ?? ''}
 													oninput={(event) => setBudget('production', event.currentTarget)}
 													placeholder="25000"
-												/></label
+												/><span class="budget-track" aria-hidden="true"
+													><i
+														style={`width: ${budgetMeterPercent(project.preferences.productionBudgetUsd)}%`}
+													></i></span
+												></label
 											>{/if}
 									</div>
 								{:else}
@@ -2266,8 +2330,8 @@
 								label="THE TERRIBLE WEB"
 								meta="one to two mortal minutes"
 								prompt="Shall I fetch the large computer and investigate this properly?"
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							>
 								<div class="dialogue-form research-launch">
 									<p>
@@ -2313,8 +2377,8 @@
 								label="RECOVERED FILES"
 								meta={`${project.research.result.sources.length} sources bound`}
 								prompt="I have returned from the web. It was worse than I remembered."
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							>
 								<div class="dialogue-form research-complete-summary">
 									<p>{project.research.result.summary}</p>
@@ -2400,8 +2464,8 @@
 								mode="announce"
 								label="THE SIGNAL BROKE"
 								prompt={researchMessage || 'The large computer has betrayed us.'}
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							>
 								<div class="dialogue-form">
 									<p>Your problems, preferences, and budget are still saved.</p>
@@ -2428,8 +2492,8 @@
 								prompt={project.interview.status === 'ended-early'
 									? 'Fine. I will guess before wisdom arrives.'
 									: 'Your future project is becoming embarrassingly obvious.'}
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							>
 								<div class="dialogue-form">
 									<p>{project.interview.completionReason}</p>
@@ -2453,8 +2517,8 @@
 								prompt={interviewBusy
 									? 'My modem is choosing one useful question.'
 									: 'The next question fell behind the desk.'}
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							>
 								<div class="dialogue-form">
 									{#if interviewMessage}<p class="dialogue-warning">
@@ -2473,8 +2537,8 @@
 								label={`INQUIRY ${project.interview.currentQuestionIndex + 1}`}
 								meta={`${answeredQuestionCount} answered`}
 								prompt={currentQuestion.prompt}
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							>
 								<div class="dialogue-form interview-response">
 									<details class="why-whisper">
@@ -2617,8 +2681,8 @@
 								onGeneratePlan={generateFinalPlan}
 								onDownloadPdf={downloadFinalPdf}
 								onBack={returnToWorkshop}
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							/>
 						{:else}
 							<SageDialogue
@@ -2627,8 +2691,8 @@
 								mode="announce"
 								label="THE SEAL IS MISSING"
 								prompt="Return to the workshop and choose one valid configuration."
-								onToggleMute={toggleSageAudio}
-								onToggleCalm={toggleCalmMode}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 							>
 								<button class="answer-button primary" type="button" onclick={returnToWorkshop}
 									>Return to workshop</button
@@ -2641,8 +2705,8 @@
 							personality={visualProject.personality}
 							label="WELCOME, POSSIBLE MORTAL"
 							prompt="Bring me a problem. I will guess the project hiding inside it."
-							onToggleMute={toggleSageAudio}
-							onToggleCalm={toggleCalmMode}
+							onSpeakCharacter={playSageVoice}
+							onSpeakingChange={setSageSpeaking}
 						>
 							<div class="dialogue-form welcome-response">
 								<p>
