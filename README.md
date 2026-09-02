@@ -4,7 +4,7 @@ Ideation Akinator is a private web app that guides a solo creator from a rough g
 
 ## Current status
 
-Implementation slices 1 through 12 of 13 are complete. They include:
+All 13 implementation slices are complete. They include:
 
 - The dark retro-internet visual shell and original Signal Sage guide character.
 - A shared-password gate with scrypt password hashes, signed HTTP-only sessions, and login throttling.
@@ -44,8 +44,10 @@ Implementation slices 1 through 12 of 13 are complete. They include:
 - A fully local, token-free visual walkthrough with canned intake feedback, research, interview questions, and four concepts. Demo projects are visibly marked, survive refresh, and can be restarted from any stage.
 - A production container that runs as an unprivileged user, binds only to loopback, validates runtime secrets, exposes a health check, and logs request IDs and token counts without logging project text.
 - A recorded and verified `idea.battery.rip` request path through the remotely managed Cloudflare Tunnel, plus repeatable anonymous and authenticated deployment checks.
+- A fresh-session live browser walkthrough of the complete token-free flow, including report download, PDF page inspection, restart, console checks, and failed-request checks.
+- A PDF pagination regression check that prevents the footer from creating blank trailing pages, plus a legacy favicon response for browsers that request `/favicon.ico` automatically.
 
-Slice 13 is the final fresh-context browser verification of the complete live workflow.
+The finished live workflow was verified at `https://idea.battery.rip` on 2026-09-02.
 
 ## Token-free visual walkthrough
 

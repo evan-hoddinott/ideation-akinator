@@ -49,6 +49,12 @@ npm run deploy:verify:auth
 
 The checks cover DNS, local and public health, the anonymous password screen, anonymous API rejection, the loopback-only port, container health and hardening, the active tunnel container, and retirement of the old system service. The authenticated version also checks the session cookie flags and verifies that the session survives a second page load.
 
+## Last acceptance pass
+
+On 2026-09-02, a fresh authenticated browser session completed the public token-free walkthrough from intake through restart. The run checked both research performances, the interview, four concepts, feature selection, focused research, recalculation, the finished report, and the downloaded PDF. It produced no console errors or failed browser requests. The only application API call in demo mode was the successful PDF request.
+
+The downloaded PDF was rendered page by page for inspection. A footer-boundary bug found during that pass was fixed and redeployed. The final file contained nine populated pages with no blank tail. `/favicon.ico`, local and public `/health`, and the application container also returned successfully after the replacement.
+
 ## Password and signing-secret changes
 
 Run `npm run auth:set` to set or replace the shared password. The command hides terminal input, writes the hash directly to `.env` without printing it, and keeps the file at mode `0600`. Recreate the container with `npm run container:up` so it loads the new hash.

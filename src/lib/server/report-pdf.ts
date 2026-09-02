@@ -5,6 +5,7 @@ const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 const MARGIN = 54;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const FOOTER_Y = PAGE_HEIGHT - 72;
 const COLORS = {
 	ink: '#211b2b',
 	muted: '#665d6e',
@@ -331,7 +332,7 @@ function drawToc(
 				? 'Demo report. The citations show document behavior, not live research.'
 				: 'Citation numbers link research claims to the source ledger.',
 			MARGIN,
-			728,
+			FOOTER_Y - 10,
 			{ width: CONTENT_WIDTH }
 		);
 }
@@ -603,7 +604,7 @@ function drawPageFurniture(doc: PDFKit.PDFDocument, report: ProjectReport) {
 			.font('Courier')
 			.fontSize(7)
 			.fillColor(COLORS.muted)
-			.text(`PAGE ${index + 1} / ${range.count}`, MARGIN, PAGE_HEIGHT - 38, {
+			.text(`PAGE ${index + 1} / ${range.count}`, MARGIN, FOOTER_Y, {
 				width: CONTENT_WIDTH,
 				align: 'center',
 				lineBreak: false

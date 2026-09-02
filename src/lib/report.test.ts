@@ -31,9 +31,11 @@ describe('finished project report', () => {
 	it('renders a real PDF with the saved source links', async () => {
 		const report = buildProjectReport(finalizedDemo(), new Date('2026-09-02T12:00:00Z'))!;
 		const pdf = await renderProjectPdf(report);
+		const pageCount = pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length ?? 0;
 		expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
 		expect(pdf.byteLength).toBeGreaterThan(10_000);
 		expect(pdf.toString('latin1')).toContain('https://example.com/demo/configured-competitor');
+		expect(pageCount).toBe(8);
 	});
 });
 

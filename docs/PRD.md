@@ -1108,7 +1108,7 @@ The first dialogue-first implementation pass was completed locally on 2026-09-01
 
 ### 19.2 Product slice completion record
 
-Implementation slices 1 through 12 of 13 were completed and deployed to `idea.battery.rip` by 2026-09-02.
+All 13 implementation slices were completed and deployed to `idea.battery.rip` by 2026-09-02.
 
 - Slice 7 generates exactly four validated concepts in reveal order. The first is the recommended primary guess, exactly three fit the prototype budget, and exactly one alternate is a stretch.
 - Every concept includes the approved summary, feature, requirement, implementation, cost, competitor, assumption, risk, confidence, evidence-gap, and qualitative-comparison fields.
@@ -1141,7 +1141,11 @@ Implementation slices 1 through 12 of 13 were completed and deployed to `idea.ba
 - A repo-owned live verification command now checks DNS, local and public health, the anonymous password screen, anonymous API rejection, container health and hardening, tunnel reachability, and retirement of the old service. Its authenticated mode accepts the shared password through a hidden terminal prompt, checks the cookie flags, and proves the session survives refresh without retaining the password or cookie jar.
 - The chosen shared password has been written as a fresh scrypt hash through the non-printing password setter and accepted by the live gate. The value itself remains outside Git and deployment records.
 - Live verification on 2026-09-02 confirmed `idea.battery.rip` resolves through Cloudflare, the tunnel maps it to `http://localhost:4187`, the container is healthy on `127.0.0.1:4187`, and the legacy service remains inactive and disabled.
-- Slice 13 remains next. It runs the final fresh-context end-to-end browser verification against the live deployment.
+- Slice 13 cleared browser project storage in a fresh authenticated session and walked the public token-free demo through intake, the five preference prompts, the research workstation, one-at-a-time questions, four concept reveals, feature dependency protection, custom feature persistence, concept sealing, focused research, final recalculation, the browser report, PDF download, and restart.
+- The walkthrough confirmed exactly one primary concept and one stretch concept, preserved the selected feature configuration through reload, kept authentication after restart, and produced no browser console errors, failed network requests, or horizontal overflow at the 1,440-pixel desktop viewport.
+- The demo made no AI or research API request. Its only application API request was the authenticated PDF download, which returned `200`.
+- Visual inspection of the downloaded PDF found that footer text below PDFKit's content boundary created blank trailing pages. The footer and table-of-contents note now stay inside the safe page area, and a regression test locks the fixture to eight populated pages. The final live walkthrough produced nine populated pages because its interview added content, with no blank tail.
+- A legacy `/favicon.ico` was added after the first browser pass found the incidental request returning `404`. The deployed icon now returns `200`.
 
 ## 20. Risks and mitigations
 
