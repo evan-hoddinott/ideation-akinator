@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 18 are complete and deployed. Slices 19 through 22 remain approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 19 are complete and deployed. Slices 20 through 22 remain approved and pending.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1329,6 +1329,22 @@ Slice 18 was completed and deployed on 2026-09-03 without changing project input
 - Popup cleanup, suspicious ad interaction, desktop-familiar installation, Purl cleanup, and cat herding grant secret run achievements. Their names remain stored but are not presented as a public checklist before the final score sequence.
 - Selected Windows93 icons and the Tomo bitmap face are stored locally rather than hotlinked. Their source URLs, retrieval date, hashes, unclear-rights internal-demo status, and replacement requirement are recorded in `docs/ASSETS.md`; the existing CC0 pixel cat remains Purl's source.
 - Automated verification passed Svelte diagnostics, 112 unit tests, formatting, lint, and a production build. Browser verification covered post-tutorial popup timing, drag and dismissal, Purl crossing and return behavior, research interference, the one-time useful action, Calm mode suppression, local asset loading, required-control clearance, and console errors.
+
+### 19.10 Slice 19 completion record
+
+Slice 19 was completed and deployed on 2026-09-03 without changing concept-generation prompts, concept validation, feature dependencies, or finalization inputs.
+
+- A completed four-concept generation now arrives as a period mail notification delivered by Purl. The notification attempts the locally stored original AOL mail sample when sound is enabled, and the same sample retries on the user's `Smack it open` gesture if browser autoplay was blocked.
+- The cursed desktop mail client contains four separate messages and unlocks them in order. Each message downloads one project attachment before revealing a compact, internally scrolling concept dossier with the original summary, reasoning, budget, timing, features, competitors, and cited links.
+- The fourth message comes from a Saudi oil-prince scam address. Its attachment remains a valid buildable stretch concept while its client chrome, download, rare-drop labels, and bounded fake warning storm make it look unusually glitched and suspicious.
+- Moving an idea to Trash visibly strikes its message and triggers a local Sage complaint to Purl. Rejecting all four opens the existing paid-rematch confirmation and continues to require a meaningfully different replacement set.
+- After all four downloads, a fixed-height comparison screen presents the seven existing dimensions and opens the project-files view. `Shift+S` remains an undisclosed reveal skip, immediately opens that comparison, and makes the Sage complain about the lost performance.
+- Feature configuration is now a paginated RPG file menu with equal mouse and keyboard operation. Arrow keys move between pages and features, Space toggles the selected file, number keys switch projects, and every ordinary button remains focusable.
+- Toggled features visibly fly into the project folder. Dependency confirmation, protected removal, custom feature creation and deletion, per-concept configurations, selection sealing, frozen-estimate messaging, reload persistence, and the focused-research handoff all retain their original behavior.
+- The concept mail performance persists its downloaded, Trash, active-message, comparison, and project-files state per generated portfolio. Refreshing no longer forces the player to replay completed mail before continuing.
+- Random interruption windows pause during the authored concept-mail room so the Sage, the mail gag, and required project controls do not compete for the same space. The mail and feature windows stay offset so the Sage remains visibly present at desktop widths.
+- The downloaded AOL sample is stored locally and recorded in `docs/ASSETS.md` with its archive URL, hash, original voice credit, internal-demo-only rights status, and public-release replacement requirement.
+- Automated verification passed Svelte diagnostics, 114 unit tests, formatting, lint, and a production build. Browser verification covered notification delivery, sequential unlocks, attachment timing, Trash, the glitched stretch message, hidden skip, comparison, mouse and keyboard feature toggles, pagination, custom-file persistence, selection sealing, viewport containment, local audio loading, and console errors.
 
 ## 20. Risks and mitigations
 

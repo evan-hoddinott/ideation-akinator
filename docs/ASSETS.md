@@ -158,3 +158,17 @@ SHA-256:
 bc3e96abc9a8a539accd83e06f33ef6851658773bdcdde14d0a62d098da8a700  trash.png
 668ed4ec03e52622344737fef899187ae09dbe22d8af13c0fe35f3a147168319  warning.png
 ```
+
+## Cursed mail audio
+
+### AOL `You've got mail` sample
+
+- File: `static/audio/retro/aol-gotmail.wav`
+- Voice: Elwood Edwards for America Online
+- Archive page: [America Online WAVS](https://www.thewavsite.com/americaonline.htm)
+- Direct file: [AOL gotmail.wav](https://www.thewavsite.com/AOL/gotmail.wav)
+- Retrieved: 2026-09-03
+- SHA-256: `de26a6726130fedd92a220dce0246b8f0d1ab3b1b040ec56800f99903259a679`
+- Rights status: copyrighted or otherwise unclear; `demo-only` for this password-protected personal prototype
+- Replacement note: obtain permission or replace it with an original cursed imitation before public distribution
+- Playback note: the short sample is requested only after user interaction, respects the saved mute setting, and is not embedded in exported reports

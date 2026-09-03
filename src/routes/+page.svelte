@@ -2049,7 +2049,7 @@
 				onSecret={findForbiddenFloppy}
 			/>
 		{/if}
-		{#if project && project.stage !== 'welcome'}
+		{#if project && project.stage !== 'welcome' && project.stage !== 'concepts'}
 			<ChaosLayer
 				projectId={project.id}
 				stage={project.stage}
@@ -3579,6 +3579,8 @@
 						portfolio={project.concepts.portfolio}
 						workshop={project.featureWorkshop}
 						sources={project.research.result?.sources ?? []}
+						muted={project.personality.muted}
+						calm={project.personality.calmMode}
 						busy={conceptBusy}
 						message={conceptMessage}
 						onGenerate={() => requestConcepts(false)}
@@ -3587,6 +3589,8 @@
 						onContinue={enterFinalizationRoom}
 						onReveal={reactToConceptReveal}
 						onAllRevealed={reactToAllConcepts}
+						onSkip={() => performSageEvent('concept-mail-skipped')}
+						onTrash={() => performSageEvent('concept-trashed')}
 						onWorkshopChange={updateFeatureWorkshop}
 					/>
 				{:else}

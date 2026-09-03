@@ -1,11 +1,14 @@
 <script lang="ts">
-	import FeatureWorkshop from '$lib/components/FeatureWorkshop.svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import RpgFeatureWorkshop from '$lib/components/RpgFeatureWorkshop.svelte';
 	import {
 		COMPARISON_DIMENSIONS,
 		type ComparisonDimension,
 		type ConceptIcon,
-		type ConceptPortfolio
+		type ConceptPortfolio,
+		type ProjectConcept
 	} from '$lib/concepts';
+	import { allConceptMailDownloaded, conceptMailEnvelope, nextMailIndex } from '$lib/concept-mail';
 	import type { FeatureWorkshopState } from '$lib/feature-workshop';
 	import type { ResearchSource } from '$lib/research';
 
@@ -15,12 +18,16 @@
 		sources,
 		busy,
 		message,
+		muted,
+		calm,
 		onGenerate,
 		onRegenerate,
 		onBack,
 		onContinue,
 		onReveal,
 		onAllRevealed,
+		onSkip,
+		onTrash,
 		onWorkshopChange
 	}: {
 		portfolio: ConceptPortfolio | null;
@@ -28,41 +35,184 @@
 		sources: ResearchSource[];
 		busy: boolean;
 		message: string;
+		muted: boolean;
+		calm: boolean;
 		onGenerate: () => void;
 		onRegenerate: () => void;
 		onBack: () => void;
 		onContinue: () => void;
 		onReveal: () => void;
 		onAllRevealed: () => void;
+		onSkip: () => void;
+		onTrash: () => void;
 		onWorkshopChange: (
 			state: FeatureWorkshopState,
 			event: 'changed' | 'blocked' | 'confirmed'
 		) => void;
 	} = $props();
 
-	let revealedCount = $state(1);
+	type MailView = 'notification' | 'inbox' | 'dossier' | 'comparison' | 'features';
+	let view = $state<MailView>('notification');
+	let activeIndex = $state(0);
+	let downloadedIds = $state<string[]>([]);
+	let trashIds = $state<string[]>([]);
+	let downloading = $state(false);
 	let loadedGeneration = $state(0);
+	let mailReady = $state(false);
+	let storm = $state(false);
 	let defeatDialog = $state<HTMLDialogElement>();
-	const allRevealed = $derived(!!portfolio && revealedCount >= portfolio.concepts.length);
+	let downloadTimer = 0;
+	const allDownloaded = $derived(
+		!!portfolio && allConceptMailDownloaded(portfolio.concepts.length, downloadedIds)
+	);
+	const activeConcept = $derived(portfolio?.concepts[activeIndex] ?? null);
 
 	$effect(() => {
 		const generation = portfolio?.generationNumber ?? 0;
-		if (generation === loadedGeneration) return;
+		if (!generation || generation === loadedGeneration) return;
 		loadedGeneration = generation;
-		revealedCount = 1;
+		mailReady = false;
+		const saved = loadMailState();
+		if (saved) {
+			view = saved.view;
+			activeIndex = saved.activeIndex;
+			downloadedIds = saved.downloadedIds;
+			trashIds = saved.trashIds;
+		} else {
+			view = 'notification';
+			activeIndex = 0;
+			downloadedIds = [];
+			trashIds = [];
+			window.setTimeout(playMailSound, 300);
+		}
+		mailReady = true;
 	});
 
-	function revealNext() {
-		if (!portfolio || allRevealed) return;
-		revealedCount += 1;
-		onReveal();
-		if (revealedCount >= portfolio.concepts.length) onAllRevealed();
+	$effect(() => {
+		if (!mailReady || !portfolio) return;
+		localStorage.setItem(
+			mailStorageKey(),
+			JSON.stringify({ view, activeIndex, downloadedIds, trashIds })
+		);
+	});
+
+	onMount(() => {
+		const keydown = (event: KeyboardEvent) => {
+			if (!(event.shiftKey && event.key.toLowerCase() === 's') || !portfolio || allDownloaded)
+				return;
+			event.preventDefault();
+			downloadedIds = portfolio.concepts.map((concept) => concept.id);
+			view = 'comparison';
+			onAllRevealed();
+			onSkip();
+		};
+		window.addEventListener('keydown', keydown);
+		return () => window.removeEventListener('keydown', keydown);
+	});
+
+	onDestroy(() => {
+		if (typeof window !== 'undefined') window.clearTimeout(downloadTimer);
+	});
+
+	function playMailSound() {
+		if (muted || calm) return;
+		const sound = new Audio('/audio/retro/aol-gotmail.wav');
+		sound.volume = 0.52;
+		void sound.play().catch(() => undefined);
 	}
 
-	function revealAll() {
-		if (!portfolio || allRevealed) return;
-		revealedCount = portfolio.concepts.length;
-		onAllRevealed();
+	function mailStorageKey() {
+		return `ideation-akinator:concept-mail:${portfolio?.generationNumber ?? 0}:${portfolio?.concepts[0]?.id ?? 'empty'}`;
+	}
+
+	function loadMailState(): {
+		view: MailView;
+		activeIndex: number;
+		downloadedIds: string[];
+		trashIds: string[];
+	} | null {
+		if (!portfolio) return null;
+		try {
+			const parsed: unknown = JSON.parse(localStorage.getItem(mailStorageKey()) ?? 'null');
+			if (!parsed || typeof parsed !== 'object') return null;
+			const value = parsed as Record<string, unknown>;
+			const ids = new Set(portfolio.concepts.map((concept) => concept.id));
+			const savedDownloads = Array.isArray(value.downloadedIds)
+				? value.downloadedIds.filter((id): id is string => typeof id === 'string' && ids.has(id))
+				: [];
+			const savedTrash = Array.isArray(value.trashIds)
+				? value.trashIds.filter((id): id is string => typeof id === 'string' && ids.has(id))
+				: [];
+			const savedIndex =
+				typeof value.activeIndex === 'number'
+					? Math.max(0, Math.min(portfolio.concepts.length - 1, Math.floor(value.activeIndex)))
+					: 0;
+			const views: MailView[] = ['notification', 'inbox', 'dossier', 'comparison', 'features'];
+			let savedView = views.includes(value.view as MailView)
+				? (value.view as MailView)
+				: 'notification';
+			if (
+				(savedView === 'dossier' && !savedDownloads.includes(portfolio.concepts[savedIndex].id)) ||
+				((savedView === 'comparison' || savedView === 'features') &&
+					savedDownloads.length < portfolio.concepts.length)
+			) {
+				savedView = 'inbox';
+			}
+			return {
+				view: savedView,
+				activeIndex: savedIndex,
+				downloadedIds: savedDownloads,
+				trashIds: savedTrash
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	function openMailClient() {
+		playMailSound();
+		view = 'inbox';
+	}
+
+	function openMessage(index: number) {
+		if (!portfolio || index > downloadedIds.length) return;
+		activeIndex = index;
+		view = downloadedIds.includes(portfolio.concepts[index].id) ? 'dossier' : 'inbox';
+	}
+
+	function downloadAttachment() {
+		if (!portfolio || !activeConcept || downloading) return;
+		const concept = activeConcept;
+		downloading = true;
+		storm = concept.isStretch;
+		downloadTimer = window.setTimeout(
+			() => {
+				downloadedIds = Array.from(new Set([...downloadedIds, concept.id]));
+				downloading = false;
+				view = 'dossier';
+				onReveal();
+				downloadTimer = window.setTimeout(() => (storm = false), 1_200);
+			},
+			calm ? 0 : concept.isStretch ? 1_500 : 850
+		);
+	}
+
+	function nextMessage() {
+		if (!portfolio) return;
+		if (allDownloaded) {
+			view = 'comparison';
+			onAllRevealed();
+			return;
+		}
+		activeIndex = nextMailIndex(portfolio.concepts.length, downloadedIds);
+		view = 'inbox';
+	}
+
+	function trashConcept(concept: ProjectConcept) {
+		trashIds = Array.from(new Set([...trashIds, concept.id]));
+		onTrash();
+		if (trashIds.length === portfolio?.concepts.length) defeatDialog?.showModal();
+		else nextMessage();
 	}
 
 	function confirmRegeneration() {
@@ -73,17 +223,12 @@
 	function sourceFor(id: string) {
 		return sources.find((source) => source.id === id);
 	}
-
 	function money(value: number) {
 		return new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
 			maximumFractionDigits: 0
 		}).format(value);
-	}
-
-	function range(minimum: number, maximum: number) {
-		return `${money(minimum)} to ${money(maximum)}`;
 	}
 
 	const iconGlyphs: Record<ConceptIcon, string> = {
@@ -94,944 +239,844 @@
 		beacon: '⌂',
 		workbench: '⚒'
 	};
-
 	const dimensionLabels: Record<ComparisonDimension, string> = {
 		'problem-fit': 'Problem fit',
 		'budget-fit': 'Budget fit',
 		originality: 'Originality',
 		feasibility: 'Feasibility',
-		'time-to-prototype': 'Prototype speed',
-		'market-opportunity': 'Market opportunity',
-		'technical-risk': 'Technical risk'
+		'time-to-prototype': 'Speed',
+		'market-opportunity': 'Opportunity',
+		'technical-risk': 'Tech risk'
 	};
 </script>
 
-<section class="concept-room" aria-labelledby="concept-room-title">
-	<header class="concept-heading">
-		<div>
-			<p class="room-number">ROOM 05 / PROJECT SUMMONING</p>
-			<h1 id="concept-room-title">The Sage makes his guess.</h1>
-			<p>One primary prophecy, three alternate timelines, and one file he was told not to open.</p>
-		</div>
-		<div class="fortune-counter">
-			<strong>{portfolio ? `${Math.min(revealedCount, 4)} / 4` : '? / 4'}</strong>
-			<span>futures revealed</span>
-		</div>
-	</header>
-
+<section class="mail-stage" class:storm aria-labelledby="mail-stage-title">
+	<h1 id="mail-stage-title" class="sr-only">The Sage receives four possible projects</h1>
 	{#if !portfolio}
-		<div class="summoning-terminal" aria-live="polite">
-			<div class="crystal-loader" class:busy aria-hidden="true"><i></i><b>?</b></div>
-			<p class="terminal-label">PROPHECY.EXE</p>
-			<h2>{busy ? 'Compiling four possible futures...' : 'The guesses are not here yet.'}</h2>
-			<p>
-				{busy
-					? 'This uses your problems, research, budgets, and every answer the Sage managed to extract.'
-					: 'Your completed interview is saved. Start the summoning when you are ready.'}
-			</p>
-			<div class="summon-log" aria-hidden="true">
-				<span class:active={busy}>[1] checking mortal budget</span>
-				<span class:active={busy}>[2] separating actual ideas from features wearing hats</span>
-				<span class:active={busy}>[3] opening FORBIDDEN_DO_NOT_OPEN.zip</span>
+		<div class="summoning-screen" aria-live="polite">
+			<div class="crystal" class:busy aria-hidden="true">?</div>
+			<span>PROPHECY.EXE</span>
+			<h2>{busy ? 'ASKING THE FUTURE TO ATTACH FOUR FILES...' : 'NO FUTURES IN THE INBOX'}</h2>
+			<p>{message || 'Your research and answers are ready. Make the Sage commit to a guess.'}</p>
+			{#if !busy}<button type="button" onclick={onGenerate}>GUESS MY FUTURE PROJECT ▶</button>{/if}
+		</div>
+	{:else if view === 'notification'}
+		<div class="mail-notification">
+			<div class="running-purl">
+				<img src="/images/retro/kitka-cat.gif" alt="Purl delivers mail" /><span>🐈✉✉✉✉</span>
 			</div>
-			{#if !busy}
-				<button class="summon-concepts" type="button" onclick={onGenerate}>
-					{message ? 'Try the summoning again' : 'Guess my future project'} <i>→</i>
-				</button>
-			{/if}
-		</div>
-	{:else}
-		<div class="reveal-stage" class:all-revealed={allRevealed}>
-			{#each portfolio.concepts.slice(0, revealedCount) as concept, index (concept.id)}
-				<article
-					class="concept-dossier"
-					class:primary={concept.isRecommended}
-					class:stretch={concept.isStretch}
-					style={`--reveal-index: ${index}`}
-				>
-					<div class="dossier-spine" aria-hidden="true">0{index + 1}</div>
-					<header>
-						<div class="concept-icon" aria-hidden="true">{iconGlyphs[concept.icon]}</div>
-						<div class="concept-title">
-							<div class="concept-flags">
-								{#if concept.isRecommended}<span class="recommended">PRIMARY GUESS</span>{/if}
-								{#if concept.isStretch}<span class="forbidden">NOT SUPPOSED TO SHOW YOU</span>{/if}
-								<span>{concept.rarity}</span>
-							</div>
-							<h2>{concept.name}</h2>
-							<p>{concept.pitch}</p>
-						</div>
-						<div class="archetype">{concept.archetype}</div>
-					</header>
-
-					<div class="sage-verdict">
-						<b>SAGE'S REASONING</b>
-						<p>"{concept.sageReason}"</p>
-					</div>
-
-					<div class="concept-summary-grid">
-						<div>
-							<span>FOR</span>
-							<strong>{concept.targetUser}</strong>
-						</div>
-						<div>
-							<span>PROTOTYPE</span>
-							<strong
-								>{range(
-									concept.prototypeBudget.minimumUsd,
-									concept.prototypeBudget.maximumUsd
-								)}</strong
-							>
-						</div>
-						<div>
-							<span>TIME</span>
-							<strong>{concept.prototypeTimeline}</strong>
-						</div>
-						<div>
-							<span>EVIDENCE</span>
-							<strong>{concept.confidence} confidence</strong>
-						</div>
-					</div>
-
-					<p class="concept-description">{concept.description}</p>
-					<p class="distinct"><b>Why it is different:</b> {concept.distinctApproach}</p>
-
-					<div class="quick-features">
-						<h3>Proposed features</h3>
-						<ul>
-							{#each concept.proposedFeatures as feature, featureIndex (featureIndex)}<li>
-									{feature}
-								</li>{/each}
-						</ul>
-					</div>
-
-					<details>
-						<summary>Open the full project file</summary>
-						<div class="project-file">
-							<section>
-								<h3>Problems addressed</h3>
-								<ul>
-									{#each concept.problemsAddressed as item, problemIndex (problemIndex)}<li>
-											{item}
-										</li>{/each}
-								</ul>
-							</section>
-							<section>
-								<h3>High-level requirements</h3>
-								<ul>
-									{#each concept.highLevelRequirements as item, requirementIndex (requirementIndex)}<li
-										>
-											{item}
-										</li>{/each}
-								</ul>
-							</section>
-							<section>
-								<h3>Build outline</h3>
-								<ol>
-									{#each concept.implementationOutline as item, outlineIndex (outlineIndex)}<li>
-											{item}
-										</li>{/each}
-								</ol>
-							</section>
-							<section>
-								<h3>Known competitors and substitutes</h3>
-								{#each concept.competitors as competitor, competitorIndex (competitorIndex)}
-									<div class="competitor">
-										<b>{competitor.name}</b><span>{competitor.type}</span>
-										<p>{competitor.comparison}</p>
-										<div class="source-links">
-											{#each competitor.sourceIds as sourceId (sourceId)}
-												{@const source = sourceFor(sourceId)}
-												{#if source}
-													<a href={source.url} target="_blank" rel="external noreferrer"
-														>{source.title}</a
-													>
-												{/if}
-											{/each}
-										</div>
-									</div>
-								{/each}
-								<p class="advantage"><b>Main advantage:</b> {concept.mainAdvantage}</p>
-							</section>
-							<section>
-								<h3>Budget assumptions</h3>
-								<ul>
-									{#each concept.prototypeBudget.assumptions as item, budgetIndex (budgetIndex)}<li>
-											{item}
-										</li>{/each}
-								</ul>
-								{#if concept.productionBudget}
-									<p>
-										Production planning range:
-										<b
-											>{range(
-												concept.productionBudget.minimumUsd,
-												concept.productionBudget.maximumUsd
-											)}</b
-										>
-									</p>
-								{/if}
-							</section>
-							<section class="risk-grid">
-								<div>
-									<h3>Assumptions</h3>
-									<ul>
-										{#each concept.majorAssumptions as item, assumptionIndex (assumptionIndex)}<li>
-												{item}
-											</li>{/each}
-									</ul>
-								</div>
-								<div>
-									<h3>Risks</h3>
-									<ul>
-										{#each concept.majorRisks as item, riskIndex (riskIndex)}<li>{item}</li>{/each}
-									</ul>
-								</div>
-								<div>
-									<h3>Evidence gaps</h3>
-									{#if concept.evidenceGaps.length}<ul>
-											{#each concept.evidenceGaps as item, gapIndex (gapIndex)}<li>
-													{item}
-												</li>{/each}
-										</ul>{:else}<p>No material gap flagged in the broad pass.</p>{/if}
-								</div>
-							</section>
-						</div>
-					</details>
-				</article>
-			{/each}
-		</div>
-
-		{#if !allRevealed}
-			<div class="reveal-controls">
-				<p>
-					{revealedCount === 1 ? 'The primary guess has landed.' : 'Another timeline is knocking.'}
-				</p>
+			<div class="mail-toast">
+				<img src="/images/retro/windows93/mail.png" alt="" />
 				<div>
-					<button class="skip-reveal" type="button" onclick={revealAll}>Skip the theatrics</button>
-					<button class="reveal-next" type="button" onclick={revealNext}>
-						Reveal project {revealedCount + 1} <i>→</i>
-					</button>
+					<small>CURSED MAIL ONLINE</small><strong>YOU'VE GOT 4 MAIL</strong><span
+						>sender: Purl, allegedly</span
+					>
 				</div>
+				<button type="button" onclick={openMailClient}>SMACK IT OPEN</button>
 			</div>
-		{:else}
-			<section class="comparison-scroll" aria-labelledby="comparison-title">
-				<header>
-					<p class="terminal-label">THE ORACLE'S HIGHLY SCIENTIFIC COMPARISON</p>
-					<h2 id="comparison-title">All four futures, side by side</h2>
-					<p>
-						High technical risk means more risk. Every other high mark means more of the named
-						quality.
-					</p>
-				</header>
-				<div class="comparison-table-wrap">
-					<table>
-						<thead
-							><tr
-								><th>Signal</th>{#each portfolio.concepts as concept (concept.id)}<th
-										>{concept.name}</th
-									>{/each}</tr
-							></thead
+		</div>
+	{:else if view === 'features'}
+		<RpgFeatureWorkshop {portfolio} {workshop} onChange={onWorkshopChange} {onContinue} />
+	{:else}
+		<div class="mail-client" class:stretch-mail={activeConcept?.isStretch}>
+			<header class="client-title">
+				<span>CURSED ONLINE 4.20 — MAILBOX</span>
+				<div>_ □ ×</div>
+			</header>
+			<nav class="client-tools" aria-label="Mail tools">
+				<button type="button" onclick={() => (view = 'inbox')}>INBOX ({4 - trashIds.length})</button
+				>
+				<button type="button" onclick={() => (view = 'comparison')} disabled={!allDownloaded}
+					>COMPARE</button
+				>
+				<button type="button" onclick={() => (view = 'features')} disabled={!allDownloaded}
+					>PROJECT FILES</button
+				>
+				<span>PURL'S OUTBOX: 4</span>
+			</nav>
+			<div class="client-body">
+				<aside class="inbox-list" aria-label="Four messages">
+					{#each portfolio.concepts as concept, index (concept.id)}
+						{@const envelope = conceptMailEnvelope(concept, index)}
+						<button
+							type="button"
+							class:active={activeIndex === index}
+							class:locked={index > downloadedIds.length}
+							class:trashed={trashIds.includes(concept.id)}
+							disabled={index > downloadedIds.length}
+							onclick={() => openMessage(index)}
 						>
-						<tbody>
-							{#each COMPARISON_DIMENSIONS as dimension (dimension)}
-								<tr>
-									<th>{dimensionLabels[dimension]}</th>
-									{#each portfolio.concepts as concept (concept.id)}
-										{@const rating = concept.comparison.find(
-											(item) => item.dimension === dimension
-										)}
-										<td
-											><b class={`rating ${rating?.rating}`}>{rating?.rating}</b><span
-												>{rating?.explanation}</span
-											></td
-										>
-									{/each}
-								</tr>
+							<i
+								>{downloadedIds.includes(concept.id)
+									? '✉'
+									: index <= downloadedIds.length
+										? '●'
+										: '⌛'}</i
+							>
+							<span><small>{envelope.from.split('<')[0]}</small><b>{envelope.subject}</b></span>
+							{#if trashIds.includes(concept.id)}<em>TRASH</em>{/if}
+						</button>
+					{/each}
+				</aside>
+
+				{#if view === 'comparison'}
+					<section class="comparison-pane">
+						<header>
+							<span>ALL 4 ATTACHMENTS RECOVERED</span>
+							<h2>CHOOSE A FUTURE TO TAMPER WITH</h2>
+						</header>
+						<div class="comparison-grid">
+							<div class="dimension-column">
+								<b>SIGNAL</b>{#each COMPARISON_DIMENSIONS as dimension (dimension)}<span
+										>{dimensionLabels[dimension]}</span
+									>{/each}
+							</div>
+							{#each portfolio.concepts as concept, index (concept.id)}
+								<button
+									type="button"
+									onclick={() => openMessage(index)}
+									class:trashed={trashIds.includes(concept.id)}
+								>
+									<b>{concept.name}</b
+									>{#each COMPARISON_DIMENSIONS as dimension (dimension)}{@const rating =
+											concept.comparison.find((item) => item.dimension === dimension)}<span
+											class={rating?.rating}>{rating?.rating}</span
+										>{/each}
+								</button>
 							{/each}
-						</tbody>
-					</table>
-				</div>
-			</section>
-
-			<FeatureWorkshop {portfolio} {workshop} onChange={onWorkshopChange} />
-			{#if workshop.status === 'confirmed'}
-				<div class="focused-launch">
-					<div>
-						<span>THE PROPHECY IS SEALED</span><b>Now check this exact build against reality.</b>
-					</div>
-					<button type="button" onclick={onContinue}>Begin focused research <i>→</i></button>
-				</div>
-			{/if}
-
-			<button
-				class="defeat-button"
-				type="button"
-				disabled={busy}
-				onclick={() => defeatDialog?.showModal()}
-			>
-				You have defeated the Sage
-			</button>
-		{/if}
+						</div>
+						<button class="configure-button" type="button" onclick={() => (view = 'features')}
+							>OPEN PROJECT FILES ▶</button
+						>
+					</section>
+				{:else if activeConcept}
+					{@const envelope = conceptMailEnvelope(activeConcept, activeIndex)}
+					<section class="message-pane">
+						<header>
+							<small>FROM: {envelope.from}</small><small>SUBJECT: {envelope.subject}</small>
+						</header>
+						{#if !downloadedIds.includes(activeConcept.id)}
+							<div class="message-copy">
+								{#if activeConcept.isStretch}<div class="royal-seal">♛</div>{/if}
+								<p>{envelope.preview}</p>
+								<p>
+									{activeConcept.isStretch
+										? 'I require no bank details. Merely the courage to open PROJECT_04.GLTCH.'
+										: 'Purl attached a project and several hairs to this message.'}
+								</p>
+								<button
+									class="attachment"
+									type="button"
+									disabled={downloading}
+									onclick={downloadAttachment}
+								>
+									<img src="/images/retro/windows93/folder.png" alt="" /><span
+										><b
+											>{activeConcept.isStretch
+												? 'PROJECT_04.GLTCH'
+												: `PROJECT_0${activeIndex + 1}.ZIP`}</b
+										><small
+											>{downloading
+												? 'DOWNLOADING THROUGH 56K PORTAL...'
+												: 'CLICK TO DOWNLOAD ATTACHMENT'}</small
+										></span
+									>
+								</button>{#if downloading}<div class="download-track"><i></i></div>{/if}
+							</div>
+						{:else}
+							<div class="dossier-scroll">
+								<div class="dossier-head">
+									<div class="concept-icon">{iconGlyphs[activeConcept.icon]}</div>
+									<div>
+										<span
+											>{activeConcept.isRecommended
+												? 'PRIMARY GUESS'
+												: activeConcept.isStretch
+													? 'RARE // QUARANTINED'
+													: activeConcept.rarity}</span
+										>
+										<h2>{activeConcept.name}</h2>
+										<p>{activeConcept.pitch}</p>
+									</div>
+								</div>
+								<blockquote>“{activeConcept.sageReason}”</blockquote>
+								<div class="stat-row">
+									<span>FOR <b>{activeConcept.targetUser}</b></span><span
+										>BUDGET <b
+											>{money(activeConcept.prototypeBudget.minimumUsd)}–{money(
+												activeConcept.prototypeBudget.maximumUsd
+											)}</b
+										></span
+									><span>TIME <b>{activeConcept.prototypeTimeline}</b></span>
+								</div>
+								<p>{activeConcept.description}</p>
+								<p><b>WHY IT IS DIFFERENT:</b> {activeConcept.distinctApproach}</p>
+								<h3>FEATURE FILES</h3>
+								<ul>
+									{#each activeConcept.proposedFeatures as feature (feature)}<li>
+											{feature}
+										</li>{/each}
+								</ul>
+								<h3>COMPETITORS / SUBSTITUTES</h3>
+								{#each activeConcept.competitors as competitor (competitor.name)}<div
+										class="competitor"
+									>
+										<b>{competitor.name}</b>
+										<p>{competitor.comparison}</p>
+										{#each competitor.sourceIds as sourceId (sourceId)}{@const source =
+												sourceFor(sourceId)}{#if source}<a
+													href={source.url}
+													target="_blank"
+													rel="external noreferrer">{source.title}</a
+												>{/if}{/each}
+									</div>{/each}
+							</div>
+							<footer class="dossier-actions">
+								<button type="button" onclick={() => trashConcept(activeConcept)}
+									>MOVE TO TRASH</button
+								><button class="next-mail" type="button" onclick={nextMessage}
+									>{allDownloaded ? 'COMPARE ALL FOUR ▶' : 'OPEN NEXT MAIL ▶'}</button
+								>
+							</footer>
+						{/if}
+					</section>
+				{/if}
+			</div>
+			<footer class="status-bar">
+				<span>MAIL: {downloadedIds.length}/4 DOWNLOADED</span><span>TRASH: {trashIds.length}</span
+				><span>CONNECTED AT 56,000 BPS</span>
+			</footer>
+		</div>
 	{/if}
 
-	{#if message}<p class="concept-error" role="alert">{message}</p>{/if}
-	<div class="room-actions">
-		<button class="back-button" type="button" disabled={busy} onclick={onBack}
-			>← Back to questions</button
-		>
-		<button class="reset-note" type="button" disabled>Concepts save automatically</button>
+	{#if storm}<div class="glitch-storm" aria-hidden="true">
+			<i>ROYAL_BANK_DETAILS.EXE</i><i>THIS IS FINE</i><i>RARE DROP!!!</i>
+		</div>{/if}
+	{#if message && portfolio}<p class="concept-error" role="alert">{message}</p>{/if}
+	<div class="stage-actions">
+		<button type="button" disabled={busy} onclick={onBack}>← QUESTIONS</button
+		>{#if portfolio}<button type="button" onclick={() => defeatDialog?.showModal()}
+				>DEFEAT THE SAGE</button
+			>{/if}
 	</div>
 </section>
 
 <dialog class="defeat-dialog" bind:this={defeatDialog}>
 	<form method="dialog">
-		<p class="terminal-label">TOTAL PROPHECY FAILURE</p>
+		<span>TOTAL PROPHECY FAILURE</span>
 		<h2>You have defeated the Sage.</h2>
 		<p>
-			This discards all four concepts and starts another paid AI generation. Your problems,
-			research, interview, and budgets stay unchanged. The replacement set must use different
-			product mechanisms.
+			This starts another paid generation with four meaningfully different approaches. Your research
+			and answers remain.
 		</p>
 		<div>
-			<button value="cancel">Keep these four</button>
-			<button class="confirm-defeat" type="button" onclick={confirmRegeneration}
-				>Pay for a rematch</button
+			<button value="cancel">KEEP THE MAIL</button><button
+				type="button"
+				onclick={confirmRegeneration}>PAY FOR A REMATCH</button
 			>
 		</div>
 	</form>
 </dialog>
 
 <style>
-	.concept-room {
-		container-type: inline-size;
-		width: 100%;
-		min-width: 0;
-		margin: 0;
-		padding: 28px 0 80px;
-		color: #f7efff;
-	}
-	.concept-heading {
-		display: flex;
-		justify-content: space-between;
-		gap: 30px;
-		align-items: end;
-		margin-bottom: 24px;
-		text-shadow: 0 2px #160d2b;
-	}
-	.focused-launch {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 20px;
-		margin: 30px 0;
-		padding: 18px;
-		border: 4px ridge #79e3b2;
-		background: linear-gradient(90deg, #0d352e, #171229);
-		box-shadow: 8px 8px #050309;
-	}
-	.focused-launch span,
-	.focused-launch b {
-		display: block;
-	}
-	.focused-launch span {
-		color: #7cf0bc;
-		font:
-			800 10px 'Courier New',
-			monospace;
-		letter-spacing: 0.12em;
-	}
-	.focused-launch b {
-		margin-top: 5px;
-		color: #fff0bc;
-		font:
-			700 18px Georgia,
-			serif;
-	}
-	.focused-launch button {
-		padding: 12px 16px;
-		border: 3px outset #8ef3c8;
-		background: #14604d;
-		color: white;
-		cursor: pointer;
-		font:
-			800 11px 'Courier New',
-			monospace;
-		text-transform: uppercase;
-	}
-	.focused-launch button:active {
-		border-style: inset;
-	}
-	.concept-heading h1 {
-		margin: 4px 0 8px;
-		max-width: 720px;
-		font:
-			700 clamp(32px, 5vw, 64px)/0.92 Georgia,
-			serif;
-		color: #ffe394;
-	}
-	.concept-heading p {
-		max-width: 680px;
-	}
-	.room-number,
-	.terminal-label {
-		margin: 0;
-		color: #85edff;
-		font:
-			700 12px/1.2 'Courier New',
-			monospace;
-		letter-spacing: 0.13em;
-	}
-	.fortune-counter {
-		flex: 0 0 auto;
-		padding: 12px 18px;
-		border: 3px ridge #8ceaff;
-		background: #120a32dc;
-		text-align: center;
-		box-shadow: 8px 8px #080416;
-	}
-	.fortune-counter strong,
-	.fortune-counter span {
-		display: block;
-	}
-	.fortune-counter strong {
-		color: #ffda78;
-		font:
-			800 25px 'Courier New',
-			monospace;
-	}
-	.fortune-counter span {
-		font-size: 11px;
-		text-transform: uppercase;
-	}
-	.summoning-terminal {
-		position: relative;
-		overflow: hidden;
-		padding: 34px;
-		border: 5px ridge #c894ff;
-		background: linear-gradient(135deg, #080817ee, #21104aee);
-		box-shadow:
-			14px 14px #05020d,
-			inset 0 0 35px #824fff22;
-		text-align: center;
-	}
-	.crystal-loader {
-		position: relative;
-		width: 110px;
-		height: 110px;
-		margin: 0 auto 18px;
-		border: 8px double #68e9ff;
-		border-radius: 50%;
-		background: radial-gradient(circle at 40% 32%, #fff, #a466ff 8%, #301060 46%, #09051e 70%);
-		box-shadow: 0 0 28px #8aefff88;
-	}
-	.crystal-loader i {
+	.sr-only {
 		position: absolute;
-		inset: 10px;
-		border: 2px dotted #ffe680;
-		border-radius: 50%;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
 	}
-	.crystal-loader b {
+	.mail-stage {
+		position: fixed;
+		z-index: 10;
+		inset: 0;
 		display: grid;
 		place-items: center;
-		height: 100%;
-		font:
-			700 44px Georgia,
-			serif;
+		padding: 55px 20px 36px;
+		box-sizing: border-box;
+		pointer-events: none;
+		font-family: 'Tomo', 'Silkscreen', 'Courier New', monospace;
+		color: #111;
 	}
-	.crystal-loader.busy {
-		animation: crystal 1.8s steps(8) infinite;
+	.mail-stage > * {
+		pointer-events: auto;
 	}
-	@keyframes crystal {
+	.summoning-screen {
+		width: min(760px, 90vw);
+		padding: 30px;
+		border: 5px ridge #ceb4ff;
+		background: #080616ed;
+		color: #fff;
+		text-align: center;
+		box-shadow: 16px 16px #020104;
+	}
+	.summoning-screen .crystal {
+		display: grid;
+		place-items: center;
+		width: 90px;
+		height: 90px;
+		margin: auto;
+		border: 7px double #84edff;
+		border-radius: 50%;
+		background: radial-gradient(circle, #fff, #a146eb 12%, #140824 68%);
+		font-size: 40px;
+	}
+	.summoning-screen .crystal.busy {
+		animation: spin 1.5s steps(8) infinite;
+	}
+	@keyframes spin {
 		to {
-			transform: rotate(360deg);
+			transform: rotate(1turn);
 		}
 	}
-	.summoning-terminal h2 {
-		color: #ffdd8b;
+	.summoning-screen span {
+		display: block;
+		margin-top: 15px;
+		color: #7eeeff;
+		font-size: 9px;
+	}
+	.summoning-screen h2 {
+		color: #ffe082;
+		font-size: 18px;
+	}
+	.summoning-screen p {
 		font:
-			700 28px Georgia,
+			14px Georgia,
 			serif;
 	}
-	.summon-log {
-		display: grid;
-		gap: 5px;
-		max-width: 620px;
-		margin: 22px auto;
-		padding: 14px;
-		border: 1px solid #65dff266;
-		background: #02040b;
-		color: #5c807f;
-		text-align: left;
-		font:
-			12px 'Courier New',
-			monospace;
-	}
-	.summon-log .active {
-		color: #72ffb6;
-		animation: blink 1s steps(2) infinite;
-	}
-	@keyframes blink {
-		50% {
-			opacity: 0.45;
-		}
-	}
-	.summon-concepts,
-	.reveal-next {
-		border: 3px outset #ffd66c;
-		padding: 12px 18px;
-		background: #8a275f;
-		color: white;
-		font-weight: 800;
+	.summoning-screen button,
+	.stage-actions button {
+		border: 3px outset #ddd;
+		padding: 10px;
+		background: #c0c0c0;
+		font: 9px 'Silkscreen';
 		cursor: pointer;
-		box-shadow: 5px 5px #080412;
 	}
-	.reveal-stage {
-		display: grid;
-		gap: 24px;
-	}
-	.concept-dossier {
+	.mail-notification {
 		position: relative;
-		overflow: hidden;
-		padding: 25px 25px 25px 54px;
-		border: 4px ridge #776ca3;
-		background: linear-gradient(120deg, #101227f2, #231445f4);
-		box-shadow: 12px 12px #05020d;
-		animation: dossier-in 0.45s steps(5) both;
+		width: min(900px, 90vw);
+		height: 470px;
 	}
-	@keyframes dossier-in {
+	.running-purl {
+		position: absolute;
+		left: 0;
+		bottom: 50px;
+		animation: purl-mail 2.8s steps(16) infinite alternate;
+	}
+	.running-purl img {
+		width: 160px;
+		image-rendering: pixelated;
+	}
+	.running-purl span {
+		display: block;
+		padding: 6px;
+		background: #090417;
+		color: #ffe46f;
+	}
+	.mail-toast {
+		position: absolute;
+		right: 40px;
+		top: 80px;
+		display: grid;
+		grid-template-columns: 55px 1fr auto;
+		gap: 14px;
+		align-items: center;
+		width: min(620px, 75vw);
+		padding: 15px;
+		border: 5px outset #eee;
+		background: #c0c0c0;
+		box-shadow: 14px 16px #030106;
+		animation: toast-in 0.8s steps(8);
+	}
+	.mail-toast img {
+		width: 48px;
+		image-rendering: pixelated;
+	}
+	.mail-toast small,
+	.mail-toast strong,
+	.mail-toast span {
+		display: block;
+	}
+	.mail-toast strong {
+		margin: 5px 0;
+		color: #000080;
+		font-size: 20px;
+	}
+	.mail-toast button {
+		border: 3px outset #eee;
+		padding: 10px;
+		background: #c0c0c0;
+		font: 8px 'Silkscreen';
+		cursor: pointer;
+	}
+	@keyframes toast-in {
 		from {
-			opacity: 0;
-			transform: translateY(30px) rotate(0.5deg);
+			transform: translateX(100vw);
 		}
 	}
-	.concept-dossier.primary {
-		border-color: #ffe47f;
-		box-shadow:
-			12px 12px #05020d,
-			0 0 28px #ffe0702c;
+	@keyframes purl-mail {
+		to {
+			transform: translateX(280px);
+		}
 	}
-	.concept-dossier.stretch {
-		border-color: #ff59dc;
-		background: linear-gradient(120deg, #1b0927f2, #381044f4);
-	}
-	.dossier-spine {
+	.mail-client {
 		position: absolute;
-		inset: 0 auto 0 0;
+		top: 50%;
+		right: 26px;
+		width: min(820px, calc(100vw - 360px));
+		height: min(620px, calc(100vh - 130px));
+		border: 5px outset #eee;
+		background: #c0c0c0;
+		box-shadow: 16px 18px #020105;
 		display: grid;
-		place-items: center;
-		width: 36px;
-		background: #080615;
-		color: #8ceaff;
-		font:
-			700 14px 'Courier New',
-			monospace;
-		writing-mode: vertical-rl;
+		grid-template-rows: 30px 42px 1fr 24px;
+		overflow: hidden;
+		transform: translateY(-50%);
 	}
-	.concept-dossier > header {
+	.client-title {
+		display: flex;
+		justify-content: space-between;
+		padding: 7px 9px;
+		box-sizing: border-box;
+		background: linear-gradient(90deg, #000080, #2185c5);
+		color: #fff;
+		font-size: 10px;
+	}
+	.stretch-mail .client-title {
+		background: repeating-linear-gradient(
+			90deg,
+			#16003b 0 12px,
+			#a80078 12px 18px,
+			#00b6ac 18px 21px
+		);
+	}
+	.client-tools {
+		display: flex;
+		gap: 6px;
+		align-items: center;
+		padding: 5px;
+		border-bottom: 3px ridge #aaa;
+	}
+	.client-tools button {
+		border: 2px outset #eee;
+		background: #c0c0c0;
+		font: 8px 'Tomo';
+		cursor: pointer;
+	}
+	.client-tools button:disabled {
+		opacity: 0.45;
+	}
+	.client-tools span {
+		margin-left: auto;
+		font-size: 8px;
+	}
+	.client-body {
 		display: grid;
-		grid-template-columns: auto 1fr auto;
-		gap: 18px;
-		align-items: start;
+		grid-template-columns: 210px 1fr;
+		min-height: 0;
+	}
+	.inbox-list {
+		border-right: 3px ridge #999;
+		background: #fff;
+		overflow: hidden;
+	}
+	.inbox-list button {
+		position: relative;
+		display: grid;
+		grid-template-columns: 20px 1fr;
+		width: 100%;
+		height: 25%;
+		padding: 9px;
+		border: 0;
+		border-bottom: 1px solid #aaa;
+		background: #fff;
+		text-align: left;
+		font: 10px 'Tomo';
+		cursor: pointer;
+	}
+	.inbox-list button.active {
+		background: #000080;
+		color: #fff;
+	}
+	.inbox-list button.locked {
+		color: #888;
+		background: #ddd;
+	}
+	.inbox-list button.trashed {
+		text-decoration: line-through;
+		opacity: 0.55;
+	}
+	.inbox-list small,
+	.inbox-list b {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.inbox-list em {
+		position: absolute;
+		right: 5px;
+		top: 5px;
+		color: #c00;
+	}
+	.message-pane,
+	.comparison-pane {
+		display: grid;
+		grid-template-rows: auto 1fr auto;
+		min-width: 0;
+		min-height: 0;
+		background: #fff;
+	}
+	.message-pane > header {
+		padding: 8px 13px;
+		border-bottom: 1px solid #aaa;
+	}
+	.message-pane > header small {
+		display: block;
+		margin: 3px;
+	}
+	.message-copy {
+		align-self: center;
+		padding: 25px 9%;
+		font:
+			16px/1.5 'Times New Roman',
+			serif;
+	}
+	.royal-seal {
+		float: right;
+		color: #9a7400;
+		font-size: 50px;
+	}
+	.attachment {
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		width: min(500px, 100%);
+		margin: 22px auto 5px;
+		padding: 11px;
+		border: 3px outset #eee;
+		background: #c0c0c0;
+		text-align: left;
+		cursor: pointer;
+	}
+	.attachment img {
+		width: 42px;
+		image-rendering: pixelated;
+	}
+	.attachment b,
+	.attachment small {
+		display: block;
+	}
+	.download-track {
+		height: 18px;
+		border: 3px inset #ddd;
+		background: #fff;
+	}
+	.download-track i {
+		display: block;
+		height: 100%;
+		background: repeating-linear-gradient(90deg, #090 0 12px, #0d0 12px 17px);
+		animation: download 1.4s steps(12) both;
+	}
+	@keyframes download {
+		from {
+			width: 2%;
+		}
+		to {
+			width: 100%;
+		}
+	}
+	.dossier-scroll {
+		padding: 15px 20px;
+		overflow: auto;
+		font:
+			14px/1.45 Georgia,
+			serif;
+	}
+	.dossier-head {
+		display: grid;
+		grid-template-columns: 65px 1fr;
+		gap: 13px;
 	}
 	.concept-icon {
 		display: grid;
 		place-items: center;
-		width: 58px;
 		height: 58px;
-		border: 3px outset #86eaff;
-		background: #080b1c;
-		color: #ffda74;
-		font:
-			800 24px 'Courier New',
-			monospace;
+		border: 3px outset #ddd;
+		background: #060616;
+		color: #ffe477;
+		font: bold 20px monospace;
 	}
-	.concept-title h2 {
-		margin: 5px 0;
-		color: #fff1b2;
-		font:
-			700 clamp(24px, 4vw, 38px) Georgia,
-			serif;
+	.dossier-head span {
+		font: 8px 'Tomo';
+		color: #711654;
 	}
-	.concept-title {
-		min-width: 0;
+	.dossier-head h2 {
+		margin: 4px 0;
+		color: #00006f;
+		font-size: 26px;
 	}
-	.concept-title p {
+	.dossier-head p {
 		margin: 0;
-		font-size: 16px;
-		color: #eadff4;
 	}
-	.concept-flags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 7px;
-	}
-	.concept-flags span,
-	.archetype {
-		border: 1px solid #756996;
-		padding: 3px 7px;
-		background: #080614;
-		color: #cdbfe5;
-		font:
-			700 10px 'Courier New',
-			monospace;
-		text-transform: uppercase;
-	}
-	.concept-flags .recommended {
-		border-color: #ffe47f;
-		color: #ffe47f;
-	}
-	.concept-flags .forbidden {
-		border-color: #ff61df;
-		color: #ff9deb;
-		animation: forbidden-pulse 1.3s steps(2) infinite;
-	}
-	@keyframes forbidden-pulse {
-		50% {
-			background: #55103e;
-		}
-	}
-	.sage-verdict {
-		margin: 18px 0;
-		padding: 11px 14px;
-		border-left: 5px solid #9c76ff;
-		background: #090618;
-	}
-	.sage-verdict b {
-		color: #83ebff;
-		font:
-			11px 'Courier New',
-			monospace;
-	}
-	.sage-verdict p {
-		margin: 5px 0 0;
-		color: #ffd989;
-		font-style: italic;
-	}
-	.concept-summary-grid {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 8px;
-	}
-	.concept-summary-grid div {
-		padding: 10px;
-		border: 1px solid #594d7a;
-		background: #0b091b;
-	}
-	.concept-summary-grid span,
-	.concept-summary-grid strong {
-		display: block;
-	}
-	.concept-summary-grid span {
-		color: #8bdff0;
-		font:
-			10px 'Courier New',
-			monospace;
-	}
-	.concept-summary-grid strong {
-		margin-top: 4px;
-		font-size: 13px;
-	}
-	.concept-description {
-		margin: 18px 0 8px;
-		line-height: 1.55;
-	}
-	.distinct {
-		color: #d7c9ed;
-	}
-	.quick-features h3,
-	.project-file h3 {
-		color: #8eecff;
-		font:
-			700 13px 'Courier New',
-			monospace;
-		text-transform: uppercase;
-	}
-	.quick-features ul {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 7px;
-		padding: 0;
-		list-style: none;
-	}
-	.quick-features li {
-		padding: 6px 9px;
-		border: 1px solid #816da5;
-		background: #15102b;
-		font-size: 12px;
-	}
-	details {
-		margin-top: 16px;
-		border-top: 1px dashed #7c6796;
-	}
-	summary {
-		padding: 14px 0 0;
-		color: #ffd979;
-		cursor: pointer;
-		font-weight: 800;
-	}
-	.project-file {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 18px;
-		margin-top: 14px;
-	}
-	.project-file section {
-		padding: 13px;
-		border: 1px solid #4e426c;
-		background: #080716aa;
-	}
-	.project-file li,
-	.project-file p {
-		margin: 5px 0;
-		line-height: 1.4;
-	}
-	.competitor {
-		margin: 10px 0;
+	.dossier-scroll blockquote {
+		margin: 14px 0;
 		padding: 9px;
-		border-left: 3px solid #8ceaff;
-		background: #121027;
+		border-left: 5px solid #000080;
+		background: #efefff;
+		color: #421347;
 	}
-	.competitor > span {
-		margin-left: 8px;
-		color: #a89abf;
-		font:
-			10px 'Courier New',
-			monospace;
-		text-transform: uppercase;
-	}
-	.source-links {
-		display: flex;
-		flex-wrap: wrap;
+	.stat-row {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
 		gap: 6px;
 	}
-	.source-links a {
-		color: #84edff;
-		font-size: 11px;
+	.stat-row span {
+		padding: 6px;
+		border: 1px solid #aaa;
+		font: 8px 'Tomo';
 	}
-	.risk-grid {
-		grid-column: 1/-1;
-		display: grid !important;
-		grid-template-columns: repeat(3, 1fr);
+	.stat-row b {
+		display: block;
+		margin-top: 4px;
 	}
-	.reveal-controls {
-		margin: 26px 0;
-		padding: 18px;
-		border: 3px dashed #a96eff;
-		background: #100a28e8;
-		text-align: center;
+	.dossier-scroll h3 {
+		color: #000080;
+		font: 10px 'Tomo';
 	}
-	.reveal-controls > div {
+	.competitor {
+		padding: 8px;
+		border-top: 1px dotted #777;
+	}
+	.competitor p {
+		margin: 3px 0;
+	}
+	.competitor a {
+		margin-right: 8px;
+		color: #0000a0;
+	}
+	.dossier-actions {
 		display: flex;
-		justify-content: center;
-		gap: 12px;
+		justify-content: flex-end;
+		gap: 8px;
+		padding: 8px;
+		border-top: 2px ridge #bbb;
+		background: #c0c0c0;
 	}
-	.skip-reveal,
-	.back-button {
-		border: 1px solid #70658f;
-		padding: 10px 13px;
-		background: #0a0818;
-		color: #d7cae7;
+	.dossier-actions button,
+	.configure-button {
+		border: 2px outset #eee;
+		padding: 7px;
+		background: #c0c0c0;
+		font: 8px 'Tomo';
 		cursor: pointer;
 	}
-	.comparison-scroll {
-		margin-top: 30px;
-		border: 5px ridge #a9eaff;
-		background: #0b091bed;
-		box-shadow: 12px 12px #05020d;
+	.dossier-actions .next-mail,
+	.configure-button {
+		background: #000080;
+		color: #fff;
 	}
-	.comparison-scroll > header {
-		padding: 20px;
-	}
-	.comparison-scroll h2 {
-		margin: 5px 0;
-		color: #ffe18d;
-		font:
-			700 26px Georgia,
-			serif;
-	}
-	.comparison-table-wrap {
-		overflow-x: auto;
-	}
-	table {
-		width: 100%;
-		min-width: 900px;
-		border-collapse: collapse;
-		font-size: 12px;
-	}
-	th,
-	td {
-		padding: 10px;
-		border: 1px solid #4c4168;
-		vertical-align: top;
-	}
-	thead th {
-		background: #201344;
-		color: #ffe395;
-	}
-	tbody th {
-		color: #8eeaff;
-		text-align: left;
-	}
-	td span {
-		display: block;
-		margin-top: 5px;
-		color: #d4c9e3;
-	}
-	.rating {
-		display: inline-block;
-		padding: 2px 6px;
-		text-transform: uppercase;
-		font:
-			700 10px 'Courier New',
-			monospace;
-	}
-	.rating.low {
-		background: #315066;
-	}
-	.rating.medium {
-		background: #675326;
-	}
-	.rating.high {
-		background: #762a57;
-	}
-	.reset-note {
-		opacity: 0.6;
-	}
-	.defeat-button {
-		display: block;
-		margin: 22px auto 0;
-		border: 1px solid #ff6bce;
-		padding: 9px 13px;
-		background: #23091c;
-		color: #ff9bdf;
-		cursor: pointer;
-	}
-	.concept-error {
-		padding: 10px;
-		border: 2px solid #ff739d;
-		background: #34101d;
-		color: #ffd7e4;
-	}
-	.room-actions {
+	.status-bar {
 		display: flex;
 		justify-content: space-between;
-		margin-top: 24px;
+		padding: 6px;
+		border-top: 2px ridge #eee;
+		font-size: 7px;
 	}
-	.reset-note {
+	.comparison-pane {
+		grid-template-rows: auto 1fr auto;
+		padding: 16px;
+		box-sizing: border-box;
+	}
+	.comparison-pane header span {
+		font-size: 8px;
+		color: #006044;
+	}
+	.comparison-pane h2 {
+		margin: 4px 0 10px;
+		color: #000080;
+		font-size: 17px;
+	}
+	.comparison-grid {
+		display: grid;
+		grid-template-columns: 130px repeat(4, 1fr);
+		min-height: 0;
+		border: 2px inset #aaa;
+	}
+	.dimension-column,
+	.comparison-grid > button {
+		display: grid;
+		grid-template-rows: 45px repeat(7, 1fr);
+		min-width: 0;
 		border: 0;
-		background: transparent;
-		color: #9c91af;
+		border-right: 1px solid #aaa;
+		padding: 0;
+		background: #fff;
+		color: #111;
+		font: 8px 'Tomo';
+		cursor: pointer;
+	}
+	.dimension-column b,
+	.comparison-grid > button > b,
+	.dimension-column span,
+	.comparison-grid > button span {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 5px;
+		border-bottom: 1px solid #ddd;
+		text-align: center;
+	}
+	.comparison-grid > button > b {
+		color: #000080;
+	}
+	.comparison-grid > button.trashed {
+		opacity: 0.35;
+		text-decoration: line-through;
+	}
+	.comparison-grid .high {
+		background: #ffc0d7;
+	}
+	.comparison-grid .medium {
+		background: #ffe7a8;
+	}
+	.comparison-grid .low {
+		background: #bce8ff;
+	}
+	.configure-button {
+		justify-self: end;
+		margin-top: 10px;
+	}
+	.glitch-storm i {
+		position: fixed;
+		z-index: 30;
+		padding: 8px;
+		border: 4px outset #eee;
+		background: #c0c0c0;
+		color: #c00000;
+		font: 8px 'Tomo';
+		animation: glitch-pop 0.3s steps(3);
+	}
+	.glitch-storm i:nth-child(1) {
+		left: 8%;
+		top: 13%;
+	}
+	.glitch-storm i:nth-child(2) {
+		right: 7%;
+		top: 35%;
+	}
+	.glitch-storm i:nth-child(3) {
+		left: 36%;
+		bottom: 8%;
+		color: #600080;
+	}
+	@keyframes glitch-pop {
+		from {
+			transform: scale(0) skew(40deg);
+		}
+	}
+	.stage-actions {
+		position: fixed;
+		z-index: 12;
+		right: 18px;
+		bottom: 12px;
+		display: flex;
+		gap: 7px;
+	}
+	.concept-error {
+		position: fixed;
+		top: 55px;
+		right: 25px;
+		padding: 8px;
+		background: #430c22;
+		color: #fff;
 	}
 	.defeat-dialog {
 		max-width: 560px;
-		border: 5px ridge #ff69d8;
+		border: 5px ridge #ff68d5;
 		background: #13081d;
-		color: #f7eaff;
-		box-shadow: 18px 18px #020104;
+		color: #fff;
+		box-shadow: 16px 16px #020104;
 	}
 	.defeat-dialog::backdrop {
-		background: #030107dd;
+		background: #020104dd;
 	}
-	.defeat-dialog form {
-		padding: 10px;
+	.defeat-dialog span {
+		color: #ff83d9;
+		font: 9px 'Silkscreen';
 	}
 	.defeat-dialog h2 {
-		color: #ff9de5;
+		color: #ffe080;
+	}
+	.defeat-dialog p {
 		font:
-			700 28px Georgia,
+			15px/1.5 Georgia,
 			serif;
 	}
-	.defeat-dialog form > div {
+	.defeat-dialog div {
 		display: flex;
 		justify-content: flex-end;
-		gap: 10px;
-		margin-top: 20px;
+		gap: 8px;
 	}
 	.defeat-dialog button {
-		padding: 9px 12px;
-		border: 1px solid #77698c;
-		background: #0a0813;
-		color: white;
+		border: 2px outset #ddd;
+		padding: 8px;
+		background: #c0c0c0;
+		font: 8px 'Silkscreen';
 		cursor: pointer;
 	}
-	.defeat-dialog .confirm-defeat {
-		border-color: #ff60ce;
-		background: #6e1852;
+	@media (prefers-reduced-motion: reduce) {
+		.mail-stage * {
+			animation: none !important;
+		}
 	}
 	@media (max-width: 760px) {
-		.concept-room {
-			padding-top: 15px;
+		.mail-stage {
+			position: absolute;
+			min-height: 100vh;
+			padding: 50px 0 0;
 		}
-		.concept-heading {
-			align-items: start;
+		.mail-client {
+			position: static;
+			width: 100%;
+			height: auto;
+			min-height: calc(100vh - 50px);
+			grid-template-rows: 30px auto 1fr 24px;
+			transform: none;
 		}
-		.fortune-counter {
-			display: none;
+		.client-tools {
+			flex-wrap: wrap;
 		}
-		.concept-dossier {
-			padding: 18px 14px 18px 43px;
+		.client-body {
+			grid-template-columns: 1fr;
 		}
-		.concept-dossier > header {
-			grid-template-columns: auto 1fr;
+		.inbox-list {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			border-right: 0;
 		}
-		.archetype {
+		.inbox-list button {
+			height: 74px;
+		}
+		.message-pane {
+			min-height: 520px;
+		}
+		.comparison-grid {
+			overflow: auto;
+		}
+		.dimension-column,
+		.comparison-grid > button {
+			min-width: 115px;
+		}
+		.mail-toast {
+			right: 0;
+			grid-template-columns: 45px 1fr;
+		}
+		.mail-toast button {
 			grid-column: 1/-1;
 		}
-		.concept-summary-grid,
-		.project-file,
-		.risk-grid {
-			grid-template-columns: 1fr;
-		}
-		.reveal-controls > div {
-			align-items: stretch;
-			flex-direction: column;
-		}
-		.room-actions {
-			gap: 10px;
-		}
-	}
-	@container (max-width:700px) {
-		.concept-heading {
-			align-items: start;
-		}
-		.fortune-counter {
-			display: none;
-		}
-		.concept-dossier {
-			padding: 18px 14px 18px 43px;
-		}
-		.concept-dossier > header {
-			grid-template-columns: auto minmax(0, 1fr);
-		}
-		.archetype {
-			grid-column: 1/-1;
-			width: max-content;
-		}
-		.concept-summary-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-		.project-file {
-			grid-template-columns: 1fr;
-		}
-		.risk-grid {
-			grid-column: auto;
-			grid-template-columns: 1fr;
-		}
-		.quick-features li {
-			max-width: 100%;
-		}
-		.reveal-controls > div,
-		.workshop-preview {
-			align-items: stretch;
-			flex-direction: column;
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		*,
-		*::before,
-		*::after {
-			animation: none !important;
+		.stage-actions {
+			position: absolute;
 		}
 	}
 </style>

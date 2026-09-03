@@ -40,6 +40,8 @@ export type SageEvent =
 	| 'concept-summoning'
 	| 'concept-revealed'
 	| 'concepts-complete'
+	| 'concept-mail-skipped'
+	| 'concept-trashed'
 	| 'feature-changed'
 	| 'feature-blocked'
 	| 'project-selected'
@@ -499,6 +501,32 @@ const LINES: Record<SageEvent, SageLine[]> = {
 			id: 'portfolio-3',
 			text: 'My guesses are complete. One of them is probably legal.',
 			mood: 'delighted'
+		}
+	],
+	'concept-mail-skipped': [
+		{
+			id: 'mail-skip-1',
+			text: 'You skipped my entire mail performance. I had timing. I had subtext. Unbelievable.',
+			mood: 'irritated',
+			sound: 'error'
+		},
+		{
+			id: 'mail-skip-2',
+			text: 'Fine. All four attachments are open. Cinema is dead and you killed it.',
+			mood: 'defeated',
+			sound: 'error'
+		}
+	],
+	'concept-trashed': [
+		{
+			id: 'mail-trash-1',
+			text: 'Purl, the mortal hated that one. Stop putting hair in the attachments.',
+			mood: 'irritated'
+		},
+		{
+			id: 'mail-trash-2',
+			text: 'You do not want to make a bajillion dollars? Fine. Trash it.',
+			mood: 'smug'
 		}
 	],
 	'feature-changed': [
