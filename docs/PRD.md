@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 20 are complete and deployed. Slices 21 and 22 remain approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 21 are complete and deployed. Slice 22 remains approved and pending.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1360,6 +1360,19 @@ Slice 20 was completed and deployed on 2026-09-03 without changing plan generati
 - A hidden `credits.tmp` control opens a deliberately broken command window whose source and license fragments appear out of order. It points to the complete maintained local asset ledger and identifies demo-only assets before public release.
 - Random interruption windows pause once the finished score room appears, keeping the reveal and final controls readable. The leaderboard, paywall, credits sequence, report, and score machine use internal overflow only; the document and body remain exactly viewport-sized at 1,024 pixels.
 - Automated verification passed Svelte diagnostics, 119 unit tests, formatting, lint, and a production build. Browser verification covered timed score and modifier reveals, the fake invoice resolution, real PDF request, fragmented credits, accepted and duplicate leaderboard submissions, Sage visibility, viewport containment, and console errors.
+
+### 19.12 Slice 21 completion record
+
+Slice 21 was completed and deployed on 2026-09-03 without changing password verification, cookie security, login rate limits, or local project persistence.
+
+- The old split marketing-style password page is replaced by one chunky CRT. A short BIOS sequence mounts forbidden ideas, checks wizard peripherals, and opens the private divination port before revealing a command-line password prompt.
+- Password submission still uses the existing server action, scrypt hash, generic validation response, rate limiter, and secure session cookie. The visible command line masks entered characters and never stores the password in browser storage.
+- Failed attempts select a local prewritten command-line reaction without an AI call. The joke text cannot reveal whether a guessed credential was close and does not replace the server's validation.
+- A successful fresh login runs a full sign-in performance: resume messages, CRT flash, a distinct title card, and then the compact game menu. An already authenticated reload uses the shortened warm-return sequence.
+- The main menu offers `Continue prophecy` only when a valid local save exists and names both the saved project and current workflow activity. `New divination`, `Token-free demo`, and `Lock workshop` remain available without an account.
+- Replacing a save from the menu requires an in-theme confirmation. New and demo runs reuse the existing complete reset path, including token ledgers, interruptions, project state, audio state, and the chair-fall reset signal.
+- Up and Down move keyboard focus through the main choices, standard Enter activates them, and every path remains mouse operable. The covered game is inert while the menu is open, so assistive navigation cannot enter controls behind the overlay.
+- Automated verification passed Svelte diagnostics, 119 unit tests, formatting, lint, and a production build. Browser verification covered the timed unauthenticated boot, masked login, randomized wrong-password response, successful fresh-login sequence, shortened return, empty and saved menus, keyboard navigation, save-replacement confirmation, logout, fixed viewport containment, and console errors.
 
 ## 20. Risks and mitigations
 

@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
 	import ChaosLayer from '$lib/components/ChaosLayer.svelte';
 	import FinalizationRoom from '$lib/components/FinalizationRoom.svelte';
+	import LoginTerminal from '$lib/components/LoginTerminal.svelte';
+	import MainMenu from '$lib/components/MainMenu.svelte';
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
 	import SageStage from '$lib/components/SageStage.svelte';
@@ -140,6 +141,8 @@
 	let previewMuted = $state(true);
 	let previewCalm = $state(false);
 	let resetWorldSignal = $state(0);
+	let mainMenuOpen = $state(true);
+	let resetIntent = $state<'menu' | 'new' | 'demo'>('menu');
 	let oracleAudio: OracleAudio | null = null;
 	let reducedMotionApplied = false;
 	const stagePreview = createProject(new Date(0), 'stage-preview');
@@ -396,6 +399,7 @@
 
 	const enhanceLogin: SubmitFunction = () => {
 		submitting = true;
+		window.sessionStorage.setItem('ideation-akinator:login-attempted', '1');
 		return async ({ update }) => {
 			await update();
 			submitting = false;
@@ -462,6 +466,37 @@
 		if (!demoMode) return;
 		startOver();
 		beginDemo();
+	}
+
+	function continueFromMenu() {
+		mainMenuOpen = false;
+	}
+
+	function newFromMenu() {
+		if (project) startOver();
+		mainMenuOpen = false;
+	}
+
+	function demoFromMenu() {
+		if (project) startOver();
+		mainMenuOpen = false;
+		beginDemo();
+	}
+
+	function requestStartOver() {
+		resetIntent = 'menu';
+		resetDialog?.showModal();
+	}
+
+	function confirmStartOver() {
+		const intent = resetIntent;
+		startOver();
+		if (intent === 'menu') mainMenuOpen = true;
+		if (intent === 'new') mainMenuOpen = false;
+		if (intent === 'demo') {
+			mainMenuOpen = false;
+			beginDemo();
+		}
 	}
 
 	function sageContext(session: ProjectSession): SageContext {
@@ -1974,71 +2009,26 @@
 <div class="star-field" aria-hidden="true"></div>
 
 {#if !data.authenticated}
-	<main class="gate-page">
-		<section class="gate-window" aria-labelledby="gate-title">
-			<div class="window-bar">
-				<span class="window-title">IDEA_ORACLE.EXE</span>
-				<span class="window-controls" aria-hidden="true"><i></i><i></i><i></i></span>
-			</div>
-
-			<div class="gate-grid">
-				<div class="sage-stage">
-					<span class="spark spark-one" aria-hidden="true">+</span>
-					<span class="spark spark-two" aria-hidden="true">+</span>
-					<img
-						class="sage-image"
-						src="/images/signal-sage.png"
-						alt="The Signal Sage, a friendly wizard with an old computer monitor for a head"
-					/>
-					<p class="character-label">THE SIGNAL SAGE</p>
-				</div>
-
-				<div class="gate-copy">
-					<p class="eyebrow">A private workshop for unruly ideas</p>
-					<h1 id="gate-title">Ideation<br /><span>Akinator</span></h1>
-					<p class="lede">
-						Bring one messy problem. Leave with four researched directions and a plan you could
-						actually build.
-					</p>
-
-					{#if data.configurationReady}
-						<form class="password-form" method="POST" action="?/login" use:enhance={enhanceLogin}>
-							<label for="password">Speak the workshop password</label>
-							<div class="password-row">
-								<input
-									id="password"
-									name="password"
-									type="password"
-									autocomplete="current-password"
-									required
-								/>
-								<button class="pixel-button" type="submit" disabled={submitting}>
-									{submitting ? 'Consulting...' : 'Enter workshop'}
-								</button>
-							</div>
-							{#if form?.message}
-								<p class="form-message" role="alert">{form.message}</p>
-							{/if}
-						</form>
-					{:else}
-						<div class="setup-message" role="status">
-							The workshop owner still needs to configure its password secret.
-						</div>
-					{/if}
-
-					<p class="local-note">
-						<span aria-hidden="true">◆</span> One shared password. No accounts.
-					</p>
-				</div>
-			</div>
-		</section>
-		<p class="gate-footer">
-			Best viewed on a computer with at least one questionable desktop theme.
-		</p>
-	</main>
+	<LoginTerminal
+		configurationReady={data.configurationReady}
+		{submitting}
+		formMessage={form?.message ?? ''}
+		onSubmit={enhanceLogin}
+	/>
 {:else}
+	{#if mainMenuOpen}
+		<MainMenu
+			ready={stateReady}
+			{project}
+			onContinue={continueFromMenu}
+			onNew={newFromMenu}
+			onDemo={demoFromMenu}
+		/>
+	{/if}
 	<div
 		class="app-frame vertical-game"
+		inert={mainMenuOpen}
+		aria-hidden={mainMenuOpen}
 		class:dialogue-layout={visualProject.stage !== 'concepts'}
 		class:calm-mode={visualProject.personality.calmMode}
 		data-stage={visualProject.stage}
@@ -2106,7 +2096,7 @@
 							type="button"
 							onclick={() => {
 								pauseMenuOpen = false;
-								resetDialog?.showModal();
+								requestStartOver();
 							}}>Start over</button
 						>
 					{/if}
@@ -2959,7 +2949,7 @@
 						</button>
 
 						<div class="room-actions">
-							<button class="text-button" type="button" onclick={() => resetDialog?.showModal()}
+							<button class="text-button" type="button" onclick={requestStartOver}
 								>Start over</button
 							>
 							<button class="summon-button compact" type="button" onclick={goToPreferences}>
@@ -3365,7 +3355,7 @@
 								disabled={broadResearchIsActive}
 								onclick={goToPreferences}>← Back to preferences</button
 							>
-							<button class="text-button" type="button" onclick={() => resetDialog?.showModal()}
+							<button class="text-button" type="button" onclick={requestStartOver}
 								>Start over</button
 							>
 						</div>
@@ -3677,7 +3667,8 @@
 			<p>This removes the active project from this browser. It cannot be restored.</p>
 			<div class="dialog-actions">
 				<button class="text-button" value="cancel">Keep it</button>
-				<button class="danger-button" type="button" onclick={startOver}>Clear project</button>
+				<button class="danger-button" type="button" onclick={confirmStartOver}>Clear project</button
+				>
 			</div>
 		</form>
 	</dialog>
