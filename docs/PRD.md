@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 21 are complete and deployed. Slice 22 remains approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. All 22 slices are complete and deployed.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1373,6 +1373,16 @@ Slice 21 was completed and deployed on 2026-09-03 without changing password veri
 - Replacing a save from the menu requires an in-theme confirmation. New and demo runs reuse the existing complete reset path, including token ledgers, interruptions, project state, audio state, and the chair-fall reset signal.
 - Up and Down move keyboard focus through the main choices, standard Enter activates them, and every path remains mouse operable. The covered game is inert while the menu is open, so assistive navigation cannot enter controls behind the overlay.
 - Automated verification passed Svelte diagnostics, 119 unit tests, formatting, lint, and a production build. Browser verification covered the timed unauthenticated boot, masked login, randomized wrong-password response, successful fresh-login sequence, shortened return, empty and saved menus, keyboard navigation, save-replacement confirmation, logout, fixed viewport containment, and console errors.
+
+### 19.13 Slice 22 completion record
+
+Slice 22 was completed and deployed on 2026-09-03 after both token-free and real-provider acceptance runs through the public hostname.
+
+- A fresh token-free run exercised login, restart, every intake stage, broad and focused workstation performances, all interview and mail transitions, mouse and keyboard feature controls, final recalculation, the score room, fake invoice, real PDF, credits, hidden performance skips, and fixed-viewport behavior without spending provider tokens.
+- A separate real-provider run began with a workshop-tool location problem and completed intake analysis, a cited broad foothold, twelve generated interview questions, four meaningfully different concepts, project-file configuration, a cited configured-product investigation, final recalculation, and a 21-page cited PRD. The focused pass returned 18 sources plus contrary evidence and named gaps; the complete run recorded only its numeric token total in the local invoice ledger.
+- The public real run found and fixed four integration defects: Svelte's numeric-input coercion no longer breaks interview answers; synchronous concept and final-plan requests can no longer stack SDK retries beyond Cloudflare's edge limit; the nested project-file menu now accepts pointer input as well as keyboard input; and citation-heavy focused research has a five-minute asynchronous ceiling while remaining cancellable and responsive.
+- The score room preserved the server-signed completion contract, fake paywall, direct PDF handoff, internal report pagination, optional validated leaderboard, and viewport-sized document shell. The real report included requirements, architecture, prototype and production plans, competition, risks, validation, phases, and linked source citations.
+- Final verification passed Svelte diagnostics, 120 unit tests, formatting, lint, a production build, the deployment verifier, container hardening checks, public health and password-gate checks, PDF validation, asset loading, and fresh-browser console/error inspection at desktop widths.
 
 ## 20. Risks and mitigations
 

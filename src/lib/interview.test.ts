@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	createInterview,
 	makeInterviewAnswer,
+	parseNumericAnswerDraft,
 	parseInterviewNextRequest,
 	parseInterviewQuestion,
 	parseProjectInterview,
@@ -26,6 +27,13 @@ function question(overrides: Partial<InterviewQuestion> = {}): InterviewQuestion
 }
 
 describe('adaptive interview contracts', () => {
+	it('accepts numeric input values after Svelte coerces them from strings to numbers', () => {
+		expect(parseNumericAnswerDraft(2)).toBe(2);
+		expect(parseNumericAnswerDraft(' 2.5 ')).toBe(2.5);
+		expect(parseNumericAnswerDraft('')).toBeNull();
+		expect(parseNumericAnswerDraft('not-a-number')).toBeNull();
+	});
+
 	it.each([
 		question(),
 		question({ id: 'details', type: 'text', options: [] }),

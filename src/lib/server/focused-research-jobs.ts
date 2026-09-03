@@ -44,7 +44,11 @@ export class FocusedResearchJobManager {
 			options.sleep ??
 			((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
 		this.pollIntervalMs = options.pollIntervalMs ?? 1_500;
-		this.maximumRuntimeMs = options.maximumRuntimeMs ?? 180_000;
+		// Focused passes include the sealed feature set, budget validation, contrary
+		// evidence, and citations. The provider's background response can legitimately
+		// need more than three minutes, so keep the browser responsive and allow the
+		// asynchronous job a five-minute ceiling.
+		this.maximumRuntimeMs = options.maximumRuntimeMs ?? 300_000;
 		this.retentionMs = options.retentionMs ?? 30 * 60_000;
 		this.idFactory = options.idFactory ?? randomUUID;
 	}

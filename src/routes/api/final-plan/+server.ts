@@ -64,7 +64,9 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 
 	const startedAt = Date.now();
 	const model = env.OPENAI_FINAL_MODEL?.trim() || env.OPENAI_CONCEPT_MODEL?.trim() || DEFAULT_MODEL;
-	const openai = new OpenAI({ apiKey, timeout: 120_000, maxRetries: 1 });
+	// This endpoint is synchronous at the public edge, so one longer attempt is
+	// safer than SDK retries that can outlive Cloudflare's 180-second ceiling.
+	const openai = new OpenAI({ apiKey, timeout: 150_000, maxRetries: 0 });
 	const tokenUsage = emptyTokenUsage();
 	try {
 		const result = await generateFinalProjectPlan(

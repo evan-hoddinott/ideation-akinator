@@ -52,9 +52,9 @@ The checks cover DNS, local and public health, the anonymous password screen, an
 
 ## Last acceptance pass
 
-On 2026-09-02, a fresh authenticated browser session completed the public token-free walkthrough from intake through restart. The run checked both research performances, the interview, four concepts, feature selection, focused research, recalculation, the finished report, and the downloaded PDF. It produced no console errors or failed browser requests. The only application API call in demo mode was the successful PDF request.
+On 2026-09-03, fresh authenticated browser sessions completed both the public token-free walkthrough and a separate real-provider workflow. The real run covered intake analysis, cited broad research, twelve adaptive questions, four concepts, mouse-operated feature selection, cited focused research, final recalculation, the score room, fake invoice, report viewer, and a valid 21-page PDF. The token-free run covered the same stage choreography, hidden skips, keyboard controls, credits, and restart path without provider calls.
 
-The downloaded PDF was rendered page by page for inspection. A footer-boundary bug found during that pass was fixed and redeployed. The final file contained nine populated pages with no blank tail. `/favicon.ico`, local and public `/health`, and the application container also returned successfully after the replacement.
+The pass fixed numeric interview input after browser coercion, eliminated a Cloudflare timeout race on long synchronous model calls, restored pointer events to the nested feature menu, and gave asynchronous focused research enough time for citation-heavy responses. The final browser check had a 1,440 by 900 viewport-sized document, no console errors, and no page errors. Local and public health, the password gate, API rejection, loopback binding, container health and hardening, tunnel reachability, and legacy-service retirement passed the deployment verifier after the replacement.
 
 ## Password and signing-secret changes
 

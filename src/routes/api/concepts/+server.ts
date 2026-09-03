@@ -68,7 +68,10 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 
 	const startedAt = Date.now();
 	const model = env.OPENAI_CONCEPT_MODEL?.trim() || DEFAULT_MODEL;
-	const openai = new OpenAI({ apiKey, timeout: 90_000, maxRetries: 1 });
+	// Keep the whole request below Cloudflare's 180-second proxy ceiling. A retry at
+	// the SDK layer can otherwise turn one slow 90-second generation into a valid
+	// response that arrives just after the edge has already returned a 524.
+	const openai = new OpenAI({ apiKey, timeout: 150_000, maxRetries: 0 });
 	const tokenUsage = emptyTokenUsage();
 	try {
 		const result = await generateConceptPortfolio(

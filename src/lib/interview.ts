@@ -78,6 +78,13 @@ export function createInterview(): ProjectInterview {
 	};
 }
 
+export function parseNumericAnswerDraft(value: string | number): number | null {
+	const normalized = String(value).trim();
+	if (normalized === '') return null;
+	const parsed = Number(normalized);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function parseInterviewQuestion(value: unknown): InterviewQuestion | null {
 	if (!isRecord(value)) return null;
 	if (

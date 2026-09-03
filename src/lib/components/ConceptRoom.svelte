@@ -498,7 +498,8 @@
 		font-family: 'Tomo', 'Silkscreen', 'Courier New', monospace;
 		color: #111;
 	}
-	.mail-stage > * {
+	.mail-stage > *,
+	.mail-stage > :global(.rpg-workshop) {
 		pointer-events: auto;
 	}
 	.summoning-screen {

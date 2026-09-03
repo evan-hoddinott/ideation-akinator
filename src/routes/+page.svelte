@@ -49,6 +49,7 @@
 	import {
 		createInterview,
 		makeInterviewAnswer,
+		parseNumericAnswerDraft,
 		parseInterviewNextResult,
 		type InterviewAnswer,
 		type InterviewAnswerStatus,
@@ -1422,7 +1423,7 @@
 		if (question.type === 'single-choice') return customAnswerOpen ? null : singleAnswer;
 		if (question.type === 'multiple-choice') return multipleAnswer;
 		if (question.type === 'yes-no') return yesNoAnswer;
-		return numberAnswer.trim() === '' ? null : Number(numberAnswer);
+		return parseNumericAnswerDraft(numberAnswer);
 	}
 
 	function toggleMultipleAnswer(id: string, checked: boolean) {
