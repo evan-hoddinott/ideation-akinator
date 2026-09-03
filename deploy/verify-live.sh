@@ -72,7 +72,7 @@ grep -q '"status":"ok"' "$work_dir/public-health.json" || fail "public health re
 pass "public health response reaches the app"
 
 curl --fail --silent --show-error "$origin/" >"$work_dir/public-root.html"
-grep -q 'Speak the workshop password' "$work_dir/public-root.html" || fail "anonymous visitors see the password gate"
+grep -q 'login-crt' "$work_dir/public-root.html" || fail "anonymous visitors see the password gate"
 pass "anonymous visitors see the password gate"
 
 unauthorized_status=$(curl --silent --show-error \
@@ -173,7 +173,7 @@ if [ "$check_auth" = true ]; then
 
 	curl --fail --silent --show-error \
 		--cookie "$work_dir/cookies.txt" "$origin/" >"$work_dir/session-root.html"
-	grep -q 'Speak the workshop password' "$work_dir/session-root.html" && \
+	grep -q 'login-crt' "$work_dir/session-root.html" && \
 		fail "authenticated session returned to the password gate"
 	grep -q 'Lock workshop' "$work_dir/session-root.html" || \
 		fail "authenticated session reaches the workshop"
@@ -181,7 +181,7 @@ if [ "$check_auth" = true ]; then
 
 	curl --fail --silent --show-error \
 		--cookie "$work_dir/cookies.txt" "$origin/" >"$work_dir/session-refresh.html"
-	grep -q 'Speak the workshop password' "$work_dir/session-refresh.html" && \
+	grep -q 'login-crt' "$work_dir/session-refresh.html" && \
 		fail "refreshed session returned to the password gate"
 	grep -q 'Lock workshop' "$work_dir/session-refresh.html" || \
 		fail "authenticated session survives refresh"
