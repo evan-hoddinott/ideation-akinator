@@ -792,6 +792,38 @@ body {
 		radial-gradient(circle at 78% 22%, rgb(82 53 145 / 25%), transparent 29rem),
 		linear-gradient(145deg, #08051b 0%, #0e0827 45%, #070416 100%);
 }
+
+/* Temporary intrusions inherit the current internet layer. The Sage's own RPG box does not. */
+.app-frame[data-era='dos-bbs'] .joke-popup,
+.app-frame[data-era='personal-web'] .joke-popup {
+	color: #4cff7b;
+	background: #00160a;
+	border-color: #42bd67;
+}
+
+.app-frame[data-era='geocities'] .joke-popup,
+.app-frame[data-era='myspace'] .joke-popup {
+	background: linear-gradient(135deg, #ff68d8, #69ffff, #fff56a);
+}
+
+.app-frame[data-era='windows-xp'] .joke-popup {
+	border-radius: 8px 8px 0 0;
+	border-color: #4b84e8;
+}
+
+.app-frame[data-era='cloud'] .joke-popup,
+.app-frame[data-era='algorithmic'] .joke-popup {
+	border: 1px solid #bcc8d8;
+	border-radius: 12px;
+	box-shadow: 0 18px 50px #12253d55;
+}
+
+.app-frame[data-era='ai-slop'] .joke-popup {
+	border: 1px solid white;
+	border-radius: 18px;
+	background: linear-gradient(145deg, #ffffffed, #eeeaffed);
+	box-shadow: 0 24px 70px #695ce844;
+}
 button,
 input,
 textarea {

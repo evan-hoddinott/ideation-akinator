@@ -14,7 +14,16 @@ export class OracleAudio {
 	private cueGain: GainNode | null = null;
 	private notes: MidiNote[] = [];
 	private loopTimer: number | null = null;
+	private musicOscillators = new Set<OscillatorNode>();
 	private enabled = false;
+	private eraIndex = 0;
+
+	setEra(index: number): void {
+		const next = Math.max(0, Math.min(13, Math.floor(index)));
+		if (next === this.eraIndex) return;
+		this.eraIndex = next;
+		if (this.enabled && this.notes.length > 0) this.startMusic();
+	}
 
 	async setEnabled(enabled: boolean): Promise<void> {
 		this.enabled = enabled;
@@ -102,14 +111,15 @@ export class OracleAudio {
 		if (this.musicGain) this.musicGain.gain.setValueAtTime(0.025, this.context.currentTime);
 		const playLoop = () => {
 			if (!this.enabled || !this.context) return;
+			const voice = eraVoice(this.eraIndex);
 			const start = this.context.currentTime + 0.06;
 			for (const note of this.notes) {
 				this.scheduleTone(
 					start + note.time,
-					midiFrequency(note.note),
-					Math.min(note.duration, 0.32),
-					0.015 + note.velocity * 0.025,
-					'square',
+					midiFrequency(note.note + voice.transpose),
+					Math.min(note.duration, voice.maxDuration),
+					voice.volume + note.velocity * voice.velocityGain,
+					voice.waveform,
 					this.musicGain
 				);
 			}
@@ -121,6 +131,14 @@ export class OracleAudio {
 	private stopMusic(): void {
 		if (this.loopTimer !== null) window.clearTimeout(this.loopTimer);
 		this.loopTimer = null;
+		for (const oscillator of this.musicOscillators) {
+			try {
+				oscillator.stop();
+			} catch {
+				// An oscillator that has already ended needs no further cleanup.
+			}
+		}
+		this.musicOscillators.clear();
 		if (this.musicGain && this.context) {
 			this.musicGain.gain.cancelScheduledValues(this.context.currentTime);
 			this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
@@ -145,9 +163,73 @@ export class OracleAudio {
 		gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
 		oscillator.connect(gain);
 		gain.connect(destination);
+		if (destination === this.musicGain) {
+			this.musicOscillators.add(oscillator);
+			oscillator.addEventListener('ended', () => this.musicOscillators.delete(oscillator), {
+				once: true
+			});
+		}
 		oscillator.start(when);
 		oscillator.stop(when + duration + 0.02);
 	}
+}
+
+function eraVoice(index: number): {
+	waveform: OscillatorType;
+	transpose: number;
+	maxDuration: number;
+	volume: number;
+	velocityGain: number;
+} {
+	if (index <= 1)
+		return {
+			waveform: 'square',
+			transpose: -12,
+			maxDuration: 0.12,
+			volume: 0.008,
+			velocityGain: 0.018
+		};
+	if (index <= 3)
+		return {
+			waveform: 'square',
+			transpose: 0,
+			maxDuration: 0.22,
+			volume: 0.01,
+			velocityGain: 0.022
+		};
+	if (index <= 5)
+		return {
+			waveform: 'triangle',
+			transpose: 0,
+			maxDuration: 0.3,
+			volume: 0.012,
+			velocityGain: 0.024
+		};
+	if (index <= 7)
+		return {
+			waveform: 'sawtooth',
+			transpose: 12,
+			maxDuration: 0.18,
+			volume: 0.008,
+			velocityGain: 0.016
+		};
+	if (index <= 9)
+		return {
+			waveform: 'triangle',
+			transpose: 12,
+			maxDuration: 0.28,
+			volume: 0.009,
+			velocityGain: 0.018
+		};
+	if (index <= 11)
+		return { waveform: 'sine', transpose: 0, maxDuration: 0.42, volume: 0.012, velocityGain: 0.02 };
+	return {
+		waveform: 'sine',
+		transpose: -12,
+		maxDuration: 0.58,
+		volume: 0.014,
+		velocityGain: 0.024
+	};
 }
 
 export function parseMidiNotes(buffer: ArrayBuffer): MidiNote[] {

@@ -25,6 +25,14 @@ describe('Sage stage direction', () => {
 		expect(projectAltitude(project)).toBeGreaterThan(startingAltitude);
 	});
 
+	it('lets evidence and the final verdict move altitude in either direction', () => {
+		const project = createProject();
+		project.stage = 'focused';
+		const emptyFocusedAltitude = projectAltitude(project);
+		project.finalization.research.status = 'running';
+		expect(projectAltitude(project)).toBeGreaterThan(emptyFocusedAltitude);
+	});
+
 	it('maps strong reactions to distinct animation clips', () => {
 		expect(clipForMood('delighted')).toBe('reveal');
 		expect(clipForMood('irritated')).toBe('weak_answer');

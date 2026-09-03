@@ -3,13 +3,13 @@ import type { SageMood } from '$lib/personality';
 import { CLARITY_LABELS } from '$lib/intake-insights';
 
 export const STAGE_ALTITUDES: Record<WorkflowStage, number> = {
-	welcome: 0.04,
-	problem: 0.16,
-	preferences: 0.4,
-	research: 0.65,
-	questions: 0.84,
-	concepts: 0.95,
-	focused: 0.98
+	welcome: 0.015,
+	problem: 0.065,
+	preferences: 0.2,
+	research: 0.34,
+	questions: 0.48,
+	concepts: 0.68,
+	focused: 0.82
 };
 
 export type SageClip =
@@ -162,11 +162,11 @@ export function projectAltitude(project: ProjectSession): number {
 
 	if (project.stage === 'problem') {
 		const clarityLift = project.problemInput.clarityLabel
-			? CLARITY_LABELS.indexOf(project.problemInput.clarityLabel) * 0.016
+			? CLARITY_LABELS.indexOf(project.problemInput.clarityLabel) * 0.018
 			: 0;
 		const problemLift = Math.min(
 			project.problemInput.cards.filter((card) => card.text.trim()).length * 0.008,
-			0.024
+			0.04
 		);
 		localLift = Math.max(0, clarityLift) + problemLift;
 	}
@@ -176,20 +176,42 @@ export function projectAltitude(project: ProjectSession): number {
 			(project.preferences.technologyTags.length +
 				project.preferences.selectedIndustryTags.length) *
 				0.005,
-			0.05
+			0.1
 		);
+		if (project.preferences.prototypeBudgetUsd !== null) localLift += 0.018;
 	}
 
 	if (project.stage === 'research') {
-		localLift = project.research.result ? 0.07 : project.research.status === 'running' ? 0.035 : 0;
+		localLift = project.research.result ? 0.11 : project.research.status === 'running' ? 0.055 : 0;
+		if (project.research.result) {
+			localLift -= Math.min(project.research.result.gaps.length * 0.006, 0.03);
+			localLift += Math.min(project.research.result.findings.length * 0.004, 0.025);
+		}
 	}
 
 	if (project.stage === 'questions') {
 		const total = Math.max(project.interview.questions.length, 1);
-		localLift = Math.min((project.interview.answers.length / total) * 0.09, 0.09);
+		localLift = Math.min((project.interview.answers.length / total) * 0.15, 0.15);
+		if (project.interview.confidence === 'reduced') localLift -= 0.025;
 	}
 
-	return Math.min(STAGE_ALTITUDES[project.stage] + localLift, 0.97);
+	if (project.stage === 'concepts') {
+		if (project.concepts.portfolio) localLift += 0.075;
+		if (project.featureWorkshop.status === 'confirmed') localLift += 0.07;
+	}
+
+	if (project.stage === 'focused') {
+		const result = project.finalization.research.result;
+		if (project.finalization.research.status === 'running') localLift += 0.045;
+		if (result) {
+			localLift +=
+				result.verdict === 'supported' ? 0.1 : result.verdict === 'caution' ? 0.065 : 0.025;
+			localLift -= Math.min(result.gaps.length * 0.004, 0.02);
+		}
+		if (project.finalization.plan) localLift += 0.08;
+	}
+
+	return Math.max(0, Math.min(STAGE_ALTITUDES[project.stage] + localLift, 0.995));
 }
 
 export function clipForMood(mood: SageMood): SageClip {

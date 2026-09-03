@@ -73,6 +73,7 @@
 	import { buildProjectReport, safeReportFilename } from '$lib/report';
 	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
 	import { DEMO_RESEARCH_DURATION_MS, startVisibleTimer } from '$lib/research-performance';
+	import { internetEraForAltitude, internetEraIndex } from '$lib/internet-era';
 	import { projectAltitude } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
@@ -135,6 +136,7 @@
 	let sageVoiceEnergy = $state(0.5);
 	let previewMuted = $state(true);
 	let previewCalm = $state(false);
+	let resetWorldSignal = $state(0);
 	let oracleAudio: OracleAudio | null = null;
 	let reducedMotionApplied = false;
 	const stagePreview = createProject(new Date(0), 'stage-preview');
@@ -150,6 +152,8 @@
 	);
 	const demoMode = $derived(isDemoProject(project));
 	const sageAltitude = $derived(project ? projectAltitude(project) : 0.04);
+	const worldEra = $derived(internetEraForAltitude(sageAltitude));
+	const worldEraIndex = $derived(internetEraIndex(sageAltitude));
 	const finalReport = $derived(project ? buildProjectReport(project) : null);
 
 	const insightSignature = $derived(
@@ -288,6 +292,10 @@
 			...project,
 			personality: { ...project.personality, calmMode: true }
 		});
+	});
+
+	$effect(() => {
+		oracleAudio?.setEra(worldEraIndex);
 	});
 
 	$effect(() => {
@@ -483,6 +491,7 @@
 	function playSageCue(cue: SageSoundCue) {
 		if (!project || project.personality.muted) return;
 		oracleAudio ??= new OracleAudio();
+		oracleAudio.setEra(worldEraIndex);
 		oracleAudio.playCue(cue);
 	}
 
@@ -491,6 +500,7 @@
 		sageVoiceEnergy = Math.min(1, Math.max(0.15, profile.volume / 0.05));
 		if (visualProject.personality.muted) return;
 		oracleAudio ??= new OracleAudio();
+		oracleAudio.setEra(worldEraIndex);
 		oracleAudio.playVoice(profile);
 	}
 
@@ -502,6 +512,7 @@
 		if (!project) {
 			previewMuted = !previewMuted;
 			oracleAudio ??= new OracleAudio();
+			oracleAudio.setEra(worldEraIndex);
 			void oracleAudio.setEnabled(!previewMuted);
 			if (!previewMuted) oracleAudio.playCue('reveal');
 			return;
@@ -512,6 +523,7 @@
 			personality: { ...project.personality, muted }
 		});
 		oracleAudio ??= new OracleAudio();
+		oracleAudio.setEra(worldEraIndex);
 		void oracleAudio.setEnabled(!muted);
 		if (!muted) oracleAudio.playCue('reveal');
 	}
@@ -1876,6 +1888,7 @@
 	}
 
 	function startOver() {
+		resetWorldSignal += 1;
 		const retainedMuted = project?.personality.muted ?? previewMuted;
 		const retainedCalm = project?.personality.calmMode ?? previewCalm;
 		void cancelResearchJob(true);
@@ -2000,11 +2013,14 @@
 		class:dialogue-layout={visualProject.stage !== 'concepts'}
 		class:calm-mode={visualProject.personality.calmMode}
 		data-stage={visualProject.stage}
+		data-era={worldEra}
 	>
 		<VerticalWorld
 			altitude={sageAltitude}
 			stage={visualProject.stage}
 			calm={visualProject.personality.calmMode}
+			resetSignal={resetWorldSignal}
+			onInteract={() => playSageCue('blip')}
 		/>
 		{#if stateReady}
 			<SageStage
@@ -2014,6 +2030,7 @@
 				speaking={sageSpeaking}
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
+				resetSignal={resetWorldSignal}
 				allowPopup={!!project && project.stage !== 'welcome' && !researchIsActive}
 				onSecret={findForbiddenFloppy}
 			/>

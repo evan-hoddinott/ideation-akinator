@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 16 are complete and deployed. Slices 17 through 22 remain approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 17 are complete and deployed. Slices 18 through 22 remain approved and pending.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1303,6 +1303,19 @@ Slice 16 was completed and deployed on 2026-09-03 without changing the research 
 - A completed job interrupts the Sage, starts the printer, invokes the federal yellow tracking-dot joke, and ends with a close-camera paper handoff. The player can take the summary or open the complete cited research document. Entrance and handoff theatrics happen once per pass.
 - Calm mode exposes the same honest job state, counts, completion summary, research document, and continuation controls in a compact motion-free presentation.
 - Automated verification passed Svelte diagnostics, 107 unit tests, formatting, lint, and a production build. A browser walkthrough covered the complete broad performance and handoff, distinct focused scenes, hidden focused-demo skip, live model and asset loading, and console errors.
+
+### 19.8 Slice 17 completion record
+
+Slice 17 was completed and deployed on 2026-09-03 without exposing the hidden product estimate or changing any workflow contract.
+
+- The former four-stage background is replaced by one fourteen-screen connected climb: DOS and BBS, personal pages, GeoCities, AOL and Windows 98, dot-com advertising, Windows XP, Flash games, MySpace, early web video, social and mobile feeds, cloud software, the algorithmic web, intentional AI-slop parody, and the cosmic uplink.
+- Every era contains its own furniture, windows, infrastructure, props, and period visual language. Coarse early pixels yield to desktop chrome, glossy phones, cloud consoles, feed cards, and finally the openly mocked modern gradient layer. The Sage and RPG dialogue remain visually consistent.
+- Product altitude is now continuous within the workflow. Clarity, problem detail, captured constraints, research findings and gaps, interview completeness, concept readiness, the sealed configuration, focused verdict, and final plan can raise or lower the Sage without revealing a numeric score.
+- The Sage moves first and the slower camera follows through foreground and distant parallax layers. Era boundaries remain simultaneously visible during travel and use a coarse dither band rather than a clean scene cut. Player wheel or page scrolling never controls the camera.
+- Optional scenery objects in several eras provide short local reactions with mouse-accessible controls. Temporary popup chrome inherits selected era styling while the Sage's dialogue box remains unchanged.
+- Reset now poofs the chair away, drops the Sage through the connected world, moves the camera to the DOS floor in stepped chunks, and deploys a replacement chair before returning to the new run's altitude.
+- The bundled MIDI composition now changes oscillator voice, register, note length, and intensity across seven period groups. Existing mute, Calm mode, user-gesture start, and hidden-tab suspension behavior still apply.
+- Automated verification passed Svelte diagnostics, 110 unit tests, formatting, lint, and a production build. Browser verification covered the DOS opening, optional scenery, multi-era ascent with a visible dither boundary, GeoCities and algorithmic scenes, reset fall, live Sage model, local assets, and console errors.
 
 ## 20. Risks and mitigations
 
