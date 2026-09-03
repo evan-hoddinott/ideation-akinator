@@ -236,6 +236,7 @@
 			let lastVoiceAt = 0;
 			let smoothedCursorX = 0;
 			let smoothedCursorY = 0;
+			let researchTurn = 0;
 			const eyeLeft = sage.getObjectByName('EyeLeft');
 			const eyeRight = sage.getObjectByName('EyeRight');
 			const mouth = sage.getObjectByName('Mouth');
@@ -293,7 +294,8 @@
 				const steppedTime = Math.floor(actionTime * actionFps) / actionFps;
 				mixer.setTime(steppedTime);
 				presentation.position.y = Math.sin(elapsed * 1.7) * 0.035;
-				presentation.rotation.y = (researching ? -0.52 : 0) + Math.sin(elapsed * 0.7) * 0.018;
+				researchTurn += ((researching ? Math.PI : 0) - researchTurn) * Math.min(delta * 2.2, 1);
+				presentation.rotation.y = researchTurn + Math.sin(elapsed * 0.7) * 0.018;
 
 				if (voicePulse !== lastVoicePulse) {
 					lastVoicePulse = voicePulse;
@@ -307,6 +309,7 @@
 				const authoredPerformance = actionName !== 'idle';
 				const gazeWeight = authoredPerformance ? 0.18 : 1;
 				if (headBone) {
+					if (researching) headBone.rotation.y -= researchTurn * 0.12;
 					headBone.rotation.y += smoothedCursorX * 0.12 * gazeWeight;
 					headBone.rotation.x += -smoothedCursorY * 0.075 * gazeWeight;
 					if (speaking) headBone.rotation.z += Math.sin(elapsed * 8.5) * 0.012;
@@ -481,7 +484,7 @@
 	}
 
 	.researching .sage-motion {
-		animation: sage-fetch-computer 1.8s steps(12, end) both;
+		animation: sage-fetch-computer 3.55s steps(22, end) both;
 	}
 
 	.sage-fallback {
@@ -656,20 +659,20 @@
 
 	@keyframes sage-fetch-computer {
 		0%,
-		14% {
+		8% {
 			transform: translateX(0) rotate(0);
 		}
-		36% {
+		28% {
 			transform: translateX(-115%) rotate(-6deg);
 		}
-		58% {
+		43% {
 			transform: translateX(-115%) rotate(-6deg);
 		}
-		84% {
-			transform: translateX(-8%) rotate(3deg);
+		76% {
+			transform: translateX(56%) rotate(3deg);
 		}
 		100% {
-			transform: translateX(-4%) rotate(1deg);
+			transform: translateX(52%) rotate(1deg);
 		}
 	}
 

@@ -27,6 +27,7 @@
 		message,
 		onStartResearch,
 		onCancelResearch,
+		onSkipResearch,
 		onGeneratePlan,
 		onDownloadPdf,
 		onBack,
@@ -47,6 +48,7 @@
 		message: string;
 		onStartResearch: () => void;
 		onCancelResearch: () => void;
+		onSkipResearch: () => void;
 		onGeneratePlan: () => void;
 		onDownloadPdf: () => void;
 		onBack: () => void;
@@ -55,6 +57,9 @@
 	} = $props();
 
 	let researchOpen = $state(false);
+	let researchPerformanceOpen = $state(false);
+	let researchPerformanceSkipped = $state(false);
+	let researchWasActive = false;
 	let planOpen = $state(false);
 	let reportOpen = $state(false);
 	const active = $derived(
@@ -74,6 +79,26 @@
 			maximumFractionDigits: 0
 		}).format(value);
 	const source = (id: string) => result?.sources.find((entry) => entry.id === id);
+
+	$effect(() => {
+		if (active && !researchWasActive) {
+			researchPerformanceOpen = true;
+			researchPerformanceSkipped = false;
+		}
+		researchWasActive = active;
+	});
+
+	function beginResearch() {
+		researchPerformanceOpen = true;
+		researchPerformanceSkipped = false;
+		onStartResearch();
+	}
+
+	function skipResearchPerformance() {
+		researchPerformanceOpen = false;
+		researchPerformanceSkipped = true;
+		onSkipResearch();
+	}
 </script>
 
 {#if finalization.research.status === 'idle'}
@@ -101,20 +126,32 @@
 					type="button"
 					class="primary"
 					disabled={researchBusy}
-					onclick={onStartResearch}
+					onclick={beginResearch}
 					>{researchBusy ? 'Finding the large computer...' : 'Research this exact build'}</button
 				>
 			</div>
 		</div>
 	</SageDialogue>
-{:else if active}
+{:else if active || (result && researchPerformanceOpen)}
 	<ResearchWorkstation
 		active={true}
-		calm={personality.calmMode}
+		calm={personality.calmMode || researchPerformanceSkipped}
 		{projectId}
+		task="focused"
 		{message}
 		sourceCount={result?.sources.length ?? 0}
+		complete={!!result}
+		summary={result?.summary ?? ''}
+		findingCount={result?.findings.length ?? 0}
+		gapCount={result?.gaps.length ?? 0}
+		verdict={result?.verdict ?? ''}
 		onCancel={onCancelResearch}
+		onInspect={() => {
+			researchPerformanceOpen = false;
+			researchOpen = true;
+		}}
+		onContinue={() => (researchPerformanceOpen = false)}
+		onSkip={skipResearchPerformance}
 	/>
 {:else if result}
 	<SageDialogue

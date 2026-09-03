@@ -72,6 +72,7 @@
 	} from '$lib/project-state';
 	import { buildProjectReport, safeReportFilename } from '$lib/report';
 	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
+	import { DEMO_RESEARCH_DURATION_MS, startVisibleTimer } from '$lib/research-performance';
 	import { projectAltitude } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
@@ -125,6 +126,8 @@
 	let problemReviewOpen = $state(false);
 	let preferenceReviewOpen = $state(false);
 	let researchScrollOpen = $state(false);
+	let broadResearchPerformanceOpen = $state(false);
+	let broadResearchSkipped = $state(false);
 	let preferenceStep = $state(0);
 	let pauseMenuOpen = $state(false);
 	let sageSpeaking = $state(false);
@@ -338,8 +341,7 @@
 		const status = project?.research.status;
 		if (!jobId || (status !== 'queued' && status !== 'running')) return;
 		if (isDemoProject(project)) {
-			const timer = window.setTimeout(() => completeDemoResearch(jobId), 4_500);
-			return () => window.clearTimeout(timer);
+			return startVisibleTimer(DEMO_RESEARCH_DURATION_MS.broad, () => completeDemoResearch(jobId));
 		}
 
 		const timer = window.setInterval(() => void pollResearchJob(jobId), 1_500);
@@ -351,8 +353,9 @@
 		const status = project?.finalization.research.status;
 		if (!jobId || (status !== 'queued' && status !== 'running')) return;
 		if (isDemoProject(project)) {
-			const timer = window.setTimeout(() => completeDemoFocusedResearch(jobId), 4_500);
-			return () => window.clearTimeout(timer);
+			return startVisibleTimer(DEMO_RESEARCH_DURATION_MS.focused, () =>
+				completeDemoFocusedResearch(jobId)
+			);
 		}
 		const timer = window.setInterval(() => void pollFocusedResearchJob(jobId), 1_500);
 		return () => window.clearInterval(timer);
@@ -580,6 +583,13 @@
 	function persistResearch(job: ResearchJobView) {
 		if (!project) return;
 		const previousStatus = project.research.status;
+		if (
+			(job.status === 'completed' || job.status === 'partial') &&
+			(previousStatus === 'queued' || previousStatus === 'running') &&
+			!broadResearchSkipped
+		) {
+			broadResearchPerformanceOpen = true;
+		}
 		project = saveProject(window.localStorage, {
 			...project,
 			completedStages:
@@ -969,6 +979,8 @@
 		}
 
 		researchBusy = true;
+		broadResearchPerformanceOpen = true;
+		broadResearchSkipped = false;
 		researchMessage = 'Opening the research room...';
 		project = saveProject(window.localStorage, {
 			...project,
@@ -1025,6 +1037,22 @@
 			return;
 		}
 		persistResearch(createDemoResearchJob('completed'));
+	}
+
+	function skipBroadResearchPerformance() {
+		if (!project) return;
+		broadResearchSkipped = true;
+		broadResearchPerformanceOpen = false;
+		performSageEvent('answer-skipped', project);
+		const jobId = project.research.jobId;
+		if (jobId && isDemoProject(project)) completeDemoResearch(jobId);
+	}
+
+	function skipFocusedResearchPerformance() {
+		if (!project) return;
+		performSageEvent('answer-skipped', project);
+		const jobId = project.finalization.research.jobId;
+		if (jobId && isDemoProject(project)) completeDemoFocusedResearch(jobId);
 	}
 
 	async function pollResearchJob(jobId: string) {
@@ -2366,14 +2394,25 @@
 									</div>
 								</div>
 							</SageDialogue>
-						{:else if broadResearchIsActive}
+						{:else if broadResearchIsActive || (project.research.result && broadResearchPerformanceOpen)}
 							<ResearchWorkstation
 								active={true}
-								calm={project.personality.calmMode}
+								calm={project.personality.calmMode || broadResearchSkipped}
 								projectId={project.id}
+								task="broad"
 								message={researchMessage}
 								sourceCount={researchSourceCount}
+								complete={!!project.research.result}
+								summary={project.research.result?.summary ?? ''}
+								findingCount={project.research.result?.findings.length ?? 0}
+								gapCount={project.research.result?.gaps.length ?? 0}
 								onCancel={() => cancelResearchJob()}
+								onInspect={() => {
+									broadResearchPerformanceOpen = false;
+									researchScrollOpen = true;
+								}}
+								onContinue={() => (broadResearchPerformanceOpen = false)}
+								onSkip={skipBroadResearchPerformance}
 							/>
 						{:else if project.research.result}
 							<SageDialogue
@@ -2684,6 +2723,7 @@
 								message={finalizationMessage}
 								onStartResearch={startFocusedResearch}
 								onCancelResearch={() => cancelFocusedResearch()}
+								onSkipResearch={skipFocusedResearchPerformance}
 								onGeneratePlan={generateFinalPlan}
 								onDownloadPdf={downloadFinalPdf}
 								onBack={returnToWorkshop}

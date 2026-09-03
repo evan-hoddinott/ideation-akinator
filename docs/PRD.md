@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 15 are complete and deployed. Slices 16 through 22 remain approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 16 are complete and deployed. Slices 17 through 22 remain approved and pending.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1291,6 +1291,18 @@ Slice 15 was completed and deployed on 2026-09-02 without changing the workflow 
 - The model has separate hat and robe secondary bones. Their small delayed motion runs between authored poses without making the seated character fidget continuously.
 - The Crystal RAM interruption now accepts real pointer input above the dialogue layer. The Sage notices it, winds up, strikes it with the correct side of his body, throws it offscreen, and triggers a stepped `WHAP!` impact before the secret reaction begins.
 - Automated verification passed Svelte diagnostics, 104 unit tests, formatting, lint, and a production build. Browser verification covered live model loading, mood expressions, speech motion, pointer tracking, the complete popup tutorial, fixed viewport dimensions, failed asset requests, and console errors.
+
+### 19.7 Slice 16 completion record
+
+Slice 16 was completed and deployed on 2026-09-03 without changing the research providers, evidence contracts, or saved workflow.
+
+- Both broad and focused research now stage the full fixed-camera workstation performance. The Sage exits, returns behind an oversized beige cart, parks badly, turns his chair around, and types with the existing spherical hands while the monitor remains visible to the player.
+- The cart now includes a CRT, tower, keyboard, rattling speakers, printer, cable snarl, suspect cup holder, worn wheels, and a real status strip that stays separate from the decorative screen.
+- Each project receives one deterministic shuffle of ten local joke scenes. Broad and focused research receive separate five-scene halves, so a decorative loop cannot repeat during the same run and never masquerades as evidence.
+- Token-free broad and focused passes now use different task-based waits approximating a real run. Their clocks pause while the tab is hidden. `Shift+S` remains an undisclosed performance skip: it completes a local demo immediately, leaves real work intact, and provokes a local Sage reaction.
+- A completed job interrupts the Sage, starts the printer, invokes the federal yellow tracking-dot joke, and ends with a close-camera paper handoff. The player can take the summary or open the complete cited research document. Entrance and handoff theatrics happen once per pass.
+- Calm mode exposes the same honest job state, counts, completion summary, research document, and continuation controls in a compact motion-free presentation.
+- Automated verification passed Svelte diagnostics, 107 unit tests, formatting, lint, and a production build. A browser walkthrough covered the complete broad performance and handoff, distinct focused scenes, hidden focused-demo skip, live model and asset loading, and console errors.
 
 ## 20. Risks and mitigations
 

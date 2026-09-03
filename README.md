@@ -53,7 +53,7 @@ The current live workflow was verified at `https://idea.battery.rip` on 2026-09-
 
 ## Token-free visual walkthrough
 
-After signing in, choose `Run the token-free visual demo`. The app loads a fictional campus-transit project and lets you click through the complete implemented flow, including focused research, final recalculation, the finished report, and PDF download, without calling any AI or research endpoint. The canned research uses clearly labeled illustrative links and must not be treated as live evidence.
+After signing in, choose `Run the token-free visual demo`. The app loads a fictional campus-transit project and lets you click through the complete implemented flow, including the full broad and focused workstation performances, final recalculation, the finished report, and PDF download, without calling any AI or research endpoint. The canned research uses clearly labeled illustrative links and must not be treated as live evidence.
 
 Use `Restart demo` in the header at any point to return to the prefilled problem stage. Starting a normal project continues to use the configured providers.
 
