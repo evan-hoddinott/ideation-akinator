@@ -23,9 +23,14 @@ services:
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
+    volumes:
+      - ideation-akinator-data:/data
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
     pids_limit: 256
     stop_grace_period: 30s
+
+volumes:
+  ideation-akinator-data:

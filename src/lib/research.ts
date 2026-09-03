@@ -72,6 +72,7 @@ export interface ResearchJobView {
 	expiresAt: string;
 	message: string | null;
 	result: BroadResearchResult | null;
+	tokenUsage: number;
 }
 
 export function parseBroadResearchRequest(value: unknown): BroadResearchRequest | null {
@@ -140,8 +141,15 @@ export function parseResearchJobView(value: unknown): ResearchJobView | null {
 		updatedAt: value.updatedAt,
 		expiresAt: value.expiresAt,
 		message: value.message,
-		result
+		result,
+		tokenUsage: parseTokenUsage(value.tokenUsage)
 	};
+}
+
+function parseTokenUsage(value: unknown): number {
+	return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 100_000_000
+		? value
+		: 0;
 }
 
 export function parseBroadResearchResult(value: unknown): BroadResearchResult | null {

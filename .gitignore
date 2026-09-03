@@ -10,6 +10,7 @@ build/
 dist/
 coverage/
 artifacts/
+.data/
 *.log
 
 # OS

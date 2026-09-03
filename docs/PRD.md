@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 19 are complete and deployed. Slices 20 through 22 remain approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 20 are complete and deployed. Slices 21 and 22 remain approved and pending.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1345,6 +1345,21 @@ Slice 19 was completed and deployed on 2026-09-03 without changing concept-gener
 - Random interruption windows pause during the authored concept-mail room so the Sage, the mail gag, and required project controls do not compete for the same space. The mail and feature windows stay offset so the Sage remains visibly present at desktop widths.
 - The downloaded AOL sample is stored locally and recorded in `docs/ASSETS.md` with its archive URL, hash, original voice credit, internal-demo-only rights status, and public-release replacement requirement.
 - Automated verification passed Svelte diagnostics, 114 unit tests, formatting, lint, and a production build. Browser verification covered notification delivery, sequential unlocks, attachment timing, Trash, the glitched stretch message, hidden skip, comparison, mouse and keyboard feature toggles, pagination, custom-file persistence, selection sealing, viewport containment, local audio loading, and console errors.
+
+### 19.11 Slice 20 completion record
+
+Slice 20 was completed and deployed on 2026-09-03 without changing plan generation, report contents, or the meaning of the saved project.
+
+- The final plan now resolves into one fixed-viewport score room with the Sage still visible as the primary character. Six disclosed factors produce a 100-point base estimate: problem clarity, evidence quality, differentiation, feasibility and budget fit, known-risk control, and interview completeness.
+- Secret run achievements reveal afterward as individual positive or negative multiplier cards. Their combined effect is capped, the unmodified score remains visible, and a stamped final label, local Sage verdict, and deliberately absurd valuation end the sequence.
+- The score service validates bounded completion inputs and recalculates the result on the server. It signs a 24-hour completion token instead of trusting a posted final number.
+- The optional global leaderboard accepts a short alias, rate-limits attempts, verifies the signed completion, recalculates the score, and consumes each deterministic completed-run identifier once. The board stores only the alias, project name, score, label, completion time, and demo marker.
+- Production leaderboard data lives in a dedicated named volume mounted at `/data` while the application root remains read-only. Development uses an ignored local data directory, and serialized atomic writes keep simultaneous submissions from replacing each other.
+- Every AI response now exposes only its numeric token total to the authenticated client. Sync calls and both asynchronous research jobs accumulate in a per-project local ledger without recording prompts or generated content; `Start over` removes the ledger.
+- `Download PRD` opens a fake Wizard+ invoice derived from the recorded token total. No payment endpoint or payment data exists. The gag always fails open to the real PDF download, while the report viewer cannot bypass the sequence.
+- A hidden `credits.tmp` control opens a deliberately broken command window whose source and license fragments appear out of order. It points to the complete maintained local asset ledger and identifies demo-only assets before public release.
+- Random interruption windows pause once the finished score room appears, keeping the reveal and final controls readable. The leaderboard, paywall, credits sequence, report, and score machine use internal overflow only; the document and body remain exactly viewport-sized at 1,024 pixels.
+- Automated verification passed Svelte diagnostics, 119 unit tests, formatting, lint, and a production build. Browser verification covered timed score and modifier reveals, the fake invoice resolution, real PDF request, fragmented credits, accepted and duplicate leaderboard submissions, Sage visibility, viewport containment, and console errors.
 
 ## 20. Risks and mitigations
 

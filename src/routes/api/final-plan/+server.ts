@@ -89,7 +89,9 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 			verdict: input.focusedResearch.verdict,
 			...tokenUsage
 		});
-		return json(result);
+		return json(result, {
+			headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+		});
 	} catch (error) {
 		const failureClass =
 			error instanceof InvalidFinalPlanResponseError ? 'invalid_model_output' : 'provider_error';
@@ -106,7 +108,10 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 				message:
 					'The recalculated project file did not stabilize. Focused research is saved, and you can retry.'
 			},
-			{ status: 502 }
+			{
+				status: 502,
+				headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+			}
 		);
 	}
 };

@@ -92,7 +92,9 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 			decision: result.decision,
 			...tokenUsage
 		});
-		return json(result);
+		return json(result, {
+			headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+		});
 	} catch (error) {
 		const failureClass =
 			error instanceof InvalidInterviewResponseError ? 'invalid_model_output' : 'provider_error';
@@ -109,7 +111,10 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 				code: failureClass,
 				message: 'The next question did not arrive. Your answers are saved, and you can retry.'
 			},
-			{ status: 502 }
+			{
+				status: 502,
+				headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+			}
 		);
 	}
 };

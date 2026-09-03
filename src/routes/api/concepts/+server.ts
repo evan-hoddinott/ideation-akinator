@@ -93,7 +93,9 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 			conceptCount: result.concepts.length,
 			...tokenUsage
 		});
-		return json(result);
+		return json(result, {
+			headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+		});
 	} catch (error) {
 		const failureClass =
 			error instanceof InvalidConceptResponseError ? 'invalid_model_output' : 'provider_error';
@@ -110,7 +112,10 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 				code: failureClass,
 				message: 'The four futures did not stabilize. Your interview is saved, and you can retry.'
 			},
-			{ status: 502 }
+			{
+				status: 502,
+				headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+			}
 		);
 	}
 };

@@ -77,6 +77,7 @@ export class FocusedResearchJobManager {
 			expiresAt: new Date(now + this.retentionMs).toISOString(),
 			message: null,
 			result: null,
+			tokenUsage: 0,
 			provider,
 			providerResponseId: null,
 			cancelRequested: false,
@@ -120,10 +121,12 @@ export class FocusedResearchJobManager {
 			try {
 				let snapshot = await job.provider.start(job.request);
 				usage = snapshot.usage ?? usage;
+				job.tokenUsage = usage?.totalTokens ?? job.tokenUsage;
 				job.providerResponseId = snapshot.id;
 				this.update(job, 'running', 'researching', null);
 				snapshot = await this.waitForTerminal(job, snapshot, startedAt);
 				usage = snapshot.usage ?? usage;
+				job.tokenUsage = usage?.totalTokens ?? job.tokenUsage;
 				if (job.cancelRequested || snapshot.status === 'cancelled') {
 					this.update(
 						job,
@@ -241,7 +244,8 @@ function toView(job: InternalFocusedResearchJob): FocusedResearchJobView {
 		updatedAt: job.updatedAt,
 		expiresAt: job.expiresAt,
 		message: job.message,
-		result: job.result
+		result: job.result,
+		tokenUsage: job.tokenUsage
 	};
 }
 

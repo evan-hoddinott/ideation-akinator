@@ -224,7 +224,8 @@ export function createDemoResearchJob(
 			status === 'completed'
 				? 'The canned demo brief is ready. No web search or AI call occurred.'
 				: 'Playing the local research performance. No web search or AI call is running.',
-		result: status === 'completed' ? createDemoResearchResult(now) : null
+		result: status === 'completed' ? createDemoResearchResult(now) : null,
+		tokenUsage: 0
 	};
 }
 
@@ -387,7 +388,8 @@ export function createDemoFocusedResearchJob(
 			status === 'completed'
 				? 'The canned configured-project brief is ready. No web search occurred.'
 				: 'Playing the local focused research performance. No AI call is running.',
-		result: status === 'completed' ? createDemoFocusedResearchResult(request, now) : null
+		result: status === 'completed' ? createDemoFocusedResearchResult(request, now) : null,
+		tokenUsage: 0
 	};
 }
 

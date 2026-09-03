@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
 	import ProjectReportViewer from '$lib/components/ProjectReport.svelte';
+	import ScoreRoom from '$lib/components/ScoreRoom.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
 	import SummonedScroll from '$lib/components/SummonedScroll.svelte';
 	import type {
@@ -11,9 +12,10 @@
 	import type { SagePersonality } from '$lib/personality';
 	import type { ProjectReport } from '$lib/report';
 	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
+	import type { ProjectSession } from '$lib/project-state';
 
 	let {
-		projectId,
+		project,
 		concept,
 		features,
 		finalization,
@@ -34,7 +36,7 @@
 		onSpeakCharacter,
 		onSpeakingChange
 	}: {
-		projectId: string;
+		project: ProjectSession;
 		concept: SelectedConceptInput;
 		features: SelectedFeatureInput[];
 		finalization: ProjectFinalization;
@@ -55,6 +57,7 @@
 		onSpeakCharacter: (profile: SageVoiceProfile) => void;
 		onSpeakingChange: (speaking: boolean) => void;
 	} = $props();
+	const projectId = $derived(project.id);
 
 	let researchOpen = $state(false);
 	let researchPerformanceOpen = $state(false);
@@ -154,219 +157,231 @@
 		onSkip={skipResearchPerformance}
 	/>
 {:else if result}
-	<SageDialogue
-		{altitude}
-		{personality}
-		mode="announce"
-		label={verdictLabels[result.verdict]}
-		meta={`${result.sources.length} focused sources`}
-		prompt={result.verdict === 'weakened'
-			? 'I have bad news and, worse, citations.'
-			: 'I checked your exact build. It mostly survived.'}
-		{onSpeakCharacter}
-		{onSpeakingChange}
-	>
-		<div class="finalization-dialogue">
-			<p>{result.summary}</p>
-			<div class={`verdict verdict-${result.verdict}`}>
-				<b>{result.verdict}</b><span>{result.verdictRationale}</span>
-			</div>
-			{#if message}<p class="room-warning" role="alert">{message}</p>{/if}
-			<div class="room-actions">
-				<button type="button" class="secondary" onclick={() => (researchOpen = true)}
-					>Inspect focused research</button
-				>
-				{#if plan}
-					<button type="button" class="secondary" onclick={() => (planOpen = true)}
-						>Inspect recalculation</button
-					>{#if report}<button type="button" class="primary" onclick={() => (reportOpen = true)}
-							>Open finished prophecy</button
-						>{/if}
-				{:else}
-					<button type="button" class="primary" disabled={planBusy} onclick={onGeneratePlan}
-						>{planBusy ? 'Recalculating everything...' : 'Recalculate my project'}</button
-					>
-				{/if}
-			</div>
-		</div>
-	</SageDialogue>
-
-	<SummonedScroll
-		open={researchOpen}
-		title="The configured-project investigation"
-		kicker={`${result.sources.length} FOCUSED SOURCES BOUND`}
-		onClose={() => (researchOpen = false)}
-	>
-		<div class="research-scroll">
-			<div class={`scroll-verdict verdict-${result.verdict}`}>
-				<span>{result.verdict}</span>
-				<p>{result.verdictRationale}</p>
-			</div>
-			<h3>Feature overlap</h3>
-			{#each result.featureOverlap as overlap (overlap.featureId)}
-				{@const feature = features.find((entry) => entry.id === overlap.featureId)}
-				<article>
-					<header><b>{feature?.name ?? overlap.featureId}</b><i>{overlap.status}</i></header>
-					<p>{overlap.explanation}</p>
-					<div>
-						{#each overlap.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
-									href={item.url}
-									target="_blank"
-									rel="external noreferrer">{item.title}</a
-								>{/if}{/each}
-					</div>
-				</article>
-			{/each}
-			<h3>Competitor matrix</h3>
-			{#each result.competitorMatrix as competitor (competitor.name)}<article>
-					<header><b>{competitor.name}</b><i>{competitor.type}</i></header>
-					<p>{competitor.comparison}</p>
-					<small>Overlaps: {competitor.overlappingFeatures.join(', ') || 'none found'}</small><small
-						>Missing: {competitor.missingFeatures.join(', ') || 'none found'}</small
-					>
-					<div>
-						{#each competitor.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
-									href={item.url}
-									target="_blank"
-									rel="external noreferrer">{item.title}</a
-								>{/if}{/each}
-					</div>
-				</article>{/each}
-			<h3>Evidence</h3>
-			{#each result.findings as finding (finding.id)}<article>
-					<header><b>{finding.title}</b><i>{finding.category}</i></header>
-					<p>{finding.claim}</p>
-					{#if finding.interpretation}<p>
-							<strong>What it changes:</strong>
-							{finding.interpretation}
-						</p>{/if}
-					<div>
-						{#each finding.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
-									href={item.url}
-									target="_blank"
-									rel="external noreferrer">{item.title}</a
-								>{/if}{/each}
-					</div>
-				</article>{/each}
-			<h3>Recommendations, not silent edits</h3>
-			<ul>
-				{#each result.recommendations as recommendation (recommendation)}<li>
-						{recommendation}
-					</li>{/each}
-			</ul>
-			{#if result.gaps.length}<h3>Named gaps</h3>
-				<ul>
-					{#each result.gaps as gap (`${gap.category}-${gap.reason}`)}<li>
-							<b>{gap.category}:</b>
-							{gap.reason}
-						</li>{/each}
-				</ul>{/if}
-			<details>
-				<summary>Focused source ledger ({result.sources.length})</summary>
-				<ol>
-					{#each result.sources as item (item.id)}<li>
-							<a href={item.url} target="_blank" rel="external noreferrer">{item.title}</a><small
-								>{item.publisher} · {item.publicationDate ?? 'date unknown'}</small
-							>
-							<p>{item.evidenceSummary}</p>
-						</li>{/each}
-				</ol>
-			</details>
-			<p>{result.disclaimer}</p>
-		</div>
-	</SummonedScroll>
-
-	{#if plan}
-		<SummonedScroll
-			open={planOpen}
-			title={`${plan.productName}: recalculated project file`}
-			kicker="FINAL NUMBERS BEFORE THE PDF FORGE"
-			onClose={() => (planOpen = false)}
+	{#if plan && report}
+		<ScoreRoom
+			{project}
+			downloading={pdfBusy}
+			message={pdfMessage}
+			onInspect={() => (reportOpen = true)}
+			onDownload={onDownloadPdf}
+		/>
+	{:else}
+		<SageDialogue
+			{altitude}
+			{personality}
+			mode="announce"
+			label={verdictLabels[result.verdict]}
+			meta={`${result.sources.length} focused sources`}
+			prompt={result.verdict === 'weakened'
+				? 'I have bad news and, worse, citations.'
+				: 'I checked your exact build. It mostly survived.'}
+			{onSpeakCharacter}
+			{onSpeakingChange}
 		>
-			<div class="plan-scroll">
-				{#if plan.materialWarning}<div class="material-warning">
-						<b>Material warning</b>
-						<p>{plan.materialWarning}</p>
-					</div>{/if}
-				<p class="plan-lede">{plan.oneLineSummary}</p>
-				<p>{plan.executiveSummary}</p>
-				<div class="plan-numbers">
-					<div>
-						<span>Prototype</span><b
-							>{money(plan.prototypeBudget.minimumUsd)} to {money(
-								plan.prototypeBudget.maximumUsd
-							)}</b
-						>
-					</div>
-					<div><span>Timeline</span><b>{plan.prototypeTimeline}</b></div>
-					<div><span>Difficulty</span><b>{plan.technicalDifficulty}</b></div>
+			<div class="finalization-dialogue">
+				<p>{result.summary}</p>
+				<div class={`verdict verdict-${result.verdict}`}>
+					<b>{result.verdict}</b><span>{result.verdictRationale}</span>
 				</div>
-				<h3>Confirmed features</h3>
+				{#if message}<p class="room-warning" role="alert">{message}</p>{/if}
+				<div class="room-actions">
+					<button type="button" class="secondary" onclick={() => (researchOpen = true)}
+						>Inspect focused research</button
+					>
+					{#if plan}
+						<button type="button" class="secondary" onclick={() => (planOpen = true)}
+							>Inspect recalculation</button
+						>{#if report}<button type="button" class="primary" onclick={() => (reportOpen = true)}
+								>Open finished prophecy</button
+							>{/if}
+					{:else}
+						<button type="button" class="primary" disabled={planBusy} onclick={onGeneratePlan}
+							>{planBusy ? 'Recalculating everything...' : 'Recalculate my project'}</button
+						>
+					{/if}
+				</div>
+			</div>
+		</SageDialogue>
+
+		<SummonedScroll
+			open={researchOpen}
+			title="The configured-project investigation"
+			kicker={`${result.sources.length} FOCUSED SOURCES BOUND`}
+			onClose={() => (researchOpen = false)}
+		>
+			<div class="research-scroll">
+				<div class={`scroll-verdict verdict-${result.verdict}`}>
+					<span>{result.verdict}</span>
+					<p>{result.verdictRationale}</p>
+				</div>
+				<h3>Feature overlap</h3>
+				{#each result.featureOverlap as overlap (overlap.featureId)}
+					{@const feature = features.find((entry) => entry.id === overlap.featureId)}
+					<article>
+						<header><b>{feature?.name ?? overlap.featureId}</b><i>{overlap.status}</i></header>
+						<p>{overlap.explanation}</p>
+						<div>
+							{#each overlap.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
+										href={item.url}
+										target="_blank"
+										rel="external noreferrer">{item.title}</a
+									>{/if}{/each}
+						</div>
+					</article>
+				{/each}
+				<h3>Competitor matrix</h3>
+				{#each result.competitorMatrix as competitor (competitor.name)}<article>
+						<header><b>{competitor.name}</b><i>{competitor.type}</i></header>
+						<p>{competitor.comparison}</p>
+						<small>Overlaps: {competitor.overlappingFeatures.join(', ') || 'none found'}</small
+						><small>Missing: {competitor.missingFeatures.join(', ') || 'none found'}</small>
+						<div>
+							{#each competitor.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
+										href={item.url}
+										target="_blank"
+										rel="external noreferrer">{item.title}</a
+									>{/if}{/each}
+						</div>
+					</article>{/each}
+				<h3>Evidence</h3>
+				{#each result.findings as finding (finding.id)}<article>
+						<header><b>{finding.title}</b><i>{finding.category}</i></header>
+						<p>{finding.claim}</p>
+						{#if finding.interpretation}<p>
+								<strong>What it changes:</strong>
+								{finding.interpretation}
+							</p>{/if}
+						<div>
+							{#each finding.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
+										href={item.url}
+										target="_blank"
+										rel="external noreferrer">{item.title}</a
+									>{/if}{/each}
+						</div>
+					</article>{/each}
+				<h3>Recommendations, not silent edits</h3>
 				<ul>
-					{#each plan.confirmedFeatures as feature (feature.id)}<li>
-							<b>{feature.name}</b>
-							{feature.description}
+					{#each result.recommendations as recommendation (recommendation)}<li>
+							{recommendation}
 						</li>{/each}
 				</ul>
-				<h3>Functional requirements</h3>
-				{#each plan.functionalRequirements as requirement (requirement.id)}<article>
-						<b>{requirement.id} · {requirement.name}</b>
-						<p>{requirement.description}</p>
-						<ul>
-							{#each requirement.acceptanceCriteria as criterion (criterion)}<li>
-									{criterion}
-								</li>{/each}
-						</ul>
-					</article>{/each}
-				<h3>Nonfunctional requirements</h3>
-				{#each plan.nonfunctionalRequirements as requirement (`${requirement.category}-${requirement.measure}`)}<article
-					>
-						<b>{requirement.category}</b>
-						<p>{requirement.requirement}</p>
-						<small>Measure: {requirement.measure}</small>
-					</article>{/each}
-				<h3>Technology and hardware</h3>
-				{#each plan.technologyRecommendations as item (item.area)}<article>
-						<b>{item.area}: {item.choice}</b>
-						<p>{item.rationale}</p>
-					</article>{/each}{#if plan.hardwareManufacturingRequirements.length}<ul>
-						{#each plan.hardwareManufacturingRequirements as item (item)}<li>{item}</li>{/each}
-					</ul>{:else}<p>
-						No dedicated hardware or manufacturing work is required for this configuration.
-					</p>{/if}
-				<h3>Risks</h3>
-				{#each plan.risks as risk (risk.risk)}<article>
-						<b>{risk.risk}</b>
-						<p>{risk.mitigation}</p>
-					</article>{/each}
-				<h3>Validation plan</h3>
-				{#each plan.validationSteps as step (step.hypothesis)}<article>
-						<b>{step.hypothesis}</b>
-						<p>{step.method}</p>
-						<small>Success: {step.successSignal}</small>
-					</article>{/each}
-				<h3>Development phases</h3>
-				<ol>
-					{#each plan.developmentPhases as phase (phase.name)}<li>
-							<b>{phase.name}</b>
-							<p>{phase.goal}</p>
-							<ul>
-								{#each phase.deliverables as item (item)}<li>{item}</li>{/each}
-							</ul>
-						</li>{/each}
-				</ol>
-				{#if report}<div class="pdf-future ready">
-						<b>THE PDF FORGE IS HOT</b><span
-							>The finished browser report and cited PDF use this exact recalculated file.</span
-						><button type="button" onclick={() => (reportOpen = true)}>Open finished report</button>
-					</div>{/if}
+				{#if result.gaps.length}<h3>Named gaps</h3>
+					<ul>
+						{#each result.gaps as gap (`${gap.category}-${gap.reason}`)}<li>
+								<b>{gap.category}:</b>
+								{gap.reason}
+							</li>{/each}
+					</ul>{/if}
+				<details>
+					<summary>Focused source ledger ({result.sources.length})</summary>
+					<ol>
+						{#each result.sources as item (item.id)}<li>
+								<a href={item.url} target="_blank" rel="external noreferrer">{item.title}</a><small
+									>{item.publisher} · {item.publicationDate ?? 'date unknown'}</small
+								>
+								<p>{item.evidenceSummary}</p>
+							</li>{/each}
+					</ol>
+				</details>
+				<p>{result.disclaimer}</p>
 			</div>
 		</SummonedScroll>
+
+		{#if plan}
+			<SummonedScroll
+				open={planOpen}
+				title={`${plan.productName}: recalculated project file`}
+				kicker="FINAL NUMBERS BEFORE THE PDF FORGE"
+				onClose={() => (planOpen = false)}
+			>
+				<div class="plan-scroll">
+					{#if plan.materialWarning}<div class="material-warning">
+							<b>Material warning</b>
+							<p>{plan.materialWarning}</p>
+						</div>{/if}
+					<p class="plan-lede">{plan.oneLineSummary}</p>
+					<p>{plan.executiveSummary}</p>
+					<div class="plan-numbers">
+						<div>
+							<span>Prototype</span><b
+								>{money(plan.prototypeBudget.minimumUsd)} to {money(
+									plan.prototypeBudget.maximumUsd
+								)}</b
+							>
+						</div>
+						<div><span>Timeline</span><b>{plan.prototypeTimeline}</b></div>
+						<div><span>Difficulty</span><b>{plan.technicalDifficulty}</b></div>
+					</div>
+					<h3>Confirmed features</h3>
+					<ul>
+						{#each plan.confirmedFeatures as feature (feature.id)}<li>
+								<b>{feature.name}</b>
+								{feature.description}
+							</li>{/each}
+					</ul>
+					<h3>Functional requirements</h3>
+					{#each plan.functionalRequirements as requirement (requirement.id)}<article>
+							<b>{requirement.id} · {requirement.name}</b>
+							<p>{requirement.description}</p>
+							<ul>
+								{#each requirement.acceptanceCriteria as criterion (criterion)}<li>
+										{criterion}
+									</li>{/each}
+							</ul>
+						</article>{/each}
+					<h3>Nonfunctional requirements</h3>
+					{#each plan.nonfunctionalRequirements as requirement (`${requirement.category}-${requirement.measure}`)}<article
+						>
+							<b>{requirement.category}</b>
+							<p>{requirement.requirement}</p>
+							<small>Measure: {requirement.measure}</small>
+						</article>{/each}
+					<h3>Technology and hardware</h3>
+					{#each plan.technologyRecommendations as item (item.area)}<article>
+							<b>{item.area}: {item.choice}</b>
+							<p>{item.rationale}</p>
+						</article>{/each}{#if plan.hardwareManufacturingRequirements.length}<ul>
+							{#each plan.hardwareManufacturingRequirements as item (item)}<li>{item}</li>{/each}
+						</ul>{:else}<p>
+							No dedicated hardware or manufacturing work is required for this configuration.
+						</p>{/if}
+					<h3>Risks</h3>
+					{#each plan.risks as risk (risk.risk)}<article>
+							<b>{risk.risk}</b>
+							<p>{risk.mitigation}</p>
+						</article>{/each}
+					<h3>Validation plan</h3>
+					{#each plan.validationSteps as step (step.hypothesis)}<article>
+							<b>{step.hypothesis}</b>
+							<p>{step.method}</p>
+							<small>Success: {step.successSignal}</small>
+						</article>{/each}
+					<h3>Development phases</h3>
+					<ol>
+						{#each plan.developmentPhases as phase (phase.name)}<li>
+								<b>{phase.name}</b>
+								<p>{phase.goal}</p>
+								<ul>
+									{#each phase.deliverables as item (item)}<li>{item}</li>{/each}
+								</ul>
+							</li>{/each}
+					</ol>
+					{#if report}<div class="pdf-future ready">
+							<b>THE PDF FORGE IS HOT</b><span
+								>The finished browser report and cited PDF use this exact recalculated file.</span
+							><button type="button" onclick={() => (reportOpen = true)}
+								>Open finished report</button
+							>
+						</div>{/if}
+				</div>
+			</SummonedScroll>
+		{/if}
 	{/if}
 	{#if report}
 		<ProjectReportViewer
 			open={reportOpen}
 			{report}
+			allowDownload={false}
 			downloading={pdfBusy}
 			message={pdfMessage}
 			onClose={() => (reportOpen = false)}

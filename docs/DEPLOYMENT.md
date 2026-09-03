@@ -15,6 +15,7 @@ Caddy is not in this app's request path. The route does not expose the applicati
 
 - The public hostname and origin mapping live in the remotely managed Cloudflare Tunnel configuration.
 - The application image, health check, port binding, restart policy, and runtime restrictions live in `compose.yaml`.
+- The `ideation-akinator-data` named volume is mounted at `/data` for the global leaderboard. It persists across ordinary image and container replacements while the rest of the runtime filesystem remains read-only.
 - The app's untracked `.env` file contains the OpenAI key, scrypt password hash, and cookie signing secret. Its server mode is `0600`.
 - `deploy/compose.sh` starts Compose without automatically interpreting `.env`. Compose then loads the file literally through `env_file` with `format: raw`.
 - `deploy/ideation-akinator.service` is a disabled rollback definition. Docker Compose owns the live process.

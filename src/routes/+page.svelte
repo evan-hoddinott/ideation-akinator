@@ -74,6 +74,7 @@
 	} from '$lib/project-state';
 	import { buildProjectReport, safeReportFilename } from '$lib/report';
 	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
+	import { clearTokenUsage, recordResponseTokenUsage, recordTokenUsage } from '$lib/token-usage';
 	import { DEMO_RESEARCH_DURATION_MS, startVisibleTimer } from '$lib/research-performance';
 	import { internetEraForAltitude, internetEraIndex } from '$lib/internet-era';
 	import { projectAltitude } from '$lib/sage-stage';
@@ -605,8 +606,14 @@
 		preferencesSealed = false;
 	}
 
+	function recordApiUsage(response: Response) {
+		if (!project) return;
+		recordResponseTokenUsage(window.localStorage, project.id, response);
+	}
+
 	function persistResearch(job: ResearchJobView) {
 		if (!project) return;
+		recordTokenUsage(window.localStorage, project.id, `research:${job.id}`, job.tokenUsage);
 		const previousStatus = project.research.status;
 		if (
 			(job.status === 'completed' || job.status === 'partial') &&
@@ -723,6 +730,7 @@
 				body: JSON.stringify(input),
 				signal
 			});
+			recordApiUsage(response);
 			const body: unknown = await response.json();
 			if (!response.ok) {
 				const errorBody = body as { message?: unknown };
@@ -1221,6 +1229,7 @@
 					headers: { 'content-type': 'application/json' },
 					body: JSON.stringify(input)
 				});
+				recordApiUsage(response);
 				const body: unknown = await response.json();
 				if (!response.ok) {
 					const error = body as { message?: unknown };
@@ -1525,6 +1534,7 @@
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(input)
 			});
+			recordApiUsage(response);
 			const body: unknown = await response.json();
 			if (!response.ok) {
 				const error = body as { message?: unknown };
@@ -1684,6 +1694,7 @@
 
 	function persistFocusedResearchJob(job: FocusedResearchJobView) {
 		if (!project) return;
+		recordTokenUsage(window.localStorage, project.id, `focused:${job.id}`, job.tokenUsage);
 		project = saveProject(window.localStorage, {
 			...project,
 			finalization: {
@@ -1826,6 +1837,7 @@
 					headers: { 'content-type': 'application/json' },
 					body: JSON.stringify(input)
 				});
+				recordApiUsage(response);
 				const body: unknown = await response.json();
 				if (!response.ok) {
 					const error = body as { message?: unknown };
@@ -1906,7 +1918,10 @@
 		const retainedCalm = project?.personality.calmMode ?? previewCalm;
 		void cancelResearchJob(true);
 		void cancelFocusedResearch(true);
-		if (project) clearChaosRun(window.localStorage, project.id);
+		if (project) {
+			clearChaosRun(window.localStorage, project.id);
+			clearTokenUsage(window.localStorage, project.id);
+		}
 		clearProject(window.localStorage);
 		project = null;
 		stateNotice = 'The active project was cleared. The oracle is ready for a new one.';
@@ -2054,7 +2069,7 @@
 				projectId={project.id}
 				stage={project.stage}
 				calm={project.personality.calmMode}
-				researching={researchIsActive}
+				researching={researchIsActive || !!project.finalization.plan}
 				tutorialComplete={project.personality.achievements.includes('FORBIDDEN FLOPPY')}
 				onAchievement={grantAchievement}
 				onCue={playSageCue}
@@ -2753,7 +2768,7 @@
 						{@const focusedInput = focusedResearchRequest(project)}
 						{#if focusedInput}
 							<FinalizationRoom
-								projectId={project.id}
+								{project}
 								concept={focusedInput.selectedConcept}
 								features={focusedInput.includedFeatures}
 								finalization={project.finalization}

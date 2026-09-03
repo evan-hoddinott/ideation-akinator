@@ -117,6 +117,7 @@ export interface FocusedResearchJobView {
 	expiresAt: string;
 	message: string | null;
 	result: FocusedResearchResult | null;
+	tokenUsage: number;
 }
 
 export interface FunctionalRequirement {
@@ -354,7 +355,14 @@ export function parseFocusedResearchJobView(value: unknown): FocusedResearchJobV
 		updatedAt: value.updatedAt,
 		expiresAt: value.expiresAt,
 		message: value.message,
-		result
+		result,
+		tokenUsage:
+			typeof value.tokenUsage === 'number' &&
+			Number.isInteger(value.tokenUsage) &&
+			value.tokenUsage >= 0 &&
+			value.tokenUsage <= 100_000_000
+				? value.tokenUsage
+				: 0
 	};
 }
 

@@ -6,6 +6,7 @@
 		report,
 		downloading,
 		message,
+		allowDownload = true,
 		onClose,
 		onDownload
 	}: {
@@ -13,6 +14,7 @@
 		report: ProjectReport;
 		downloading: boolean;
 		message: string;
+		allowDownload?: boolean;
 		onClose: () => void;
 		onDownload: () => void;
 	} = $props();
@@ -57,9 +59,9 @@
 				<small>{report.demo ? 'DEMO EVIDENCE' : 'CITED PROJECT FILE'}</small>
 			</div>
 			<div class="toolbar-actions">
-				<button type="button" disabled={downloading} onclick={onDownload}>
-					{downloading ? 'Forging PDF...' : 'Download PDF'}
-				</button>
+				{#if allowDownload}<button type="button" disabled={downloading} onclick={onDownload}>
+						{downloading ? 'Forging PDF...' : 'Download PDF'}
+					</button>{/if}
 				<button class="close-button" type="button" aria-label="Close report" onclick={onClose}
 					>×</button
 				>

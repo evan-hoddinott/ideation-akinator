@@ -81,7 +81,9 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 			model,
 			...tokenUsage
 		});
-		return json(insights);
+		return json(insights, {
+			headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+		});
 	} catch (error) {
 		const failureClass =
 			error instanceof InvalidModelResponseError ? 'invalid_model_output' : 'provider_error';
@@ -97,7 +99,10 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 				code: failureClass,
 				message: 'The reading flickered out. Your notes are safe, and you can try again.'
 			},
-			{ status: 502 }
+			{
+				status: 502,
+				headers: { 'x-token-usage-total': String(tokenUsage.totalTokens) }
+			}
 		);
 	}
 };
