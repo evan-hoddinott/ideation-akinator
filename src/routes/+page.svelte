@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
+	import ChaosLayer from '$lib/components/ChaosLayer.svelte';
 	import FinalizationRoom from '$lib/components/FinalizationRoom.svelte';
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
@@ -43,6 +44,7 @@
 		type IntakeInsights,
 		type IntakeInsightsRequest
 	} from '$lib/intake-insights';
+	import { clearChaosRun } from '$lib/interruptions';
 	import {
 		createInterview,
 		makeInterviewAnswer,
@@ -486,6 +488,17 @@
 		});
 		project = saveProject(window.localStorage, { ...session, personality: reaction.personality });
 		playSageCue(reaction.sound);
+	}
+
+	function grantAchievement(achievement: string) {
+		if (!project || project.personality.achievements.includes(achievement)) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			personality: {
+				...project.personality,
+				achievements: [...project.personality.achievements, achievement]
+			}
+		});
 	}
 
 	function playSageCue(cue: SageSoundCue) {
@@ -1893,6 +1906,7 @@
 		const retainedCalm = project?.personality.calmMode ?? previewCalm;
 		void cancelResearchJob(true);
 		void cancelFocusedResearch(true);
+		if (project) clearChaosRun(window.localStorage, project.id);
 		clearProject(window.localStorage);
 		project = null;
 		stateNotice = 'The active project was cleared. The oracle is ready for a new one.';
@@ -2033,6 +2047,19 @@
 				resetSignal={resetWorldSignal}
 				allowPopup={!!project && project.stage !== 'welcome' && !researchIsActive}
 				onSecret={findForbiddenFloppy}
+			/>
+		{/if}
+		{#if project && project.stage !== 'welcome'}
+			<ChaosLayer
+				projectId={project.id}
+				stage={project.stage}
+				calm={project.personality.calmMode}
+				researching={researchIsActive}
+				tutorialComplete={project.personality.achievements.includes('FORBIDDEN FLOPPY')}
+				onAchievement={grantAchievement}
+				onCue={playSageCue}
+				onPurlShoo={() => performSageEvent('purl-shooed')}
+				onPurlHelp={() => performSageEvent('purl-helped')}
 			/>
 		{/if}
 		<header class="game-hud">

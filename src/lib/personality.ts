@@ -46,6 +46,8 @@ export type SageEvent =
 	| 'sage-defeated'
 	| 'calm-enabled'
 	| 'calm-disabled'
+	| 'purl-shooed'
+	| 'purl-helped'
 	| 'secret-found';
 
 export interface SagePersonality {
@@ -582,6 +584,34 @@ const LINES: Record<SageEvent, SageLine[]> = {
 			id: 'chaos-2',
 			text: 'Excellent. Releasing the decorative malware.',
 			mood: 'forbidden',
+			sound: 'sparkle'
+		}
+	],
+	'purl-shooed': [
+		{
+			id: 'purl-shoo-1',
+			text: 'PURL. Your administrative privileges are revoked. Again.',
+			mood: 'irritated',
+			sound: 'error'
+		},
+		{
+			id: 'purl-shoo-2',
+			text: 'Shoo! This is a professional prophecy, you fuzzy little [CENSORED].',
+			mood: 'irritated',
+			sound: 'error'
+		}
+	],
+	'purl-helped': [
+		{
+			id: 'purl-help-1',
+			text: 'Do not encourage her. That was statistically impossible.',
+			mood: 'shocked',
+			sound: 'sparkle'
+		},
+		{
+			id: 'purl-help-2',
+			text: 'She fixed it. I will be deleting this event from the logs.',
+			mood: 'suspicious',
 			sound: 'sparkle'
 		}
 	],

@@ -135,3 +135,26 @@ All third-party files are stored locally. They are decoration only and are label
 - SHA-256 regular: `c845473330b94c2079ce9af01c51ac8ba2d99c24f4d14c039843bbb8e642ebd8`
 - SHA-256 bold: `768476aa712d4f5c3e18d3bce80f980a8bd3f72b7094d22ec5e768df3acfed61`
 - Use note: locally bundled for Sage dialogue, response menus, meters, and pause controls; research documents retain a calmer reading face
+
+### Windows 93 parody-window kit
+
+- Files: `static/fonts/Tomo.woff2` and `static/images/retro/windows93/{drive-harddisk.gif,error.png,folder.png,mail.png,trash.png,warning.png}`
+- Creator: Windows93 project contributors; individual icon and font authorship is not stated in the downloaded archive
+- Source archive: [Windows93 42.tar.gz](https://www.windows93.net/42.tar.gz)
+- Font source: [Tomo.woff2](https://www.windows93.net/42/themes/tribute/windows9x/fonts/tomo/Tomo.woff2)
+- Retrieved: 2026-09-03
+- Rights status: unclear; `demo-only` for this password-protected personal prototype
+- Replacement note: clear the files with the Windows93 maintainers or replace them with an original or explicitly licensed bitmap UI kit before any public distribution
+- Use note: small draggable parody-software interruptions only; no Windows93 code executes in this application
+
+SHA-256:
+
+```text
+68b3458ecf71d524eaa7f7c04cae1def5f5ae2acf5e002c6aef952892a3b82c0  Tomo.woff2
+107ee0217410b938b76c31b4b49283702fc1117c773a183bfa770cd43b8b0cad  drive-harddisk.gif
+5fad2d1612b70a9c23b80a71f49fde2bf17721c52f234c008457892b26eef9a6  error.png
+836aa7f8c18f8d763a9bde71ac89bccc761ee6e00b16f0636b2507ebd42f1d1a  folder.png
+5434ba3c1ba6abefa6e516c3e89c383f368a60c14f10241cc4227cd70b17e645  mail.png
+bc3e96abc9a8a539accd83e06f33ef6851658773bdcdde14d0a62d098da8a700  trash.png
+668ed4ec03e52622344737fef899187ae09dbe22d8af13c0fe35f3a147168319  warning.png
+```

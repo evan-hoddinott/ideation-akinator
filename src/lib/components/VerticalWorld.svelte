@@ -85,7 +85,7 @@
 			<div class="webring">← PREV · MYSTIC WEBRING · RANDOM · NEXT →</div>
 			<img class="era-cat" src="/images/retro/kitka-cat.gif" alt="" />
 			<div class="guestbook">GUESTBOOK<br /><b>12 nice · 901 rude</b></div>
-			<div class="sparkles">✦　✧　★　✦　✧</div>
+			<div class="sparkles">✦ ✧ ★ ✦ ✧</div>
 		</section>
 
 		<section class="world-zone aol-zone">
@@ -101,7 +101,7 @@
 		</section>
 
 		<section class="world-zone dotcom-zone">
-			<div class="ticker">WIZR +420%　 IDEA +69%　 SOCKPUPPET IPO TODAY</div>
+			<div class="ticker">WIZR +420% · IDEA +69% · SOCKPUPPET IPO TODAY</div>
 			<div class="banner ad-one">FREE E-MONEY<br /><small>click until profitable</small></div>
 			<div class="banner ad-two">PET FOOD · BUT ONLINE</div>
 			<div class="cubicle"><i></i><i></i><i></i><span>SYNERGY FLOOR</span></div>
@@ -222,7 +222,7 @@
 			</div>
 			<div class="floppy">▣</div>
 			<div class="satellite">╾━◈━╼</div>
-			<div class="constellation">·　　✦　·　　·<br />　·　　·　✧　　·<br />✦　　·　　　·</div>
+			<div class="constellation">· · ✦ · ·<br />· · · ✧ ·<br />✦ · ·</div>
 		</section>
 	</div>
 

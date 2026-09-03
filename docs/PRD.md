@@ -1255,7 +1255,7 @@ The following revision was approved on 2026-09-02 after the first 13 slices reac
 
 ### 19.4 Revision implementation sequence
 
-The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 17 are complete and deployed. Slices 18 through 22 remain approved and pending.
+The revision adds nine implementation slices, bringing the complete roadmap to 22 slices. Slices 1 through 18 are complete and deployed. Slices 19 through 22 remain approved and pending.
 
 14. Build the fixed-viewport shell, hybrid RPG dialogue director, 8-bit dialogue typography, pixel portrait states, typewriter timing, synthesized character voice, bottom-center response menu, paginated choices, RPG meters, keyboard controls, and pause menu.
 15. Update the Sage model and animation set while preserving his appearance. Add the audio-meter face, mood expressions, cursor tracking, restrained speech motion, secondary robe and hat motion, stronger reaction clips, and the rebuilt popup-swat tutorial.
@@ -1316,6 +1316,19 @@ Slice 17 was completed and deployed on 2026-09-03 without exposing the hidden pr
 - Reset now poofs the chair away, drops the Sage through the connected world, moves the camera to the DOS floor in stepped chunks, and deploys a replacement chair before returning to the new run's altitude.
 - The bundled MIDI composition now changes oscillator voice, register, note length, and intensity across seven period groups. Existing mute, Calm mode, user-gesture start, and hidden-tab suspension behavior still apply.
 - Automated verification passed Svelte diagnostics, 110 unit tests, formatting, lint, and a production build. Browser verification covered the DOS opening, optional scenery, multi-era ascent with a visible dither boundary, GeoCities and algorithmic scenes, reset fall, live Sage model, local assets, and console errors.
+
+### 19.9 Slice 18 completion record
+
+Slice 18 was completed and deployed on 2026-09-03 without changing project inputs, generated results, research jobs, or AI usage.
+
+- The post-tutorial interruption deck now contains ten deterministic, nonrepeating parody windows: fake antivirus, instant messenger, weather malware, wizard-forum drama, chain mail, a download accelerator, a desktop familiar, an error, a local-wizard advertisement, and a guestbook notification.
+- Ordinary interruptions stay in the upper margins outside required response controls. They can be dragged, dismissed, or activated with a mouse; required popup actions and close controls remain keyboard accessible. Calm mode removes the deck.
+- The existing Crystal RAM swat remains the unlabelled interaction tutorial. Later windows only begin after that contact performance has completed.
+- Purl now crosses the scene through a separate nonrepeating event deck, interferes with the workstation during research, can be shooed, returns later, and communicates only through cat symbols and roughly decipherable nonsense. The Sage reacts locally to being forced to manage her.
+- Purl performs exactly one useful action after the concept stage begins: she clears optional interruption windows, records the event, and provokes an embarrassed Sage response. It cannot repeat during the same project.
+- Popup cleanup, suspicious ad interaction, desktop-familiar installation, Purl cleanup, and cat herding grant secret run achievements. Their names remain stored but are not presented as a public checklist before the final score sequence.
+- Selected Windows93 icons and the Tomo bitmap face are stored locally rather than hotlinked. Their source URLs, retrieval date, hashes, unclear-rights internal-demo status, and replacement requirement are recorded in `docs/ASSETS.md`; the existing CC0 pixel cat remains Purl's source.
+- Automated verification passed Svelte diagnostics, 112 unit tests, formatting, lint, and a production build. Browser verification covered post-tutorial popup timing, drag and dismissal, Purl crossing and return behavior, research interference, the one-time useful action, Calm mode suppression, local asset loading, required-control clearance, and console errors.
 
 ## 20. Risks and mitigations
 
