@@ -2,6 +2,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import type { AnimationAction } from 'three';
 	import type { SagePersonality } from '$lib/personality';
+	import { AuthoredPoseLayer } from '$lib/authored-pose-layer';
 	import {
 		clipForMood,
 		faceProfileForMood,
@@ -204,8 +205,6 @@
 			sage.position.sub(poseCenter);
 			let activeAction: AnimationAction | null = null;
 			let actionName: SageClip = 'idle';
-			let actionTime = 0;
-			let actionFps = 12;
 			let returnTimer = 0;
 
 			playClip = (clip, returnToIdle = false) => {
@@ -213,8 +212,6 @@
 				if (!next) return;
 				activeAction?.stop();
 				actionName = clip;
-				actionTime = 0;
-				actionFps = clip === 'popup_swat' || clip === 'reveal' ? 24 : 12;
 				next.reset();
 				next.enabled = true;
 				next.setLoop(
@@ -256,6 +253,14 @@
 			const spineBone = sage.getObjectByName('spine');
 			const hatSecondary = sage.getObjectByName('hat_secondary');
 			const robeSecondary = sage.getObjectByName('robe_secondary');
+			const proceduralPose = new AuthoredPoseLayer([
+				headBone,
+				spineBone,
+				hatSecondary,
+				robeSecondary
+			]);
+			const proceduralEuler = new THREE.Euler();
+			const proceduralQuaternion = new THREE.Quaternion();
 			const faceParts = [eyeLeft, eyeRight, mouth].filter(
 				(part): part is NonNullable<typeof part> => !!part
 			);
@@ -302,9 +307,12 @@
 				const delta = Math.min((now - lastFrame) / 1000, 0.05);
 				lastFrame = now;
 				elapsed += delta;
-				actionTime += delta;
-				const steppedTime = Math.floor(actionTime * actionFps) / actionFps;
-				mixer.setTime(steppedTime);
+
+				// The mixer owns the authored pose. Remove last frame's procedural offsets
+				// before advancing it, then save a clean base for this rendered frame.
+				proceduralPose.restore();
+				mixer.update(delta);
+				proceduralPose.capture();
 				presentation.position.y = Math.sin(elapsed * 1.7) * 0.035;
 				researchTurn += ((researching ? Math.PI : 0) - researchTurn) * Math.min(delta * 2.2, 1);
 				presentation.rotation.y = researchTurn + Math.sin(elapsed * 0.7) * 0.018;
@@ -321,22 +329,40 @@
 				const authoredPerformance = actionName !== 'idle';
 				const gazeWeight = authoredPerformance ? 0.18 : 1;
 				if (headBone) {
-					if (researching) headBone.rotation.y -= researchTurn * 0.12;
-					headBone.rotation.y += smoothedCursorX * 0.12 * gazeWeight;
-					headBone.rotation.x += -smoothedCursorY * 0.075 * gazeWeight;
-					if (speaking) headBone.rotation.z += Math.sin(elapsed * 8.5) * 0.012;
+					proceduralEuler.set(
+						-smoothedCursorY * 0.075 * gazeWeight,
+						smoothedCursorX * 0.12 * gazeWeight - (researching ? researchTurn * 0.12 : 0),
+						speaking ? Math.sin(elapsed * 8.5) * 0.012 : 0,
+						'XYZ'
+					);
+					proceduralQuaternion.setFromEuler(proceduralEuler);
+					headBone.quaternion.multiply(proceduralQuaternion);
 				}
 				if (spineBone && speaking && !authoredPerformance) {
-					spineBone.rotation.x += Math.sin(elapsed * 6.5) * 0.012;
+					proceduralEuler.set(Math.sin(elapsed * 6.5) * 0.012, 0, 0, 'XYZ');
+					proceduralQuaternion.setFromEuler(proceduralEuler);
+					spineBone.quaternion.multiply(proceduralQuaternion);
 					spineBone.position.y += Math.max(0, Math.sin(elapsed * 13)) * 0.006;
 				}
 				if (hatSecondary) {
-					hatSecondary.rotation.z += Math.sin(elapsed * 2.4 + 0.8) * 0.035;
-					hatSecondary.rotation.x += Math.sin(elapsed * 1.9) * 0.018;
+					proceduralEuler.set(
+						Math.sin(elapsed * 1.9) * 0.018,
+						0,
+						Math.sin(elapsed * 2.4 + 0.8) * 0.035,
+						'XYZ'
+					);
+					proceduralQuaternion.setFromEuler(proceduralEuler);
+					hatSecondary.quaternion.multiply(proceduralQuaternion);
 				}
 				if (robeSecondary) {
-					robeSecondary.rotation.x += Math.sin(elapsed * 1.7 + 1.2) * 0.022;
-					robeSecondary.rotation.z += Math.sin(elapsed * 2.1) * 0.012;
+					proceduralEuler.set(
+						Math.sin(elapsed * 1.7 + 1.2) * 0.022,
+						0,
+						Math.sin(elapsed * 2.1) * 0.012,
+						'XYZ'
+					);
+					proceduralQuaternion.setFromEuler(proceduralEuler);
+					robeSecondary.quaternion.multiply(proceduralQuaternion);
 				}
 
 				const faceFps = actionName === 'popup_swat' ? 24 : personality.mood === 'thinking' ? 8 : 12;
