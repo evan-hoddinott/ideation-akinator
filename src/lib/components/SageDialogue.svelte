@@ -3,6 +3,7 @@
 	import type { Snippet } from 'svelte';
 	import type { SagePersonality } from '$lib/personality';
 	import {
+		dialogueAdvanceAction,
 		pageBounds,
 		sageVoiceProfile,
 		segmentDialogue,
@@ -43,7 +44,10 @@
 	let choicePage = $state(0);
 	let choicePageTotal = $state(1);
 	let typingTimer: number | null = null;
+	let responseTimer: number | null = null;
 	let choiceObserver: MutationObserver | null = null;
+	let lastAdvanceAt = 0;
+	let responseLocked = false;
 	let signature = '';
 	let lastQueuedLineId = '';
 
@@ -61,6 +65,9 @@
 		signature = nextSignature;
 		choicePage = 0;
 		responsesReady = false;
+		responseLocked = false;
+		lastAdvanceAt = 0;
+		clearResponseTimer();
 
 		const queue: string[] = [];
 		if (
@@ -91,6 +98,7 @@
 
 	onDestroy(() => {
 		clearTypingTimer();
+		clearResponseTimer();
 		choiceObserver?.disconnect();
 		onSpeakingChange(false);
 	});
@@ -98,6 +106,16 @@
 	function clearTypingTimer() {
 		if (typingTimer !== null) window.clearTimeout(typingTimer);
 		typingTimer = null;
+	}
+
+	function clearResponseTimer() {
+		if (responseTimer !== null) window.clearTimeout(responseTimer);
+		responseTimer = null;
+	}
+
+	function revealResponses() {
+		responsesReady = true;
+		void tick().then(refreshChoicePage);
 	}
 
 	function startTyping(text: string) {
@@ -112,8 +130,7 @@
 			if (index >= text.length) {
 				typing = false;
 				onSpeakingChange(false);
-				responsesReady = segmentIndex >= segments.length - 1;
-				if (responsesReady) void tick().then(refreshChoicePage);
+				if (mode === 'wait' && segmentIndex >= segments.length - 1) revealResponses();
 				return;
 			}
 
@@ -130,19 +147,26 @@
 	}
 
 	function advanceDialogue() {
-		if (typing) {
+		const now = window.performance.now();
+		if (now - lastAdvanceAt < 160) return;
+		lastAdvanceAt = now;
+		const action = dialogueAdvanceAction(typing, segmentIndex, segments.length);
+
+		if (action === 'finish-line') {
 			clearTypingTimer();
 			displayedText = segments[segmentIndex] ?? displayedText;
 			typing = false;
 			onSpeakingChange(false);
-			responsesReady = segmentIndex >= segments.length - 1;
-			if (responsesReady) void tick().then(refreshChoicePage);
 			return;
 		}
 
-		if (segmentIndex >= segments.length - 1) return;
-		segmentIndex += 1;
-		startTyping(segments[segmentIndex]);
+		if (action === 'next-line') {
+			segmentIndex += 1;
+			startTyping(segments[segmentIndex]);
+			return;
+		}
+
+		revealResponses();
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent) {
@@ -151,6 +175,7 @@
 			target?.matches('input, textarea, select') ||
 			target?.getAttribute('contenteditable') === 'true';
 		if (editing) return;
+		if (event.repeat) return;
 
 		if (!responsesReady && (event.key === 'Enter' || event.key === ' ')) {
 			event.preventDefault();
@@ -198,14 +223,18 @@
 	}
 
 	function confirmResponse(event: MouseEvent) {
-		if (!responsesReady || !event.isTrusted) return;
+		if (!responsesReady || !event.isTrusted || responseLocked) return;
 		const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('button');
 		if (!button || button.disabled || button.closest('.choice-pager')) return;
 		event.preventDefault();
 		event.stopPropagation();
 		button.classList.add('confirmed-answer');
 		button.setAttribute('aria-pressed', 'true');
-		window.setTimeout(() => button.click(), 380);
+		responseLocked = true;
+		responseTimer = window.setTimeout(() => {
+			responseTimer = null;
+			button.click();
+		}, 180);
 	}
 </script>
 
@@ -217,6 +246,7 @@
 	data-mood={personality.mood}
 	data-altitude={altitude.toFixed(2)}
 	class:typing
+	data-dialogue-state={typing ? 'typing' : responsesReady ? 'responses' : 'awaiting-advance'}
 	aria-label={label}
 >
 	<div class="sage-speech-window">
@@ -395,7 +425,7 @@
 	}
 
 	.dialogue-column.responses-ready {
-		grid-template-rows: minmax(88px, auto) minmax(0, 1fr) auto;
+		grid-template-rows: minmax(102px, auto) minmax(0, 1fr) auto;
 	}
 
 	.dialogue-copy {
@@ -414,12 +444,13 @@
 		text-align: left;
 		text-shadow: 2px 2px 0 #351963;
 		cursor: pointer;
+		transition: transform 160ms steps(3, end);
 	}
 
 	.responses-ready .dialogue-copy {
 		align-self: start;
-		font-size: clamp(17px, 1.25vw, 20px);
-		line-height: 1.5;
+		line-height: 1.42;
+		animation: prompt-makes-room 160ms steps(3, end);
 	}
 
 	.spoken-text {
@@ -561,6 +592,13 @@
 		}
 	}
 
+	@keyframes prompt-makes-room {
+		from {
+			transform: translateY(12px);
+			opacity: 0.55;
+		}
+	}
+
 	@media (max-width: 760px) {
 		.sage-dialogue-stage {
 			bottom: 8px;
@@ -599,7 +637,7 @@
 		}
 
 		.responses-ready .dialogue-copy {
-			font-size: 14px;
+			font-size: 16px;
 		}
 
 		.speech-titlebar small {
@@ -613,8 +651,8 @@
 		}
 
 		.responses-ready .dialogue-copy {
-			font-size: 16px;
-			line-height: 1.4;
+			font-size: 18px;
+			line-height: 1.35;
 		}
 	}
 

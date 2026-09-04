@@ -35,7 +35,7 @@ The existing illustrated Signal Sage remains part of the product. It becomes the
 ## Native pixel Sage portraits
 
 - Files: `static/images/sage-pixel/{neutral,thinking,suspicious,delighted,irritated,shocked,smug,defeated,forbidden}.png`
-- Native size: 96 by 96 pixels; 32 colors or fewer per portrait
+- File size: 96 by 96 pixels, built from a 48 by 48 logical pixel grid using only black and white
 - Created: 2026-09-04
 - Source: project-specific OpenAI image generation in Codex, then deterministic nearest-neighbor cropping, centering, and palette reduction by `scripts/build-sage-portraits.sh`
 - Source sheet: `static/images/sage-pixel/source-sheet.png`
@@ -43,7 +43,7 @@ The existing illustrated Signal Sage remains part of the product. It becomes the
 - Rights note: original project-specific generation with no third-party reference image
 - Hash manifest: `artifacts/recovery/generated-asset-sha256.txt`
 
-Prompt summary: a strict three-by-three native pixel sprite sheet of the original CRT-headed Signal Sage in his purple gaming chair, showing the nine required expressions with hard 16-bit clusters, transparent background, no labels, gradients, antialiasing, or resemblance to an existing character.
+Prompt summary: a strict three-by-three pixel sprite sheet of the original CRT-headed Signal Sage in his purple gaming chair, showing the nine required expressions with hard color clusters, transparent background, no labels, gradients, antialiasing, or resemblance to an existing character. The build script converts each portrait into black-and-white edge art on a 48 by 48 logical grid, then performs a nearest-neighbor upscale. The result uses the severe two-color portrait language of an old RPG while preserving the CRT face and hand poses.
 
 ## Recovery-era sourced collection
 

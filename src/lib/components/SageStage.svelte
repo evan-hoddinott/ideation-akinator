@@ -44,6 +44,7 @@
 
 	let canvas = $state<HTMLCanvasElement>();
 	let container = $state<HTMLDivElement>();
+	let stageElement = $state<HTMLDivElement>();
 	let modelReady = $state(false);
 	let modelFailed = $state(false);
 	let motionFallback = $state(false);
@@ -241,7 +242,7 @@
 			rim.position.set(-5, 2, -3);
 			scene.add(rim);
 
-			const gltf = await new GLTFLoader().loadAsync('/models/signal-sage.glb?v=d56736a9');
+			const gltf = await new GLTFLoader().loadAsync('/models/signal-sage.glb?v=0097df12');
 			const sage = gltf.scene;
 			sage.rotation.y = -0.08;
 			const presentation = new THREE.Group();
@@ -526,12 +527,17 @@
 				) {
 					lastAnchorUpdate = now;
 					presentation.updateMatrixWorld(true);
-					const canvasRect = renderCanvas.getBoundingClientRect();
+					const stageRect = stageElement?.getBoundingClientRect();
+					if (!stageRect) return;
+					const settledResearchShiftX = stageRect.width * 0.38;
 					const projectMarker = (marker: NonNullable<typeof seatMarker>) => {
 						marker.getWorldPosition(anchorVector).project(camera);
 						return {
-							x: canvasRect.left + ((anchorVector.x + 1) / 2) * canvasRect.width,
-							y: canvasRect.top + ((1 - anchorVector.y) / 2) * canvasRect.height
+							x:
+								stageRect.left +
+								((anchorVector.x + 1) / 2) * stageRect.width +
+								settledResearchShiftX,
+							y: stageRect.top + ((1 - anchorVector.y) / 2) * stageRect.height
 						};
 					};
 					onAnchors({
@@ -571,12 +577,14 @@
 </script>
 
 <div
+	bind:this={stageElement}
 	class="live-sage-stage"
 	class:fallback={useFallback}
 	class:ready={modelReady}
 	class:researching
 	class:resetting
 	data-mood={personality.mood}
+	data-performance={performance ?? 'idle'}
 	style={`--sage-altitude: ${altitude}`}
 >
 	<div class="sage-motion" bind:this={container}>
@@ -671,8 +679,24 @@
 		opacity: 0;
 	}
 
-	.researching .sage-motion {
-		animation: sage-fetch-computer 3.55s steps(22, end) both;
+	.researching[data-performance='workstation_exit'] .sage-motion {
+		animation: sage-leaves-for-computer 900ms steps(8, end) both;
+	}
+
+	.researching[data-performance='workstation_push'] .sage-motion {
+		animation: sage-pushes-computer-in 1.95s steps(14, end) both;
+	}
+
+	.researching[data-performance='workstation_park'] .sage-motion {
+		animation: sage-parks-computer 1.1s steps(8, end) both;
+	}
+
+	.researching[data-performance='workstation_turn'] .sage-motion {
+		animation: sage-turns-at-computer 1.3s steps(10, end) both;
+	}
+
+	.researching[data-performance^='research_'] .sage-motion {
+		transform: translateX(38%);
 	}
 
 	.resetting .sage-motion {
@@ -886,22 +910,49 @@
 		}
 	}
 
-	@keyframes sage-fetch-computer {
-		0%,
-		8% {
+	@keyframes sage-leaves-for-computer {
+		from {
 			transform: translateX(0) rotate(0);
 		}
-		28% {
-			transform: translateX(-115%) rotate(-6deg);
+		to {
+			transform: translateX(calc(110vw + 38%)) rotate(4deg);
 		}
-		43% {
-			transform: translateX(-115%) rotate(-6deg);
+	}
+
+	@keyframes sage-pushes-computer-in {
+		from {
+			transform: translateX(calc(110vw + 38%)) rotate(4deg);
 		}
-		76% {
-			transform: translateX(42%) rotate(3deg);
+		72% {
+			transform: translateX(35%) rotate(-2deg);
 		}
+		to {
+			transform: translateX(38%) rotate(1deg);
+		}
+	}
+
+	@keyframes sage-parks-computer {
+		0%,
 		100% {
 			transform: translateX(38%) rotate(1deg);
+		}
+		35% {
+			transform: translateX(32%) rotate(-3deg);
+		}
+		62% {
+			transform: translateX(41%) rotate(2deg);
+		}
+	}
+
+	@keyframes sage-turns-at-computer {
+		from {
+			transform: translateX(38%) rotate(1deg);
+		}
+		55% {
+			transform: translateX(36%) rotate(-1deg);
+		}
+		to {
+			transform: translateX(38%) rotate(0);
 		}
 	}
 
@@ -997,6 +1048,7 @@
 
 		.researching .sage-motion {
 			animation: none;
+			transform: translateX(38%);
 		}
 	}
 </style>

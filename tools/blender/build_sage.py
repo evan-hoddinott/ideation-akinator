@@ -629,19 +629,17 @@ def build_actions(armature):
     # turn. Research clips stay in the rig's normal local frame so arms, head, and
     # anchor objects cannot orbit around an arbitrary bone pivot.
     # When the whole presentation turns away, the tall gaming-chair shell moves
-    # between the camera and its tiny occupant. Lift only the occupant rig so the
-    # CRT face and real hands stay readable above/around the chair back.
+    # between the camera and its tiny occupant. Lift the CRT above the chair back,
+    # but leave it facing the workstation. The research pose should read as work,
+    # not as the Sage continuing to perform for the player.
     back_head = {
         # Lift only the CRT above the chair back. Keeping the arms at their
         # seated height preserves the real hand/keyboard contact points.
         "location": (0, 1.06, 0),
-        "rotation": (0, -math.pi, 0),
+        "rotation": (0, 0, 0),
     }
     back_pose = {
         "pelvis": {"location": (0, 0, 0.46)},
-        # The head bone runs vertically, so its local Y axis is the monitor's
-        # yaw axis. Counter-rotate there while the presentation group turns;
-        # rotating local Z would only roll the CRT and leave its rear facing us.
         "head": back_head,
     }
     authored_actions.update({
@@ -653,13 +651,13 @@ def build_actions(armature):
         ],
         "research_one_hand": [
             (1, {**back_pose, "spine": {"rotation": (-0.08, 0, -0.16)}, "upper_arm.R": {"rotation": (-0.25, 0, -1.08)}, "forearm.R": {"rotation": (-0.2, 0, 0.66)}, "forearm.L": {"rotation": (0, 0, -0.15)}}),
-            (7, {**back_pose, "head": {**back_head, "rotation": (0.02, -math.pi, -0.18)}, "forearm.R": {"rotation": (-0.22, 0, 0.88)}}),
+            (7, {**back_pose, "head": {**back_head, "rotation": (0.02, 0, -0.18)}, "forearm.R": {"rotation": (-0.22, 0, 0.88)}}),
             (14, {**back_pose, "spine": {"rotation": (-0.06, 0, 0.12)}, "forearm.R": {"rotation": (-0.20, 0, 0.56)}}),
         ],
         "research_inspect": [
             (1, {**back_pose}),
-            (7, {**back_pose, "spine": {"rotation": (-0.42, 0, 0)}, "head": {**back_head, "rotation": (0.24, -math.pi, 0)}, "upper_arm.L": {"rotation": (0, 0, 0.30)}, "upper_arm.R": {"rotation": (0, 0, -0.30)}}),
-            (16, {**back_pose, "spine": {"rotation": (-0.34, 0, 0)}, "head": {**back_head, "rotation": (0.18, -math.pi, 0)}}),
+            (7, {**back_pose, "spine": {"rotation": (-0.42, 0, 0)}, "head": {**back_head, "rotation": (0.24, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 0.30)}, "upper_arm.R": {"rotation": (0, 0, -0.30)}}),
+            (16, {**back_pose, "spine": {"rotation": (-0.34, 0, 0)}, "head": {**back_head, "rotation": (0.18, 0, 0)}}),
             (23, {**back_pose}),
         ],
         "research_smack": [
@@ -671,26 +669,26 @@ def build_actions(armature):
         ],
         "research_cable": [
             (1, {**back_pose}),
-            (8, {**back_pose, "spine": {"rotation": (0.34, 0, 0.30)}, "head": {**back_head, "rotation": (0.28, -math.pi, -0.28)}, "upper_arm.L": {"rotation": (0.12, 0, 1.24)}, "forearm.L": {"rotation": (0.20, 0, 0.66)}}),
+            (8, {**back_pose, "spine": {"rotation": (0.34, 0, 0.30)}, "head": {**back_head, "rotation": (0.28, 0, -0.28)}, "upper_arm.L": {"rotation": (0.12, 0, 1.24)}, "forearm.L": {"rotation": (0.20, 0, 0.66)}}),
             (15, {**back_pose, "spine": {"rotation": (0.42, 0, 0.38)}, "forearm.L": {"rotation": (0.22, 0, 0.96)}}),
             (24, {**back_pose}),
         ],
         "research_sleep": [
             (1, {**back_pose}),
-            (10, {**back_pose, "spine": {"rotation": (0.38, 0, -0.08)}, "head": {**back_head, "rotation": (0.48, -math.pi, -0.12)}, "upper_arm.L": {"rotation": (0, 0, 0.18)}, "upper_arm.R": {"rotation": (0, 0, -0.18)}}),
-            (22, {**back_pose, "spine": {"rotation": (0.46, 0, 0.08)}, "head": {**back_head, "rotation": (0.54, -math.pi, 0.10)}}),
-            (25, {**back_pose, "chair": {"rotation": (-0.10, 0, 0)}, "spine": {"rotation": (-0.42, 0, 0)}, "head": {**back_head, "rotation": (-0.32, -math.pi, 0)}, "upper_arm.L": {"rotation": (0, 0, 1.12)}, "upper_arm.R": {"rotation": (0, 0, -1.12)}}),
+            (10, {**back_pose, "spine": {"rotation": (0.38, 0, -0.08)}, "head": {**back_head, "rotation": (0.48, 0, -0.12)}, "upper_arm.L": {"rotation": (0, 0, 0.18)}, "upper_arm.R": {"rotation": (0, 0, -0.18)}}),
+            (22, {**back_pose, "spine": {"rotation": (0.46, 0, 0.08)}, "head": {**back_head, "rotation": (0.54, 0, 0.10)}}),
+            (25, {**back_pose, "chair": {"rotation": (-0.10, 0, 0)}, "spine": {"rotation": (-0.42, 0, 0)}, "head": {**back_head, "rotation": (-0.32, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 1.12)}, "upper_arm.R": {"rotation": (0, 0, -1.12)}}),
             (34, {**back_pose}),
         ],
         "research_celebrate": [
             (1, {**back_pose}),
             (7, {**back_pose, "spine": {"rotation": (-0.24, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 1.42)}, "upper_arm.R": {"rotation": (0, 0, -1.42)}, "forearm.L": {"rotation": (0, 0, -0.38)}, "forearm.R": {"rotation": (0, 0, 0.38)}}),
-            (14, {**back_pose, "chair": {"location": (0, 0, 0.10)}, "head": {**back_head, "rotation": (-0.20, -math.pi, 0)}}),
+            (14, {**back_pose, "chair": {"location": (0, 0, 0.10)}, "head": {**back_head, "rotation": (-0.20, 0, 0)}}),
             (22, {**back_pose}),
         ],
         "research_complete": [
             (1, {**back_pose}),
-            (5, {**back_pose, "head": {**back_head, "rotation": (0, -math.pi, -0.42)}, "spine": {"rotation": (-0.14, 0, 0.10)}}),
+            (5, {**back_pose, "head": {**back_head, "rotation": (0, 0, -0.42)}, "spine": {"rotation": (-0.14, 0, 0.10)}}),
             (10, {**back_pose, "upper_arm.R": {"rotation": (-0.25, 0, -1.20)}, "forearm.R": {"rotation": (-0.20, 0, 0.76)}}),
             (13, {**back_pose, "spine": {"rotation": (-0.26, 0, -0.12)}, "forearm.R": {"rotation": (-0.30, 0, 0.30)}, "hand.R": {"scale": (1.30, 1.30, 1.30)}}),
             (21, {**back_pose}),

@@ -3,6 +3,16 @@
 This bundle records the local and public acceptance pass for
 [`PRESENTATION-RECOVERY-PRD.md`](./PRESENTATION-RECOVERY-PRD.md). Implementation commit `35088b2` was deployed to `idea.battery.rip` and verified there on 2026-09-04.
 
+## September 4 follow-up presentation repair
+
+- The broad-research workstation now renders beside the Sage rather than inside the higher workbench stacking context. Its CRT, side-mounted tower, keyboard, and cart sit behind the Sage; the real status strip and paper handoff remain above the performance.
+- Sage and workstation entrance movement now share the same right-to-left travel distance. The Sage exits toward the computer, returns with it, parks it, turns, and settles without the former opposite-direction meeting motion.
+- Workstation horizontal placement now derives from the projected midpoint of the model's hands. Sage marker projection uses the stable final stage rectangle rather than chasing the CSS entrance transform.
+- Research poses no longer counter-rotate the Sage's monitor head toward the player. After the chair turn, his face points at the workstation CRT until the job completes.
+- Dialogue now requires a separate advance after the last line before response controls appear. Key repeat is ignored, response clicks lock during their short confirmation beat, and the prompt keeps its readable size when the response area opens.
+- The nine dialogue portraits now use a 48 by 48 logical grid, strict black-and-white edge art, and nearest-neighbor 96 by 96 output.
+- Browser evidence for this follow-up lives under `artifacts/revisions/2026-09-04-workstation-dialogue/` locally. The key captures are `workstation-entrance-contact-sheet.png`, `after-workstation-depth.png`, `dialogue-awaiting-advance.png`, and `dialogue-response-screen.png`.
+
 ## Public deployment
 
 - `artifacts/recovery/final-public-workstation.png` — fresh 1,440×900 capture from the authenticated public production route in held research mode. It shows the Sage, gaming chair, hands, keyboard, cart, CRT, readable clue scraps, and status UI in one composed frame.

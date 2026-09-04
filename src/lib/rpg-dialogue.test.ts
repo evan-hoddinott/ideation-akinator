@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	dialogueAdvanceAction,
 	pageBounds,
 	pageCount,
 	sageVoiceProfile,
@@ -9,6 +10,12 @@ import {
 } from '$lib/rpg-dialogue';
 
 describe('RPG dialogue timing', () => {
+	it('requires a separate advance between the last spoken line and its responses', () => {
+		expect(dialogueAdvanceAction(true, 0, 1)).toBe('finish-line');
+		expect(dialogueAdvanceAction(false, 0, 2)).toBe('next-line');
+		expect(dialogueAdvanceAction(false, 1, 2)).toBe('show-responses');
+	});
+
 	it('keeps short conversational turns together and wraps unusually long prompts', () => {
 		expect(segmentDialogue('First thought. Second thought?')).toEqual([
 			'First thought. Second thought?'

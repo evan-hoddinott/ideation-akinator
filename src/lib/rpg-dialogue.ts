@@ -9,6 +9,18 @@ export interface SageVoiceProfile {
 	waveform: OscillatorType;
 }
 
+export type DialogueAdvanceAction = 'finish-line' | 'next-line' | 'show-responses';
+
+export function dialogueAdvanceAction(
+	typing: boolean,
+	segmentIndex: number,
+	segmentCount: number
+): DialogueAdvanceAction {
+	if (typing) return 'finish-line';
+	if (segmentIndex < Math.max(segmentCount - 1, 0)) return 'next-line';
+	return 'show-responses';
+}
+
 const MOOD_BASE_FREQUENCY: Record<SageMood, number> = {
 	neutral: 226,
 	thinking: 202,

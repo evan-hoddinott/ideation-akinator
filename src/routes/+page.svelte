@@ -2239,6 +2239,30 @@
 				onSecret={findForbiddenFloppy}
 			/>
 		{/if}
+		{#if stateReady && project?.stage === 'research' && (broadResearchIsActive || (project.research.result && broadResearchPerformanceOpen))}
+			<ResearchWorkstation
+				active={true}
+				calm={project.personality.calmMode || broadResearchSkipped}
+				projectId={project.id}
+				task="broad"
+				message={researchMessage}
+				sourceCount={researchSourceCount}
+				complete={!!project.research.result}
+				summary={project.research.result?.summary ?? ''}
+				findingCount={project.research.result?.findings.length ?? 0}
+				gapCount={project.research.result?.gaps.length ?? 0}
+				onCancel={() => cancelResearchJob()}
+				onInspect={() => {
+					broadResearchPerformanceOpen = false;
+					researchScrollOpen = true;
+				}}
+				onContinue={() => (broadResearchPerformanceOpen = false)}
+				onSkip={skipBroadResearchPerformance}
+				anchors={sageAnchors}
+				onPerformanceChange={(performance) => (sagePerformance = performance)}
+				onEffect={playOracleEffect}
+			/>
+		{/if}
 		{#if presentationDebugMode === 'clips'}
 			<aside class="sage-motion-lab" aria-label="Sage animation debug scene">
 				<header><b>SAGE MOTION LAB</b><span>{sagePerformance ?? 'idle'}</span></header>
@@ -2656,28 +2680,7 @@
 								</div>
 							</SageDialogue>
 						{:else if broadResearchIsActive || (project.research.result && broadResearchPerformanceOpen)}
-							<ResearchWorkstation
-								active={true}
-								calm={project.personality.calmMode || broadResearchSkipped}
-								projectId={project.id}
-								task="broad"
-								message={researchMessage}
-								sourceCount={researchSourceCount}
-								complete={!!project.research.result}
-								summary={project.research.result?.summary ?? ''}
-								findingCount={project.research.result?.findings.length ?? 0}
-								gapCount={project.research.result?.gaps.length ?? 0}
-								onCancel={() => cancelResearchJob()}
-								onInspect={() => {
-									broadResearchPerformanceOpen = false;
-									researchScrollOpen = true;
-								}}
-								onContinue={() => (broadResearchPerformanceOpen = false)}
-								onSkip={skipBroadResearchPerformance}
-								anchors={sageAnchors}
-								onPerformanceChange={(performance) => (sagePerformance = performance)}
-								onEffect={playOracleEffect}
-							/>
+							<!-- The performance is a sibling of the Sage so its rear and foreground layers can straddle him. -->
 						{:else if project.research.result}
 							<SageDialogue
 								altitude={sageAltitude}

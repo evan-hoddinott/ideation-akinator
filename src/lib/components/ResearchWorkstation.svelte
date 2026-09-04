@@ -95,10 +95,7 @@
 		const height = Math.min(Math.max(window.innerHeight * 0.6, 470), 640);
 		const handMidX = (rigAnchors.leftHand.x + rigAnchors.rightHand.x) / 2;
 		const handMidY = (rigAnchors.leftHand.y + rigAnchors.rightHand.y) / 2;
-		const left = Math.min(
-			Math.max(rigAnchors.seat.x - width * 0.21, 12),
-			window.innerWidth - width - 12
-		);
+		const left = Math.min(Math.max(handMidX - width * 0.36, 12), window.innerWidth - width - 12);
 		const top = Math.min(
 			Math.max(rigAnchors.seat.y - height * 0.82, 8),
 			window.innerHeight - height - 72
@@ -371,7 +368,6 @@
 				<div class="cart-wheel right"></div>
 				<div class="tangled-cable" aria-hidden="true"></div>
 			</div>
-
 			<div class="parking-caption" aria-hidden="true">
 				{phase === 'exit'
 					? 'I AM NOT SHOWING YOU MY BROWSER HISTORY.'
@@ -430,9 +426,7 @@
 
 <style>
 	.research-performance {
-		position: fixed;
-		z-index: 6;
-		inset: 0;
+		position: static;
 		pointer-events: none;
 	}
 
@@ -442,10 +436,14 @@
 		top: var(--rig-top, 7vh);
 		width: var(--rig-width, min(48vw, 720px));
 		height: var(--rig-height, min(62vh, 640px));
-		filter: drop-shadow(13px 18px 0 #02010b99);
 		transition:
 			opacity 320ms steps(4, end),
 			transform 320ms steps(4, end);
+	}
+
+	.workstation-rig {
+		z-index: 6;
+		filter: drop-shadow(13px 18px 0 #02010b99);
 	}
 
 	.research-performance[data-phase='exit'] .workstation-rig {
@@ -469,9 +467,9 @@
 
 	.crt-monitor {
 		position: absolute;
-		left: 40%;
+		left: 34%;
 		top: 1%;
-		width: min(58%, 470px);
+		width: min(48%, 400px);
 		aspect-ratio: 1.28;
 	}
 
@@ -573,9 +571,9 @@
 
 	.computer-tower {
 		position: absolute;
-		right: 3%;
+		right: 1%;
 		top: 15%;
-		width: 24%;
+		width: 16%;
 		height: 58%;
 		padding: 9% 4% 4%;
 		border: 5px outset #ddd5b7;
@@ -796,7 +794,8 @@
 	}
 
 	.real-research-strip {
-		position: absolute;
+		position: fixed;
+		z-index: 13;
 		left: 3%;
 		right: 3%;
 		bottom: 0;
@@ -1034,6 +1033,7 @@
 
 	.parking-caption {
 		position: fixed;
+		z-index: 12;
 		left: var(--rig-left, 42vw);
 		top: max(8px, calc(var(--rig-top, 7vh) - 12px));
 		padding: 6px 9px;
@@ -1048,7 +1048,7 @@
 
 	.paper-handoff {
 		position: fixed;
-		z-index: 6;
+		z-index: 20;
 		inset: 0;
 		display: grid;
 		place-items: center;
@@ -1227,7 +1227,7 @@
 
 	@keyframes workstation-arrival {
 		from {
-			transform: translateX(115%) rotate(2deg);
+			transform: translateX(110vw) rotate(2deg);
 		}
 		72% {
 			transform: translateX(-3%) rotate(-1deg);
