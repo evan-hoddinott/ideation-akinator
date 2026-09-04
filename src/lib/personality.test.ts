@@ -25,6 +25,17 @@ describe('Signal Sage personality director', () => {
 		expect(new Set(lines).size).toBe(3);
 	});
 
+	it('does not recycle exhausted scripted lines during a project', () => {
+		let personality = createSagePersonality();
+		const lines: string[] = [];
+		for (let index = 0; index < 12; index += 1) {
+			const reaction = reactToSageEvent(personality, 'problem-added', 'project-1');
+			personality = reaction.personality;
+			lines.push(personality.lineId);
+		}
+		expect(new Set(lines).size).toBe(lines.length);
+	});
+
 	it('builds only qualitative confidence from accumulated workflow signals', () => {
 		expect(deriveSageConfidence({})).toBe('static');
 		expect(deriveSageConfidence({ problemCount: 2, topic: 'Buses' })).toBe('faint-signal');

@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import type { AnimationAction } from 'three';
 	import type { SagePersonality } from '$lib/personality';
+	import type { OracleEffect } from '$lib/oracle-audio';
 	import { AuthoredPoseLayer } from '$lib/authored-pose-layer';
 	import {
 		clipForMood,
 		faceProfileForMood,
 		normalizedCursorTarget,
 		speechMeter,
-		type SageClip
+		type SageClip,
+		type SageScreenAnchors
 	} from '$lib/sage-stage';
 
 	let {
@@ -18,8 +21,11 @@
 		speaking = false,
 		voicePulse = 0,
 		voiceEnergy = 0.5,
+		performance = null,
 		resetSignal = 0,
 		allowPopup = true,
+		onAnchors = () => {},
+		onEffect = () => {},
 		onSecret
 	}: {
 		personality: SagePersonality;
@@ -28,8 +34,11 @@
 		speaking?: boolean;
 		voicePulse?: number;
 		voiceEnergy?: number;
+		performance?: SageClip | null;
 		resetSignal?: number;
 		allowPopup?: boolean;
+		onAnchors?: (anchors: SageScreenAnchors) => void;
+		onEffect?: (effect: OracleEffect, volume?: number) => void;
 		onSecret: () => void;
 	} = $props();
 
@@ -42,10 +51,16 @@
 	let popupVisible = $state(false);
 	let popupSwatting = $state(false);
 	let popupImpact = $state(false);
+	type PopupPhase =
+		'hidden' | 'ignoring' | 'glance' | 'waiting' | 'comment' | 'anticipate' | 'swat';
+	let popupPhase = $state<PopupPhase>('hidden');
+	let popupTimers: number[] = [];
 	let resetting = $state(false);
 	let lastResetSignal = 0;
 	let playClip: ((clip: SageClip, returnToIdle?: boolean) => void) | null = null;
 	let lastReactionCounter = -1;
+	let lastPerformance: SageClip | null = null;
+	let lastSpeaking = false;
 	let lastAltitude = 0;
 	let mounted = false;
 	let threeStarted = false;
@@ -57,6 +72,8 @@
 		if (resetSignal <= lastResetSignal) return;
 		lastResetSignal = resetSignal;
 		resetting = true;
+		playClip?.('drop', false);
+		onEffect('sage-error', 0.34);
 		const timer = window.setTimeout(() => (resetting = false), 3_050);
 		return () => window.clearTimeout(timer);
 	});
@@ -64,14 +81,29 @@
 	$effect(() => {
 		const counter = personality.eventCounter;
 		const mood = personality.mood;
-		if (!playClip || popupSwatting || counter === lastReactionCounter) return;
+		if (!playClip || performance || popupSwatting || counter === lastReactionCounter) return;
 		lastReactionCounter = counter;
 		playClip(clipForMood(mood), true);
 	});
 
 	$effect(() => {
+		const requested = performance;
+		if (!playClip || requested === lastPerformance) return;
+		lastPerformance = requested;
+		playClip(requested ?? 'idle', false);
+	});
+
+	$effect(() => {
+		const nowSpeaking = speaking;
+		if (!playClip || performance || nowSpeaking === lastSpeaking) return;
+		lastSpeaking = nowSpeaking;
+		if (nowSpeaking) playClip('talk', false);
+		else playClip('idle', false);
+	});
+
+	$effect(() => {
 		const nextAltitude = altitude;
-		if (!playClip || Math.abs(nextAltitude - lastAltitude) < 0.018) return;
+		if (!playClip || performance || Math.abs(nextAltitude - lastAltitude) < 0.018) return;
 		lastAltitude = nextAltitude;
 		playClip('ascend', true);
 	});
@@ -91,23 +123,58 @@
 			popupVisible
 		)
 			return;
-		const popupTimer = window.setTimeout(() => (popupVisible = true), 2_200);
+		const popupTimer = window.setTimeout(showPopupTutorial, 2_200);
 		return () => window.clearTimeout(popupTimer);
 	});
+
+	function showPopupTutorial() {
+		popupVisible = true;
+		popupPhase = 'ignoring';
+		onEffect('popup-appear', 0.28);
+		popupTimers.forEach((timer) => window.clearTimeout(timer));
+		popupTimers = [
+			window.setTimeout(() => {
+				popupPhase = 'glance';
+				playClip?.('popup_notice', true);
+			}, 900),
+			window.setTimeout(() => (popupPhase = 'waiting'), 1_650),
+			window.setTimeout(() => (popupPhase = 'comment'), 2_750),
+			window.setTimeout(() => {
+				popupPhase = 'anticipate';
+				playClip?.('popup_swat', false);
+			}, 3_850),
+			window.setTimeout(swatPopup, 4_250)
+		];
+	}
+
+	function dismissPopup() {
+		if (popupSwatting) return;
+		popupTimers.forEach((timer) => window.clearTimeout(timer));
+		popupVisible = false;
+		popupPhase = 'hidden';
+		onEffect('popup-flight', 0.22);
+		playClip?.('approval', true);
+		onSecret();
+	}
 
 	function swatPopup() {
 		if (popupSwatting) return;
 		popupSwatting = true;
-		playClip?.('popup_swat', true);
-		window.setTimeout(() => (popupImpact = true), 400);
+		popupPhase = 'swat';
+		window.setTimeout(() => {
+			popupImpact = true;
+			onEffect('popup-contact', 0.42);
+		}, 400);
+		window.setTimeout(() => onEffect('popup-flight', 0.3), 470);
 		window.setTimeout(() => {
 			popupVisible = false;
 			popupImpact = false;
-		}, 920);
+			popupPhase = 'hidden';
+		}, 1_060);
 		window.setTimeout(() => {
 			popupSwatting = false;
 			onSecret();
-		}, 1_440);
+		}, 1_500);
 	}
 
 	function trackPointer(event: PointerEvent) {
@@ -134,7 +201,10 @@
 		};
 	});
 
-	onDestroy(() => cleanupThree());
+	onDestroy(() => {
+		popupTimers.forEach((timer) => window.clearTimeout(timer));
+		cleanupThree();
+	});
 
 	async function startThree() {
 		if (personality.calmMode || motionFallback || threeStarted || !canvas || !container) return;
@@ -147,9 +217,10 @@
 				import('three/examples/jsm/effects/OutlineEffect.js')
 			]);
 			const mountContainer = container;
+			const renderCanvas = canvas;
 
 			const renderer = new THREE.WebGLRenderer({
-				canvas,
+				canvas: renderCanvas,
 				alpha: true,
 				antialias: false,
 				powerPreference: 'high-performance'
@@ -170,7 +241,7 @@
 			rim.position.set(-5, 2, -3);
 			scene.add(rim);
 
-			const gltf = await new GLTFLoader().loadAsync('/models/signal-sage.glb');
+			const gltf = await new GLTFLoader().loadAsync('/models/signal-sage.glb?v=d56736a9');
 			const sage = gltf.scene;
 			sage.rotation.y = -0.08;
 			const presentation = new THREE.Group();
@@ -185,7 +256,9 @@
 			// hat, chair, and wide hand gestures inside the canvas at every viewport size.
 			const poseEnvelope = new THREE.Box3();
 			const sampleBounds = new THREE.Box3();
+			const framingClips = new Set(['idle', 'shocked', 'popup_swat', 'reveal', 'forbidden']);
 			for (const clip of gltf.animations) {
+				if (!framingClips.has(clip.name)) continue;
 				mixer.stopAllAction();
 				mixer.setTime(0);
 				const sampleAction = actions[clip.name];
@@ -206,20 +279,36 @@
 			let activeAction: AnimationAction | null = null;
 			let actionName: SageClip = 'idle';
 			let returnTimer = 0;
+			const transitionTimers = new SvelteSet<number>();
+			const loopingClips = new Set<SageClip>([
+				'idle',
+				'talk',
+				'research_typing',
+				'research_one_hand'
+			]);
 
 			playClip = (clip, returnToIdle = false) => {
 				const next = actions[clip];
 				if (!next) return;
-				activeAction?.stop();
+				const previous = activeAction;
 				actionName = clip;
-				next.reset();
+				if (previous === next && loopingClips.has(clip)) return;
+				next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1);
 				next.enabled = true;
 				next.setLoop(
-					clip === 'idle' ? THREE.LoopRepeat : THREE.LoopOnce,
-					clip === 'idle' ? Infinity : 1
+					loopingClips.has(clip) ? THREE.LoopRepeat : THREE.LoopOnce,
+					loopingClips.has(clip) ? Infinity : 1
 				);
-				next.clampWhenFinished = clip !== 'idle';
+				next.clampWhenFinished = !loopingClips.has(clip);
 				next.play();
+				if (previous && previous !== next) {
+					next.crossFadeFrom(previous, 0.16, false);
+					const transitionTimer = window.setTimeout(() => {
+						previous.stop();
+						transitionTimers.delete(transitionTimer);
+					}, 190);
+					transitionTimers.add(transitionTimer);
+				}
 				activeAction = next;
 				window.clearTimeout(returnTimer);
 				if (returnToIdle && clip !== 'idle') {
@@ -229,6 +318,10 @@
 			};
 
 			playClip('idle');
+			if (performance) {
+				lastPerformance = performance;
+				playClip(performance, false);
+			}
 			modelReady = true;
 
 			const outline = new OutlineEffect(renderer, {
@@ -238,7 +331,7 @@
 				defaultKeepAlive: true
 			});
 			let elapsed = 0;
-			let lastFrame = performance.now();
+			let lastFrame = window.performance.now();
 			let frameId = 0;
 			let lastFaceStep = -1;
 			let lastVoicePulse = voicePulse;
@@ -246,6 +339,7 @@
 			let smoothedCursorX = 0;
 			let smoothedCursorY = 0;
 			let researchTurn = 0;
+			let lastAnchorUpdate = 0;
 			const eyeLeft = sage.getObjectByName('EyeLeft');
 			const eyeRight = sage.getObjectByName('EyeRight');
 			const mouth = sage.getObjectByName('Mouth');
@@ -253,6 +347,11 @@
 			const spineBone = sage.getObjectByName('spine');
 			const hatSecondary = sage.getObjectByName('hat_secondary');
 			const robeSecondary = sage.getObjectByName('robe_secondary');
+			const seatMarker = sage.getObjectByName('ChairSeat');
+			const headMarker = sage.getObjectByName('MonitorScreen');
+			const leftHandMarker = sage.getObjectByName('HandL');
+			const rightHandMarker = sage.getObjectByName('HandR');
+			const anchorVector = new THREE.Vector3();
 			const proceduralPose = new AuthoredPoseLayer([
 				headBone,
 				spineBone,
@@ -292,7 +391,7 @@
 				const fitWidth = (poseSize.x * 1.08) / 0.78;
 				const verticalDistance = fitHeight / 2 / Math.tan(verticalFov / 2);
 				const horizontalDistance = fitWidth / 2 / Math.tan(horizontalFov / 2);
-				const distance = Math.max(verticalDistance, horizontalDistance) + poseSize.z * 0.55;
+				const distance = (Math.max(verticalDistance, horizontalDistance) + poseSize.z * 0.55) * 0.6;
 				camera.position.set(0, 0, distance);
 				camera.near = Math.max(0.01, distance - poseSize.z * 2);
 				camera.far = distance + poseSize.z * 4;
@@ -303,7 +402,7 @@
 			resizeObserver.observe(mountContainer);
 			resize();
 
-			const render = (now = performance.now()) => {
+			const render = (now = window.performance.now()) => {
 				const delta = Math.min((now - lastFrame) / 1000, 0.05);
 				lastFrame = now;
 				elapsed += delta;
@@ -314,7 +413,10 @@
 				mixer.update(delta);
 				proceduralPose.capture();
 				presentation.position.y = Math.sin(elapsed * 1.7) * 0.035;
-				researchTurn += ((researching ? Math.PI : 0) - researchTurn) * Math.min(delta * 2.2, 1);
+				const turnedTowardWorkstation =
+					actionName === 'workstation_turn' || actionName.startsWith('research_');
+				const targetTurn = turnedTowardWorkstation ? Math.PI : 0;
+				researchTurn += (targetTurn - researchTurn) * Math.min(delta * 2.4, 1);
 				presentation.rotation.y = researchTurn + Math.sin(elapsed * 0.7) * 0.018;
 
 				if (voicePulse !== lastVoicePulse) {
@@ -331,7 +433,7 @@
 				if (headBone) {
 					proceduralEuler.set(
 						-smoothedCursorY * 0.075 * gazeWeight,
-						smoothedCursorX * 0.12 * gazeWeight - (researching ? researchTurn * 0.12 : 0),
+						smoothedCursorX * 0.12 * gazeWeight,
 						speaking ? Math.sin(elapsed * 8.5) * 0.012 : 0,
 						'XYZ'
 					);
@@ -414,6 +516,33 @@
 					}
 				}
 
+				if (
+					researching &&
+					now - lastAnchorUpdate >= 80 &&
+					seatMarker &&
+					headMarker &&
+					leftHandMarker &&
+					rightHandMarker
+				) {
+					lastAnchorUpdate = now;
+					presentation.updateMatrixWorld(true);
+					const canvasRect = renderCanvas.getBoundingClientRect();
+					const projectMarker = (marker: NonNullable<typeof seatMarker>) => {
+						marker.getWorldPosition(anchorVector).project(camera);
+						return {
+							x: canvasRect.left + ((anchorVector.x + 1) / 2) * canvasRect.width,
+							y: canvasRect.top + ((1 - anchorVector.y) / 2) * canvasRect.height
+						};
+					};
+					onAnchors({
+						seat: projectMarker(seatMarker),
+						head: projectMarker(headMarker),
+						leftHand: projectMarker(leftHandMarker),
+						rightHand: projectMarker(rightHandMarker),
+						updatedAt: now
+					});
+				}
+
 				outline.render(scene, camera);
 				frameId = window.requestAnimationFrame(render);
 			};
@@ -422,6 +551,7 @@
 			cleanupThree = () => {
 				window.cancelAnimationFrame(frameId);
 				window.clearTimeout(returnTimer);
+				for (const timer of transitionTimers) window.clearTimeout(timer);
 				resizeObserver.disconnect();
 				mixer.stopAllAction();
 				sage.traverse((object) => {
@@ -472,14 +602,23 @@
 		<button
 			class="joke-popup"
 			class:swatted={popupSwatting}
+			data-phase={popupPhase}
 			type="button"
-			onclick={swatPopup}
+			onclick={dismissPopup}
 			aria-label="Dismiss a suspicious Crystal RAM popup"
 		>
 			<span class="popup-bar">TOTALLY_REAL_PRIZE.EXE <b>×</b></span>
 			<img src="/images/retro/magic-hit.gif" alt="" />
 			<strong>YOU WON 8MB<br />OF CRYSTAL RAM!!!</strong>
-			<small>{popupSwatting ? 'BAD WINDOW. BAD.' : 'CLICK TO CLOSE BEFORE HE NOTICES'}</small>
+			<small
+				>{popupSwatting
+					? 'BAD WINDOW. BAD.'
+					: popupPhase === 'comment'
+						? 'ARE YOU GOING TO CLEAN THAT UP?'
+						: popupPhase === 'waiting'
+							? 'HE IS PRETENDING NOT TO SEE IT'
+							: 'CLICK TO CLOSE BEFORE HE NOTICES'}</small
+			>
 		</button>
 	{/if}
 	{#if popupImpact}<span class="swat-impact" aria-hidden="true">WHAP!</span>{/if}
@@ -492,14 +631,24 @@
 <style>
 	.live-sage-stage {
 		position: fixed;
-		left: clamp(36px, 7vw, 130px);
+		left: clamp(10px, 2vw, 42px);
 		top: calc(46% - (var(--sage-altitude) * 18vh));
-		width: min(58vw, 880px);
-		height: min(calc(82vh - (var(--sage-altitude) * 10vh)), 900px);
+		width: min(72vw, 1100px);
+		height: min(calc(98vh - (var(--sage-altitude) * 8vh)), 1020px);
 		z-index: 7;
 		pointer-events: none;
 		transform: translateY(-50%);
 		transition: top 720ms cubic-bezier(0.16, 0.9, 0.22, 1);
+	}
+
+	/* Dialogue uses the larger hero framing above. Research needs its own authored
+	   camera footprint so the turned chair, hands, keyboard, and cart read as one
+	   performance instead of a giant canvas colliding with the workstation. */
+	.live-sage-stage.researching {
+		left: clamp(6px, 1vw, 18px);
+		top: 48%;
+		width: min(55vw, 840px);
+		height: min(76vh, 800px);
 	}
 
 	.sage-motion,
@@ -641,7 +790,16 @@
 
 	.joke-popup.swatted {
 		pointer-events: none;
-		animation: popup-swat 620ms steps(8, end) forwards;
+		animation: popup-swat 620ms steps(8, end) 400ms forwards;
+	}
+	.joke-popup[data-phase='glance'],
+	.joke-popup[data-phase='waiting'] {
+		box-shadow:
+			10px 12px 0 #06020d99,
+			0 0 0 5px #ffe66b;
+	}
+	.joke-popup[data-phase='anticipate'] {
+		transform: translateX(12px) rotate(5deg) scale(1.04);
 	}
 
 	.joke-popup.swatted::after {
@@ -740,10 +898,10 @@
 			transform: translateX(-115%) rotate(-6deg);
 		}
 		76% {
-			transform: translateX(56%) rotate(3deg);
+			transform: translateX(42%) rotate(3deg);
 		}
 		100% {
-			transform: translateX(52%) rotate(1deg);
+			transform: translateX(38%) rotate(1deg);
 		}
 	}
 

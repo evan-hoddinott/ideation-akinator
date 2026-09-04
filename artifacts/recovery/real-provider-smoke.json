@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-09-04T18:34:22.562Z",
+  "endpoint": "POST /api/intake-insights",
+  "httpStatus": 200,
+  "tokenUsageTotal": 556,
+  "schema": {
+    "approvedClarityLabel": true,
+    "reasonCount": 4,
+    "warningType": true,
+    "industryTagCount": 2
+  },
+  "providerErrorCode": null
+}

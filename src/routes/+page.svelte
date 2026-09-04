@@ -10,6 +10,7 @@
 	import SageStage from '$lib/components/SageStage.svelte';
 	import SummonedScroll from '$lib/components/SummonedScroll.svelte';
 	import VerticalWorld from '$lib/components/VerticalWorld.svelte';
+	import { OracleAudio, type OracleEffect } from '$lib/oracle-audio';
 	import {
 		createConceptState,
 		parseConceptGenerationResult,
@@ -19,6 +20,7 @@
 	import {
 		createDemoPortfolio,
 		createDemoProject,
+		DEMO_INTERVIEW_QUESTIONS,
 		createDemoFinalPlan,
 		createDemoFocusedResearchJob,
 		createDemoResearchJob,
@@ -57,7 +59,6 @@
 		type InterviewNextRequest,
 		type InterviewQuestion
 	} from '$lib/interview';
-	import { OracleAudio } from '$lib/oracle-audio';
 	import {
 		reactToSageEvent,
 		type SageContext,
@@ -79,7 +80,7 @@
 	import { clearTokenUsage, recordResponseTokenUsage, recordTokenUsage } from '$lib/token-usage';
 	import { DEMO_RESEARCH_DURATION_MS, startVisibleTimer } from '$lib/research-performance';
 	import { internetEraForAltitude, internetEraIndex } from '$lib/internet-era';
-	import { projectAltitude } from '$lib/sage-stage';
+	import { projectAltitude, type SageClip, type SageScreenAnchors } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
 		parseResearchJobView,
@@ -139,11 +140,20 @@
 	let sageSpeaking = $state(false);
 	let sageVoicePulse = $state(0);
 	let sageVoiceEnergy = $state(0.5);
+	let sagePerformance = $state<SageClip | null>(null);
+	let sageAnchors = $state<SageScreenAnchors | null>(null);
 	let previewMuted = $state(true);
 	let previewCalm = $state(false);
 	let resetWorldSignal = $state(0);
 	let mainMenuOpen = $state(true);
 	let resetIntent = $state<'menu' | 'new' | 'demo'>('menu');
+	let presentationDebugMode = $state<
+		'off' | 'clips' | 'workstation' | 'popup' | 'world' | 'mail' | 'scroll' | 'history'
+	>('off');
+	let debugAltitude = $state<number | null>(null);
+	let debugResearchHold = $state(false);
+	let historyObjectOpen = $state(false);
+	let presentationDebugReady = false;
 	let oracleAudio: OracleAudio | null = null;
 	let reducedMotionApplied = false;
 	const stagePreview = createProject(new Date(0), 'stage-preview');
@@ -158,7 +168,7 @@
 		}
 	);
 	const demoMode = $derived(isDemoProject(project));
-	const sageAltitude = $derived(project ? projectAltitude(project) : 0.04);
+	const sageAltitude = $derived(debugAltitude ?? (project ? projectAltitude(project) : 0.04));
 	const worldEra = $derived(internetEraForAltitude(sageAltitude));
 	const worldEraIndex = $derived(internetEraIndex(sageAltitude));
 	const finalReport = $derived(project ? buildProjectReport(project) : null);
@@ -207,6 +217,43 @@
 		'How dangerous may the idea become?',
 		'How much money may I incinerate?',
 		'Any final limitations before I open the terrible web?'
+	];
+	const sageDebugClips: SageClip[] = [
+		'idle',
+		'talk',
+		'attentive',
+		'reaction',
+		'thinking',
+		'approval',
+		'confusion',
+		'suspicious',
+		'shocked',
+		'weak_answer',
+		'smug',
+		'lie',
+		'chair_wobble',
+		'ascend',
+		'drop',
+		'popup_notice',
+		'popup_swat',
+		'workstation_exit',
+		'workstation_push',
+		'workstation_park',
+		'workstation_turn',
+		'research_typing',
+		'research_one_hand',
+		'research_inspect',
+		'research_smack',
+		'research_cable',
+		'research_sleep',
+		'research_celebrate',
+		'research_complete',
+		'scroll_present',
+		'mail_notice',
+		'mail_click',
+		'reveal',
+		'defeat',
+		'forbidden'
 	];
 
 	const innovationLabels = [
@@ -291,6 +338,113 @@
 	});
 
 	$effect(() => {
+		if (!stateReady || presentationDebugReady) return;
+		presentationDebugReady = true;
+		const requestedMode = new URL(window.location.href).searchParams.get('sageDebug');
+		if (
+			requestedMode !== 'clips' &&
+			requestedMode !== 'workstation' &&
+			requestedMode !== 'popup' &&
+			requestedMode !== 'world' &&
+			requestedMode !== 'mail' &&
+			requestedMode !== 'scroll' &&
+			requestedMode !== 'history'
+		)
+			return;
+		presentationDebugMode = requestedMode;
+		mainMenuOpen = false;
+		if (requestedMode === 'popup') {
+			const debugProject = createDemoProject();
+			debugProject.stage = 'problem';
+			debugProject.personality.achievements = [];
+			project = debugProject;
+			return;
+		}
+		if (requestedMode === 'world') {
+			const debugProject = createDemoProject();
+			debugProject.stage = 'problem';
+			project = debugProject;
+			const debugUrl = new URL(window.location.href);
+			const requestedEra = Number(debugUrl.searchParams.get('era') ?? '0');
+			const eraIndex = Math.max(0, Math.min(13, Math.floor(requestedEra)));
+			debugAltitude = (eraIndex + 0.5) / 14;
+			if (debugUrl.searchParams.has('climb')) {
+				debugAltitude = 0.025;
+				for (let step = 1; step <= 22; step += 1) {
+					window.setTimeout(() => (debugAltitude = 0.025 + step * 0.026), step * 620);
+				}
+			}
+			if (debugUrl.searchParams.has('reset')) {
+				window.setTimeout(() => (resetWorldSignal += 1), 1_800);
+			}
+			return;
+		}
+		if (requestedMode === 'scroll') {
+			const debugProject = createDemoProject();
+			debugProject.stage = 'research';
+			const debugResearch = createDemoResearchJob('completed');
+			debugProject.research = {
+				jobId: debugResearch.id,
+				status: debugResearch.status,
+				result: debugResearch.result
+			};
+			project = debugProject;
+			broadResearchPerformanceOpen = false;
+			researchScrollOpen = true;
+			return;
+		}
+		if (requestedMode === 'mail') {
+			const debugProject = createDemoProject();
+			const portfolio = createDemoPortfolio();
+			for (const key of Object.keys(window.localStorage)) {
+				if (key.startsWith('ideation-akinator:concept-mail:')) window.localStorage.removeItem(key);
+			}
+			debugProject.stage = 'concepts';
+			debugProject.concepts.portfolio = portfolio;
+			debugProject.featureWorkshop = createFeatureWorkshop(portfolio);
+			project = debugProject;
+			return;
+		}
+		if (requestedMode === 'history') {
+			const debugProject = createDemoProject();
+			debugProject.stage = 'questions';
+			debugProject.interview = {
+				status: 'active',
+				questions: DEMO_INTERVIEW_QUESTIONS,
+				answers: [
+					{ questionId: 'demo-first-user', status: 'answered', value: 'students' },
+					{ questionId: 'demo-live-feed', status: 'answered', value: false }
+				],
+				currentQuestionIndex: 2,
+				completionReason: null,
+				confidence: 'normal'
+			};
+			project = debugProject;
+			window.setTimeout(previousInterviewQuestion, 900);
+			return;
+		}
+		if (requestedMode !== 'workstation') return;
+		const debugProject = createDemoProject();
+		debugProject.stage = 'research';
+		const workstationDebugUrl = new URL(window.location.href);
+		debugResearchHold = workstationDebugUrl.searchParams.has('hold');
+		if (workstationDebugUrl.searchParams.has('handoff')) {
+			const debugResearch = createDemoResearchJob('completed');
+			debugProject.research = {
+				jobId: debugResearch.id,
+				status: debugResearch.status,
+				result: debugResearch.result
+			};
+		} else {
+			debugProject.research.status = 'running';
+			debugProject.research.jobId = 'demo-presentation-workstation';
+			debugProject.research.result = null;
+		}
+		project = debugProject;
+		broadResearchPerformanceOpen = true;
+	});
+
+	$effect(() => {
 		if (!stateReady || reducedMotionApplied || !project) return;
 		reducedMotionApplied = true;
 		if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -356,6 +510,7 @@
 		const status = project?.research.status;
 		if (!jobId || (status !== 'queued' && status !== 'running')) return;
 		if (isDemoProject(project)) {
+			if (presentationDebugMode === 'workstation' && debugResearchHold) return;
 			return startVisibleTimer(DEMO_RESEARCH_DURATION_MS.broad, () => completeDemoResearch(jobId));
 		}
 
@@ -543,6 +698,13 @@
 		oracleAudio ??= new OracleAudio();
 		oracleAudio.setEra(worldEraIndex);
 		oracleAudio.playCue(cue);
+	}
+
+	function playOracleEffect(effect: OracleEffect, volume?: number) {
+		if (visualProject.personality.muted || visualProject.personality.calmMode) return;
+		oracleAudio ??= new OracleAudio();
+		oracleAudio.setEra(worldEraIndex);
+		oracleAudio.playEffect(effect, volume);
 	}
 
 	function playSageVoice(profile: SageVoiceProfile) {
@@ -1439,6 +1601,22 @@
 
 	function previousInterviewQuestion() {
 		if (!project || interviewBusy || project.interview.currentQuestionIndex === 0) return;
+		if (historyObjectOpen) return;
+		historyObjectOpen = true;
+		sagePerformance = 'thinking';
+		playOracleEffect('sage-thinking', 0.25);
+		window.setTimeout(
+			() => {
+				historyObjectOpen = false;
+				sagePerformance = null;
+				commitPreviousInterviewQuestion();
+			},
+			presentationDebugMode === 'history' ? 15_000 : project.personality.calmMode ? 0 : 720
+		);
+	}
+
+	function commitPreviousInterviewQuestion() {
+		if (!project || project.interview.currentQuestionIndex === 0) return;
 		project = saveProject(window.localStorage, {
 			...project,
 			interview: {
@@ -2039,6 +2217,9 @@
 			altitude={sageAltitude}
 			stage={visualProject.stage}
 			calm={visualProject.personality.calmMode}
+			clues={visualProject.problemInput.cards
+				.map((card) => card.text)
+				.filter((text) => text.trim())}
 			resetSignal={resetWorldSignal}
 			onInteract={() => playSageCue('blip')}
 		/>
@@ -2050,10 +2231,36 @@
 				speaking={sageSpeaking}
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
+				performance={sagePerformance}
 				resetSignal={resetWorldSignal}
 				allowPopup={!!project && project.stage !== 'welcome' && !researchIsActive}
+				onAnchors={(anchors) => (sageAnchors = anchors)}
+				onEffect={playOracleEffect}
 				onSecret={findForbiddenFloppy}
 			/>
+		{/if}
+		{#if presentationDebugMode === 'clips'}
+			<aside class="sage-motion-lab" aria-label="Sage animation debug scene">
+				<header><b>SAGE MOTION LAB</b><span>{sagePerformance ?? 'idle'}</span></header>
+				<div>
+					{#each sageDebugClips as clip (clip)}
+						<button
+							type="button"
+							class:active={sagePerformance === clip || (!sagePerformance && clip === 'idle')}
+							onclick={() => {
+								sagePerformance = null;
+								window.setTimeout(() => (sagePerformance = clip), 20);
+							}}>{clip.replaceAll('_', ' ')}</button
+						>
+					{/each}
+				</div>
+			</aside>
+		{/if}
+		{#if historyObjectOpen}
+			<div class="answer-history-object" role="status" aria-live="polite">
+				<div class="history-reel"><i></i><i></i></div>
+				<span>REWINDING ONE QUESTION...</span>
+			</div>
 		{/if}
 		{#if project && project.stage !== 'welcome' && project.stage !== 'concepts'}
 			<ChaosLayer
@@ -2211,6 +2418,8 @@
 							title="Clues already offered"
 							kicker="THE SAGE'S QUESTIONABLE NOTES"
 							onClose={() => (problemReviewOpen = false)}
+							onPerformanceChange={(performance) => (sagePerformance = performance)}
+							onEffect={playOracleEffect}
 						>
 							<div class="scroll-problem-list">
 								{#each project.problemInput.cards as card, index (card.id)}
@@ -2392,6 +2601,8 @@
 							title="The complete limitation spellbook"
 							kicker="EDITING REALITY'S FINE PRINT"
 							onClose={() => (preferenceReviewOpen = false)}
+							onPerformanceChange={(performance) => (sagePerformance = performance)}
+							onEffect={playOracleEffect}
 						>
 							<div class="scroll-constraint-grid">
 								{#each constraintFields as field (field.key)}
@@ -2463,6 +2674,9 @@
 								}}
 								onContinue={() => (broadResearchPerformanceOpen = false)}
 								onSkip={skipBroadResearchPerformance}
+								anchors={sageAnchors}
+								onPerformanceChange={(performance) => (sagePerformance = performance)}
+								onEffect={playOracleEffect}
 							/>
 						{:else if project.research.result}
 							<SageDialogue
@@ -2499,6 +2713,8 @@
 								title="Research recovered from the web"
 								kicker={`${project.research.result.sources.length} SOURCES BOUND`}
 								onClose={() => (researchScrollOpen = false)}
+								onPerformanceChange={(performance) => (sagePerformance = performance)}
+								onEffect={playOracleEffect}
 							>
 								<div class="scroll-research-brief">
 									<p class="scroll-summary">{project.research.result.summary}</p>
@@ -2779,6 +2995,9 @@
 								onBack={returnToWorkshop}
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
+								anchors={sageAnchors}
+								onPerformanceChange={(performance) => (sagePerformance = performance)}
+								onEffect={playOracleEffect}
 							/>
 						{:else}
 							<SageDialogue
@@ -3598,6 +3817,8 @@
 						onSkip={() => performSageEvent('concept-mail-skipped')}
 						onTrash={() => performSageEvent('concept-trashed')}
 						onWorkshopChange={updateFeatureWorkshop}
+						onPerformanceChange={(performance) => (sagePerformance = performance)}
+						onEffect={playOracleEffect}
 					/>
 				{:else}
 					<section class="welcome-room" aria-labelledby="welcome-title">

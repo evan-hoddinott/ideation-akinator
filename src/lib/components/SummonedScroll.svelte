@@ -1,19 +1,42 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { onDestroy } from 'svelte';
+	import type { OracleEffect } from '$lib/oracle-audio';
+	import type { SageClip } from '$lib/sage-stage';
 
 	let {
 		open,
 		title,
 		kicker = 'RECOVERED INFORMATION',
 		children,
-		onClose
+		onClose,
+		onPerformanceChange = () => {},
+		onEffect = () => {}
 	}: {
 		open: boolean;
 		title: string;
 		kicker?: string;
 		children: Snippet;
 		onClose: () => void;
+		onPerformanceChange?: (performance: SageClip | null) => void;
+		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
+	let wasOpen = false;
+	let motionTimer = 0;
+
+	$effect(() => {
+		if (open && !wasOpen) {
+			wasOpen = true;
+			onPerformanceChange('scroll_present');
+			onEffect('scroll-unfurl', 0.34);
+			motionTimer = window.setTimeout(() => onPerformanceChange(null), 1_050);
+		} else if (!open && wasOpen) {
+			wasOpen = false;
+			onEffect('scroll-rollup', 0.26);
+		}
+	});
+
+	onDestroy(() => window.clearTimeout(motionTimer));
 </script>
 
 {#if open}

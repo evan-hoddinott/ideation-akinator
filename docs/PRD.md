@@ -3,14 +3,16 @@
 | Field | Value |
 | --- | --- |
 | Product | Ideation Akinator |
-| Version | 1.2 |
-| Status | Core workflow underway; vertical 3D game workstream complete locally |
+| Version | 1.3 |
+| Status | Core workflow complete; presentation recovery open |
 | Primary URL | `https://idea.battery.rip` |
 | Audience | Solo creators and students |
 | Product type | Personal, password-protected tech demo |
 | Primary language | English |
 | Primary device | Desktop computer |
-| Last updated | 2026-09-01 |
+| Last updated | 2026-09-04 |
+
+> **Presentation status notice:** The completion records for presentation slices 14 through 22 are historical implementation notes, not current acceptance claims. The visual audit found material gaps in the pixel portrait, sourced asset library, Sage animation set, workstation choreography, audio, popup tutorial, concept-mail performance, and scene composition. [The presentation recovery PRD](./PRESENTATION-RECOVERY-PRD.md) is the authoritative anti-drift contract for closing those gaps.
 
 ## 1. Product summary
 

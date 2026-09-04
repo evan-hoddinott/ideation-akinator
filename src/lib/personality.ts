@@ -665,6 +665,45 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	]
 };
 
+const GENERIC_EXHAUSTION_LINES: SageLine[] = [
+	{
+		id: 'fallback-static-1',
+		text: 'The signal crackles. I have already used my good line.',
+		mood: 'neutral',
+		sound: 'blip'
+	},
+	{
+		id: 'fallback-static-2',
+		text: 'Pretend I said something devastatingly insightful.',
+		mood: 'smug',
+		sound: 'none'
+	},
+	{
+		id: 'fallback-static-3',
+		text: 'I refuse to repeat myself. It cheapens the prophecy.',
+		mood: 'irritated',
+		sound: 'error'
+	},
+	{
+		id: 'fallback-static-4',
+		text: 'A meaningful silence now occurs.',
+		mood: 'thinking',
+		sound: 'none'
+	},
+	{
+		id: 'fallback-static-5',
+		text: 'The writers have gone home. Continue.',
+		mood: 'defeated',
+		sound: 'none'
+	},
+	{
+		id: 'fallback-static-6',
+		text: 'I am conserving dialogue for the boss fight.',
+		mood: 'suspicious',
+		sound: 'blip'
+	}
+];
+
 export function createSagePersonality(): SagePersonality {
 	return {
 		playerName: '',
@@ -690,14 +729,18 @@ export function reactToSageEvent(
 ): SageReaction {
 	const pool = LINES[event];
 	let available = pool.filter((line) => !current.seenLineIds.includes(line.id));
-	let retainedSeen = current.seenLineIds;
 	if (available.length === 0) {
-		const poolIds = new Set(pool.map((line) => line.id));
-		retainedSeen = current.seenLineIds.filter((id) => !poolIds.has(id));
-		available = pool;
+		available = GENERIC_EXHAUSTION_LINES.filter((line) => !current.seenLineIds.includes(line.id));
 	}
-	const index = stableHash(`${projectId}:${event}:${current.eventCounter}`) % available.length;
-	const choice = available[index];
+	const choice =
+		available.length > 0
+			? available[stableHash(`${projectId}:${event}:${current.eventCounter}`) % available.length]
+			: ({
+					id: `silent-${current.eventCounter}`,
+					text: '',
+					mood: current.mood,
+					sound: 'none'
+				} satisfies SageLine);
 	const next = {
 		...current,
 		playerName: cleanName(context.playerName ?? current.playerName),
@@ -707,7 +750,7 @@ export function reactToSageEvent(
 		lineId: choice.id,
 		confidence: deriveSageConfidence(context),
 		hypothesis: deriveHypothesis(context),
-		seenLineIds: [...retainedSeen, choice.id].slice(-80),
+		seenLineIds: [...current.seenLineIds, choice.id],
 		eventCounter: current.eventCounter + 1,
 		achievements:
 			event === 'secret-found'

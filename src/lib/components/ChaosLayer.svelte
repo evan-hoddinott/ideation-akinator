@@ -261,7 +261,7 @@
 
 		{#if purl}
 			<button
-				class="purl-event"
+				class={`purl-event purl-${purl.id}`}
 				class:shooed={purlShooed}
 				class:useful={purl.useful}
 				type="button"
@@ -393,6 +393,29 @@
 		z-index: 8;
 		animation-duration: 4.8s;
 	}
+	.purl-research-cat {
+		top: 46%;
+		animation: purl-keyboard-raid 4.8s steps(18, end) both;
+	}
+	.purl-router-nap {
+		left: 62%;
+		top: 13%;
+		animation: purl-router-nap 4.8s steps(10, end) both;
+	}
+	.purl-cable-help {
+		top: 58%;
+		animation: purl-cable-tug 4.8s steps(16, end) both;
+	}
+	.purl-popup-cleaner {
+		top: 31%;
+		animation: purl-cleanup 4.8s steps(20, end) both;
+	}
+	.purl-admin-cat {
+		left: auto;
+		right: 5%;
+		top: 17%;
+		animation: purl-admin 4.8s steps(12, end) both;
+	}
 	.purl-event img {
 		display: block;
 		width: 120px;
@@ -470,6 +493,88 @@
 		}
 		100% {
 			transform: translate(120vw, -180px) rotate(740deg);
+			opacity: 0;
+		}
+	}
+	@keyframes purl-keyboard-raid {
+		0% {
+			transform: translate(-120px, 90px) rotate(-8deg);
+		}
+		38% {
+			transform: translate(46vw, 0) rotate(0);
+		}
+		65% {
+			transform: translate(51vw, -22px) rotate(7deg) scale(1.08);
+		}
+		100% {
+			transform: translate(112vw, 35px) rotate(-5deg);
+		}
+	}
+	@keyframes purl-router-nap {
+		0% {
+			transform: translateY(-180px) rotate(12deg);
+			opacity: 0;
+		}
+		20% {
+			transform: translateY(0) rotate(0);
+			opacity: 1;
+		}
+		74% {
+			transform: translateY(4px) scaleY(0.92);
+			opacity: 1;
+		}
+		100% {
+			transform: translateY(-160px) rotate(-10deg);
+			opacity: 0;
+		}
+	}
+	@keyframes purl-cable-tug {
+		0% {
+			transform: translateX(110vw) rotate(0);
+		}
+		42% {
+			transform: translateX(58vw) rotate(-9deg);
+		}
+		66% {
+			transform: translateX(54vw) rotate(13deg) scaleX(1.16);
+		}
+		100% {
+			transform: translateX(-240px) rotate(-16deg);
+		}
+	}
+	@keyframes purl-cleanup {
+		0% {
+			transform: translate(-180px, 80px) scale(0.4);
+			opacity: 0;
+			filter: hue-rotate(0);
+		}
+		34% {
+			transform: translate(36vw, -20px) scale(1.18);
+			opacity: 1;
+			filter: hue-rotate(80deg);
+		}
+		58% {
+			transform: translate(58vw, 30px) scale(0.86);
+			filter: hue-rotate(210deg);
+		}
+		100% {
+			transform: translate(108vw, -100px) scale(0.3);
+			opacity: 0;
+			filter: hue-rotate(360deg);
+		}
+	}
+	@keyframes purl-admin {
+		0% {
+			transform: scale(0) rotate(-90deg);
+			opacity: 0;
+		}
+		25%,
+		72% {
+			transform: scale(1) rotate(0);
+			opacity: 1;
+		}
+		100% {
+			transform: scale(0) rotate(90deg);
 			opacity: 0;
 		}
 	}

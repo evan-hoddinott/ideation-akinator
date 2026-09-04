@@ -47,7 +47,7 @@
 	let signature = '';
 	let lastQueuedLineId = '';
 
-	const portraitSource = $derived(`/images/sage/${personality.mood}.webp`);
+	const portraitSource = $derived(`/images/sage-pixel/${personality.mood}.png`);
 	const modeGlyphs = {
 		ask: '?',
 		react: '!',
@@ -196,6 +196,17 @@
 	function changeChoicePage(direction: -1 | 1) {
 		choicePage = Math.min(Math.max(choicePage + direction, 0), choicePageTotal - 1);
 	}
+
+	function confirmResponse(event: MouseEvent) {
+		if (!responsesReady || !event.isTrusted) return;
+		const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('button');
+		if (!button || button.disabled || button.closest('.choice-pager')) return;
+		event.preventDefault();
+		event.stopPropagation();
+		button.classList.add('confirmed-answer');
+		button.setAttribute('aria-pressed', 'true');
+		window.setTimeout(() => button.click(), 380);
+	}
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
@@ -241,6 +252,7 @@
 					class:ready={responsesReady}
 					aria-hidden={!responsesReady}
 					bind:this={responseElement}
+					onclickcapture={confirmResponse}
 				>
 					{#if responsesReady}{@render children()}{/if}
 				</div>
@@ -360,13 +372,12 @@
 
 	.sage-portrait img {
 		position: absolute;
-		left: 50%;
-		top: 94%;
-		width: 188%;
-		max-width: none;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
 		image-rendering: pixelated;
-		filter: contrast(1.12) saturate(1.08);
-		transform: translate(-50%, -50%);
+		filter: none;
 	}
 
 	.sage-portrait span {
@@ -447,6 +458,15 @@
 		opacity: 1;
 		pointer-events: auto;
 		animation: responses-in 120ms steps(2, end);
+	}
+
+	.dialogue-responses :global(button.confirmed-answer) {
+		color: #08070d !important;
+		background: #ffd75a !important;
+		box-shadow:
+			inset 0 0 0 3px #fff3a5,
+			0 0 0 3px #7b4c00 !important;
+		transform: translateY(2px);
 	}
 
 	.choice-pager {

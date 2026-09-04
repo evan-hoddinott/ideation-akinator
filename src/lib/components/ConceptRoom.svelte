@@ -11,6 +11,8 @@
 	import { allConceptMailDownloaded, conceptMailEnvelope, nextMailIndex } from '$lib/concept-mail';
 	import type { FeatureWorkshopState } from '$lib/feature-workshop';
 	import type { ResearchSource } from '$lib/research';
+	import type { OracleEffect } from '$lib/oracle-audio';
+	import type { SageClip } from '$lib/sage-stage';
 
 	let {
 		portfolio,
@@ -28,7 +30,9 @@
 		onAllRevealed,
 		onSkip,
 		onTrash,
-		onWorkshopChange
+		onWorkshopChange,
+		onPerformanceChange = () => {},
+		onEffect = () => {}
 	}: {
 		portfolio: ConceptPortfolio | null;
 		workshop: FeatureWorkshopState;
@@ -49,6 +53,8 @@
 			state: FeatureWorkshopState,
 			event: 'changed' | 'blocked' | 'confirmed'
 		) => void;
+		onPerformanceChange?: (performance: SageClip | null) => void;
+		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 
 	type MailView = 'notification' | 'inbox' | 'dossier' | 'comparison' | 'features';
@@ -62,10 +68,12 @@
 	let storm = $state(false);
 	let defeatDialog = $state<HTMLDialogElement>();
 	let downloadTimer = 0;
+	let mailOpenTimer = 0;
 	const allDownloaded = $derived(
 		!!portfolio && allConceptMailDownloaded(portfolio.concepts.length, downloadedIds)
 	);
 	const activeConcept = $derived(portfolio?.concepts[activeIndex] ?? null);
+	const conceptPortraits = ['smug', 'thinking', 'delighted', 'forbidden'] as const;
 
 	$effect(() => {
 		const generation = portfolio?.generationNumber ?? 0;
@@ -84,6 +92,8 @@
 			downloadedIds = [];
 			trashIds = [];
 			window.setTimeout(playMailSound, 300);
+			onPerformanceChange('mail_notice');
+			window.setTimeout(() => onPerformanceChange(null), 1_100);
 		}
 		mailReady = true;
 	});
@@ -112,10 +122,13 @@
 
 	onDestroy(() => {
 		if (typeof window !== 'undefined') window.clearTimeout(downloadTimer);
+		if (typeof window !== 'undefined') window.clearTimeout(mailOpenTimer);
+		onPerformanceChange(null);
 	});
 
 	function playMailSound() {
 		if (muted || calm) return;
+		onEffect('mail-notification', 0.38);
 		const sound = new Audio('/audio/retro/aol-gotmail.wav');
 		sound.volume = 0.52;
 		void sound.play().catch(() => undefined);
@@ -170,8 +183,15 @@
 	}
 
 	function openMailClient() {
-		playMailSound();
-		view = 'inbox';
+		onPerformanceChange('mail_click');
+		onEffect('mail-click', 0.36);
+		mailOpenTimer = window.setTimeout(
+			() => {
+				view = 'inbox';
+				onPerformanceChange(null);
+			},
+			calm ? 0 : 520
+		);
 	}
 
 	function openMessage(index: number) {
@@ -184,6 +204,9 @@
 		if (!portfolio || !activeConcept || downloading) return;
 		const concept = activeConcept;
 		downloading = true;
+		onPerformanceChange('mail_click');
+		onEffect('mail-click', 0.28);
+		window.setTimeout(() => onEffect('attachment-download', 0.34), 180);
 		storm = concept.isStretch;
 		downloadTimer = window.setTimeout(
 			() => {
@@ -191,6 +214,8 @@
 				downloading = false;
 				view = 'dossier';
 				onReveal();
+				onPerformanceChange('reveal');
+				window.setTimeout(() => onPerformanceChange(null), 920);
 				downloadTimer = window.setTimeout(() => (storm = false), 1_200);
 			},
 			calm ? 0 : concept.isStretch ? 1_500 : 850
@@ -386,7 +411,13 @@
 						{:else}
 							<div class="dossier-scroll">
 								<div class="dossier-head">
-									<div class="concept-icon">{iconGlyphs[activeConcept.icon]}</div>
+									<div class="concept-portrait">
+										<img
+											src={`/images/sage-pixel/${conceptPortraits[activeIndex] ?? 'neutral'}.png`}
+											alt={`The Sage's expression for ${activeConcept.name}`}
+										/>
+										<span>{iconGlyphs[activeConcept.icon]}</span>
+									</div>
 									<div>
 										<span
 											>{activeConcept.isRecommended
@@ -801,6 +832,32 @@
 		display: grid;
 		grid-template-columns: 65px 1fr;
 		gap: 13px;
+	}
+	.concept-portrait {
+		position: relative;
+		width: 104px;
+		height: 104px;
+		flex: 0 0 104px;
+		border: 4px ridge #cfb56e;
+		background: #100826;
+	}
+	.concept-portrait img {
+		display: block;
+		width: 96px;
+		height: 96px;
+		image-rendering: pixelated;
+	}
+	.concept-portrait span {
+		position: absolute;
+		right: -8px;
+		bottom: -8px;
+		padding: 3px 5px;
+		border: 2px outset #ddd;
+		background: #c0c0c0;
+		color: #130628;
+		font:
+			700 10px Tomo,
+			monospace;
 	}
 	.concept-icon {
 		display: grid;

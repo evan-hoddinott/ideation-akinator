@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { buildScoreInput, type ScoreResult } from '$lib/score';
 	import type { ProjectSession } from '$lib/project-state';
+	import type { OracleEffect } from '$lib/oracle-audio';
 	import { totalRecordedTokens } from '$lib/token-usage';
 
 	interface LeaderboardEntry {
@@ -18,13 +19,15 @@
 		downloading,
 		message,
 		onInspect,
-		onDownload
+		onDownload,
+		onEffect = () => {}
 	}: {
 		project: ProjectSession;
 		downloading: boolean;
 		message: string;
 		onInspect: () => void;
 		onDownload: () => void;
+		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 
 	let score = $state<ScoreResult | null>(null);
@@ -84,13 +87,17 @@
 			return;
 		}
 		await delay(850);
+		onEffect('score-count', 0.34);
 		revealCount = 0;
 		for (let index = 1; index <= score.modifiers.length; index += 1) {
 			await delay(580);
 			revealCount = index;
+			onEffect('modifier-reveal', 0.3);
 		}
 		await delay(750);
 		revealFinished = true;
+		onEffect('score-stamp', 0.4);
+		window.setTimeout(() => onEffect('final-total', 0.36), 260);
 	}
 
 	async function loadLeaderboard() {

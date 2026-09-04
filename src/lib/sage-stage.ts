@@ -14,15 +14,48 @@ export const STAGE_ALTITUDES: Record<WorkflowStage, number> = {
 
 export type SageClip =
 	| 'idle'
+	| 'talk'
+	| 'attentive'
 	| 'ascend'
+	| 'drop'
 	| 'reaction'
 	| 'thinking'
+	| 'approval'
+	| 'confusion'
 	| 'suspicious'
 	| 'shocked'
 	| 'smug'
+	| 'lie'
+	| 'chair_wobble'
+	| 'popup_notice'
 	| 'popup_swat'
 	| 'weak_answer'
-	| 'reveal';
+	| 'workstation_exit'
+	| 'workstation_push'
+	| 'workstation_park'
+	| 'workstation_turn'
+	| 'research_typing'
+	| 'research_one_hand'
+	| 'research_inspect'
+	| 'research_smack'
+	| 'research_cable'
+	| 'research_sleep'
+	| 'research_celebrate'
+	| 'research_complete'
+	| 'scroll_present'
+	| 'mail_notice'
+	| 'mail_click'
+	| 'reveal'
+	| 'defeat'
+	| 'forbidden';
+
+export interface SageScreenAnchors {
+	seat: { x: number; y: number };
+	head: { x: number; y: number };
+	leftHand: { x: number; y: number };
+	rightHand: { x: number; y: number };
+	updatedAt: number;
+}
 
 export interface SageFaceProfile {
 	eyeWidth: number;

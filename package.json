@@ -15,6 +15,8 @@
 		"auth:hash": "node scripts/hash-password.js",
 		"auth:set": "node scripts/hash-password.js --update-env",
 		"build:sage": "bash scripts/build-sage.sh",
+		"build:sage-portraits": "bash scripts/build-sage-portraits.sh",
+		"build:audio": "node scripts/build-audio-assets.mjs",
 		"container:build": "./deploy/compose.sh build",
 		"container:up": "./deploy/compose.sh up -d --wait",
 		"container:down": "./deploy/compose.sh down",

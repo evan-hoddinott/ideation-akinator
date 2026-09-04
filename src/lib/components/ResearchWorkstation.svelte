@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { researchSceneOrder, type ResearchTask } from '$lib/research-performance';
+	import type { SageClip, SageScreenAnchors } from '$lib/sage-stage';
+	import type { OracleEffect } from '$lib/oracle-audio';
 
 	let {
 		active,
@@ -17,7 +19,10 @@
 		onCancel,
 		onInspect = () => {},
 		onContinue = () => {},
-		onSkip = () => {}
+		onSkip = () => {},
+		anchors = null,
+		onPerformanceChange = () => {},
+		onEffect = () => {}
 	}: {
 		active: boolean;
 		calm: boolean;
@@ -34,6 +39,9 @@
 		onInspect?: () => void;
 		onContinue?: () => void;
 		onSkip?: () => void;
+		anchors?: SageScreenAnchors | null;
+		onPerformanceChange?: (performance: SageClip | null) => void;
+		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 
 	const mineCells = Array.from({ length: 48 }, (_, index) => index);
@@ -48,13 +56,127 @@
 	];
 	const scenes = $derived(researchSceneOrder(projectId, task));
 	let sceneIndex = $state(0);
-	let phase = $state<
-		'arrival' | 'parking' | 'turning' | 'researching' | 'noticed' | 'printing' | 'presenting'
-	>('arrival');
+	type ResearchPhase =
+		| 'exit'
+		| 'arrival'
+		| 'parking'
+		| 'turning'
+		| 'researching'
+		| 'noticed'
+		| 'printing'
+		| 'presenting';
+	let phase = $state<ResearchPhase>('exit');
 	let entranceComplete = $state(false);
 	let handoffStarted = false;
+	let debugAnchors = $state(false);
 	let entranceTimers: number[] = [];
 	let handoffTimers: number[] = [];
+	let lastSoundPhase: ResearchPhase | null = null;
+	let lastSoundScene = '';
+	let settledAnchors = $state<SageScreenAnchors | null>(null);
+
+	const scenePerformances: Record<string, SageClip> = {
+		minecraft: 'research_one_hand',
+		cats: 'research_one_hand',
+		mines: 'research_typing',
+		search: 'research_inspect',
+		desktop: 'research_smack',
+		forums: 'research_inspect',
+		cable: 'research_cable',
+		sleep: 'research_sleep',
+		advert: 'research_celebrate',
+		files: 'research_typing'
+	};
+
+	const rigStyle = $derived.by(() => {
+		const rigAnchors = settledAnchors ?? anchors;
+		if (!rigAnchors || typeof window === 'undefined') return '';
+		const width = Math.min(Math.max(window.innerWidth * 0.46, 520), 720);
+		const height = Math.min(Math.max(window.innerHeight * 0.6, 470), 640);
+		const handMidX = (rigAnchors.leftHand.x + rigAnchors.rightHand.x) / 2;
+		const handMidY = (rigAnchors.leftHand.y + rigAnchors.rightHand.y) / 2;
+		const left = Math.min(
+			Math.max(rigAnchors.seat.x - width * 0.21, 12),
+			window.innerWidth - width - 12
+		);
+		const top = Math.min(
+			Math.max(rigAnchors.seat.y - height * 0.82, 8),
+			window.innerHeight - height - 72
+		);
+		return `--rig-left:${left}px;--rig-top:${top}px;--rig-width:${width}px;--rig-height:${height}px;--seat-x:${rigAnchors.seat.x}px;--seat-y:${rigAnchors.seat.y}px;--head-x:${rigAnchors.head.x}px;--head-y:${rigAnchors.head.y}px;--left-hand-x:${rigAnchors.leftHand.x}px;--left-hand-y:${rigAnchors.leftHand.y}px;--right-hand-x:${rigAnchors.rightHand.x}px;--right-hand-y:${rigAnchors.rightHand.y}px;--keyboard-x:${handMidX}px;--keyboard-y:${handMidY}px`;
+	});
+
+	$effect(() => {
+		if (!active) {
+			settledAnchors = null;
+			return;
+		}
+		if (phase === 'researching' && !settledAnchors && anchors) {
+			settledAnchors = {
+				seat: { ...anchors.seat },
+				head: { ...anchors.head },
+				leftHand: { ...anchors.leftHand },
+				rightHand: { ...anchors.rightHand },
+				updatedAt: anchors.updatedAt
+			};
+		}
+	});
+
+	$effect(() => {
+		if (!active || calm) {
+			onPerformanceChange(null);
+			return;
+		}
+		const performance: SageClip =
+			phase === 'exit'
+				? 'workstation_exit'
+				: phase === 'arrival'
+					? 'workstation_push'
+					: phase === 'parking'
+						? 'workstation_park'
+						: phase === 'turning'
+							? 'workstation_turn'
+							: phase === 'researching'
+								? (scenePerformances[scenes[sceneIndex]] ?? 'research_typing')
+								: phase === 'noticed'
+									? 'research_complete'
+									: 'scroll_present';
+		onPerformanceChange(performance);
+	});
+
+	$effect(() => {
+		if (!active || calm) return;
+		const nextPhase = phase;
+		if (nextPhase !== lastSoundPhase) {
+			lastSoundPhase = nextPhase;
+			if (nextPhase === 'arrival') onEffect('wheel-squeak', 0.38);
+			if (nextPhase === 'parking') {
+				onEffect('cart-bump', 0.42);
+				window.setTimeout(() => onEffect('wheel-skid', 0.34), 150);
+			}
+			if (nextPhase === 'turning') onEffect('chair-turn', 0.36);
+			if (nextPhase === 'researching') {
+				onEffect('hand-crack', 0.32);
+				window.setTimeout(() => onEffect('keyboard-type', 0.22), 260);
+			}
+			if (nextPhase === 'noticed') onEffect('keyboard-strike', 0.42);
+			if (nextPhase === 'printing') {
+				onEffect('printer-start', 0.34);
+				window.setTimeout(() => onEffect('printer-feed', 0.28), 240);
+				window.setTimeout(() => onEffect('printer-complete', 0.35), 1_650);
+			}
+		}
+		if (nextPhase === 'researching') {
+			const scene = scenes[sceneIndex];
+			if (scene !== lastSoundScene) {
+				lastSoundScene = scene;
+				if (scene === 'cable') onEffect('sage-error', 0.26);
+				if (scene === 'advert') onEffect('sage-discovery', 0.3);
+				if (scene === 'mines' || scene === 'desktop' || scene === 'files')
+					onEffect('keyboard-type', 0.18);
+			}
+		}
+	});
 
 	$effect(() => {
 		if (!active || calm || phase !== 'researching') return;
@@ -67,17 +189,19 @@
 
 	$effect(() => {
 		if (!active || calm) return;
-		phase = 'arrival';
+		phase = 'exit';
+		settledAnchors = null;
 		entranceComplete = false;
 		handoffStarted = false;
 		entranceTimers.forEach((timer) => window.clearTimeout(timer));
 		entranceTimers = [
-			window.setTimeout(() => (phase = 'parking'), 1_550),
-			window.setTimeout(() => (phase = 'turning'), 2_450),
+			window.setTimeout(() => (phase = 'arrival'), 900),
+			window.setTimeout(() => (phase = 'parking'), 2_850),
+			window.setTimeout(() => (phase = 'turning'), 3_950),
 			window.setTimeout(() => {
 				phase = 'researching';
 				entranceComplete = true;
-			}, 3_550)
+			}, 5_250)
 		];
 	});
 
@@ -92,6 +216,7 @@
 	});
 
 	onMount(() => {
+		debugAnchors = new URL(window.location.href).searchParams.has('sageDebug');
 		const handleSkip = (event: KeyboardEvent) => {
 			if (!active || event.key.toLowerCase() !== 's' || !event.shiftKey) return;
 			const target = event.target as HTMLElement | null;
@@ -106,6 +231,7 @@
 	onDestroy(() => {
 		entranceTimers.forEach((timer) => window.clearTimeout(timer));
 		handoffTimers.forEach((timer) => window.clearTimeout(timer));
+		onPerformanceChange(null);
 	});
 </script>
 
@@ -127,8 +253,17 @@
 			class="research-performance"
 			class:handoff={phase === 'presenting'}
 			data-phase={phase}
+			data-anchored={anchors ? 'true' : 'false'}
+			style={rigStyle}
 			aria-label="The Signal Sage researches at a large computer"
 		>
+			{#if debugAnchors && anchors}
+				<div class="anchor-debug" aria-hidden="true">
+					<i class="seat">SEAT</i><i class="head">HEAD</i><i class="left-hand">L HAND</i><i
+						class="right-hand">R HAND</i
+					><i class="keyboard-target">KEYBOARD</i>
+				</div>
+			{/if}
 			<div class="workstation-rig">
 				<div class="crt-monitor">
 					<div class="crt-bezel">
@@ -237,19 +372,20 @@
 				<div class="tangled-cable" aria-hidden="true"></div>
 			</div>
 
-			<div class="typing-hands" aria-hidden="true"><i></i><i></i></div>
 			<div class="parking-caption" aria-hidden="true">
-				{phase === 'arrival'
-					? 'SQUEAK... SQUEAK... SQUEAK...'
-					: phase === 'parking'
-						? 'PERFECTLY PARKED'
-						: phase === 'turning'
-							? 'ROTATING WIZARD 180°'
-							: phase === 'noticed'
-								? 'OH. IT FINISHED.'
-								: phase === 'printing'
-									? 'PRINTING WITH TRACKING DOTS...'
-									: ''}
+				{phase === 'exit'
+					? 'I AM NOT SHOWING YOU MY BROWSER HISTORY.'
+					: phase === 'arrival'
+						? 'SQUEAK... SQUEAK... SQUEAK...'
+						: phase === 'parking'
+							? 'PERFECTLY PARKED'
+							: phase === 'turning'
+								? 'ROTATING WIZARD 180°'
+								: phase === 'noticed'
+									? 'OH. IT FINISHED.'
+									: phase === 'printing'
+										? 'PRINTING WITH TRACKING DOTS...'
+										: ''}
 			</div>
 
 			<div class="real-research-strip" id="research-status" aria-live="polite">
@@ -266,10 +402,6 @@
 					aria-modal="true"
 					aria-label="Printed research summary"
 				>
-					<div class="sage-edge left"></div>
-					<div class="sage-edge right"></div>
-					<div class="ball-hand top"></div>
-					<div class="ball-hand bottom"></div>
 					<article>
 						<header>
 							<small>{task === 'broad' ? 'BROAD WEB DIVINATION' : 'CONFIGURATION CHECK'}</small><b
@@ -299,25 +431,30 @@
 <style>
 	.research-performance {
 		position: fixed;
-		z-index: 11;
-		left: clamp(390px, 40vw, 760px);
-		right: 3vw;
-		bottom: 5vh;
-		height: min(61vh, 650px);
+		z-index: 6;
+		inset: 0;
 		pointer-events: none;
 	}
 
 	.workstation-rig {
-		position: absolute;
-		left: 8%;
-		right: 3%;
-		top: 0;
-		bottom: 86px;
+		position: fixed;
+		left: var(--rig-left, 42vw);
+		top: var(--rig-top, 7vh);
+		width: var(--rig-width, min(48vw, 720px));
+		height: var(--rig-height, min(62vh, 640px));
 		filter: drop-shadow(13px 18px 0 #02010b99);
-		animation: workstation-arrival 1.6s steps(12, end) both;
 		transition:
 			opacity 320ms steps(4, end),
 			transform 320ms steps(4, end);
+	}
+
+	.research-performance[data-phase='exit'] .workstation-rig {
+		opacity: 0;
+		transform: translateX(110vw) rotate(4deg);
+	}
+
+	.research-performance[data-phase='arrival'] .workstation-rig {
+		animation: workstation-arrival 1.9s steps(14, end) both;
 	}
 
 	.research-performance[data-phase='parking'] .workstation-rig {
@@ -325,7 +462,6 @@
 	}
 
 	.research-performance[data-phase='presenting'] .workstation-rig,
-	.research-performance[data-phase='presenting'] .typing-hands,
 	.research-performance[data-phase='presenting'] .real-research-strip {
 		opacity: 0;
 		transform: scale(0.92);
@@ -333,9 +469,9 @@
 
 	.crt-monitor {
 		position: absolute;
-		left: 9%;
+		left: 40%;
 		top: 1%;
-		width: min(64%, 520px);
+		width: min(58%, 470px);
 		aspect-ratio: 1.28;
 	}
 
@@ -487,7 +623,7 @@
 	.printer {
 		position: absolute;
 		right: 2%;
-		bottom: 5%;
+		bottom: 23%;
 		width: 25%;
 		height: 23%;
 		padding: 10% 4% 2%;
@@ -540,7 +676,7 @@
 	.cup-holder {
 		position: absolute;
 		right: -2%;
-		bottom: 18%;
+		bottom: 30%;
 		display: grid;
 		place-items: center;
 		width: 11%;
@@ -580,12 +716,12 @@
 
 	.keyboard {
 		position: absolute;
-		left: 8%;
-		bottom: 2%;
+		left: 5%;
+		bottom: 21%;
 		display: grid;
 		grid-template-columns: repeat(9, 1fr);
 		gap: 3px;
-		width: 58%;
+		width: 62%;
 		height: 18%;
 		padding: 7px;
 		border: 5px outset #ded6ba;
@@ -603,7 +739,7 @@
 		position: absolute;
 		left: 2%;
 		right: 0;
-		bottom: -2%;
+		bottom: 10%;
 		height: 7%;
 		border: 5px outset #92929c;
 		background: #5e5b68;
@@ -611,7 +747,7 @@
 
 	.cart-leg {
 		position: absolute;
-		bottom: -19%;
+		bottom: -6%;
 		width: 5%;
 		height: 18%;
 		background: #55525d;
@@ -629,7 +765,7 @@
 
 	.cart-wheel {
 		position: absolute;
-		bottom: -25%;
+		bottom: -2%;
 		width: 9%;
 		aspect-ratio: 1;
 		border: 5px solid #36323c;
@@ -652,46 +788,6 @@
 		border-left: 0;
 		border-bottom-color: transparent;
 		border-radius: 50%;
-	}
-
-	.typing-hands {
-		position: absolute;
-		left: -4%;
-		bottom: 26%;
-		width: 34%;
-		height: 20%;
-		opacity: 0;
-	}
-
-	.research-performance[data-phase='researching'] .typing-hands,
-	.research-performance[data-phase='noticed'] .typing-hands,
-	.research-performance[data-phase='printing'] .typing-hands {
-		animation: hands-arrive 480ms steps(5, end) both;
-	}
-
-	.research-performance[data-phase='noticed'] .typing-hands {
-		animation: hands-startle 650ms steps(5, end) both;
-	}
-
-	.typing-hands i {
-		position: absolute;
-		bottom: 0;
-		width: 36px;
-		height: 36px;
-		border: 5px solid #c1b7a4;
-		border-radius: 50%;
-		background: #eee8d7;
-		box-shadow: 0 7px #6b456a;
-		animation: hand-type 240ms steps(2, end) infinite alternate;
-	}
-
-	.typing-hands i:first-child {
-		left: 30%;
-	}
-
-	.typing-hands i:last-child {
-		right: 4%;
-		animation-delay: 120ms;
 	}
 
 	.real-research-strip,
@@ -937,9 +1033,9 @@
 	}
 
 	.parking-caption {
-		position: absolute;
-		left: 8%;
-		top: -12px;
+		position: fixed;
+		left: var(--rig-left, 42vw);
+		top: max(8px, calc(var(--rig-top, 7vh) - 12px));
 		padding: 6px 9px;
 		color: #fff274;
 		background: #120823dd;
@@ -952,7 +1048,7 @@
 
 	.paper-handoff {
 		position: fixed;
-		z-index: 30;
+		z-index: 6;
 		inset: 0;
 		display: grid;
 		place-items: center;
@@ -1040,44 +1136,44 @@
 		cursor: pointer;
 	}
 
-	.ball-hand {
+	.anchor-debug i {
 		position: fixed;
-		z-index: 4;
-		left: 50%;
-		width: 76px;
-		aspect-ratio: 1;
-		border: 7px solid #b8ae98;
+		z-index: 50;
+		width: 12px;
+		height: 12px;
+		border: 2px solid #fff;
 		border-radius: 50%;
-		background: #eee8d8;
-		box-shadow: 0 9px #714d78;
+		background: #ff2d8f;
+		box-shadow: 0 0 0 2px #000;
+		color: #fff;
+		font:
+			7px/1 'Courier New',
+			monospace;
+		white-space: nowrap;
 	}
-	.ball-hand.top {
-		top: 3vh;
-		transform: translateX(-50%);
+	.anchor-debug .seat {
+		left: var(--seat-x);
+		top: var(--seat-y);
 	}
-	.ball-hand.bottom {
-		bottom: 2vh;
-		transform: translateX(-50%) rotate(180deg);
+	.anchor-debug .head {
+		left: var(--head-x);
+		top: var(--head-y);
+		background: #00d9ff;
 	}
-	.sage-edge {
-		position: fixed;
-		z-index: 1;
-		top: 12vh;
-		bottom: 2vh;
-		width: 23vw;
-		border: 9px solid #26113e;
-		background: linear-gradient(90deg, #40235d, #723d83);
-		opacity: 0.92;
+	.anchor-debug .left-hand {
+		left: var(--left-hand-x);
+		top: var(--left-hand-y);
+		background: #ffe34d;
 	}
-	.sage-edge.left {
-		left: -7vw;
-		border-radius: 55% 20% 20% 55%;
-		transform: rotate(5deg);
+	.anchor-debug .right-hand {
+		left: var(--right-hand-x);
+		top: var(--right-hand-y);
+		background: #ffe34d;
 	}
-	.sage-edge.right {
-		right: -7vw;
-		border-radius: 20% 55% 55% 20%;
-		transform: rotate(-5deg);
+	.anchor-debug .keyboard-target {
+		left: var(--keyboard-x);
+		top: var(--keyboard-y);
+		background: #65ff86;
 	}
 
 	.calm-result-actions {
@@ -1178,20 +1274,6 @@
 			transform: translate(8px, -5px);
 		}
 	}
-	@keyframes hands-startle {
-		0% {
-			opacity: 1;
-			transform: translateY(0);
-		}
-		50% {
-			opacity: 1;
-			transform: translateY(-55px) rotate(12deg);
-		}
-		100% {
-			opacity: 1;
-			transform: translateY(-8px);
-		}
-	}
 	@keyframes handoff-arrive {
 		from {
 			opacity: 0;
@@ -1209,26 +1291,6 @@
 		}
 	}
 
-	@keyframes hands-arrive {
-		from {
-			transform: translateX(-100%);
-			opacity: 0;
-		}
-		70% {
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
-	}
-
-	@keyframes hand-type {
-		to {
-			transform: translateY(9px) rotate(7deg);
-		}
-	}
-
 	@keyframes tower-blink {
 		50% {
 			opacity: 0.25;
@@ -1236,18 +1298,17 @@
 	}
 
 	@media (max-width: 980px) {
-		.research-performance {
-			left: 35vw;
-			right: 1vw;
+		.workstation-rig {
+			width: min(58vw, 620px);
 		}
 	}
 
 	@media (max-width: 760px) {
-		.research-performance {
+		.workstation-rig {
 			left: 2vw;
-			right: 2vw;
-			bottom: 2vh;
-			height: 50vh;
+			top: 5vh;
+			width: 96vw;
+			height: 54vh;
 		}
 
 		.real-research-strip {
@@ -1271,8 +1332,6 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.workstation-rig,
-		.typing-hands,
-		.typing-hands i,
 		.cart-wheel,
 		.tower-light,
 		.strip-light {

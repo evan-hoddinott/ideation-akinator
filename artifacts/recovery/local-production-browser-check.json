@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-09-04T18:52:26Z",
+  "origin": "http://127.0.0.1:4174",
+  "viewport": "1440x900",
+  "page": "?sageDebug=workstation&hold=1",
+  "requestCount": 70,
+  "failedRequests": 0,
+  "externalAssetHosts": 0,
+  "consoleErrors": 0,
+  "pageErrors": 0
+}

@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-04T18:18:00Z",
+  "viewport": "1440x900",
+  "query": "?sageDebug=workstation&hold=1",
+  "samples": [
+    { "scene": "desktop", "left": 587.8125, "top": 82.90625 },
+    { "scene": "cats", "left": 587.8125, "top": 82.90625 },
+    { "scene": "minecraft", "left": 587.8125, "top": 82.90625 }
+  ],
+  "maximumObservedDriftPx": 0,
+  "note": "The cart is latched to the settled chair-seat projection. Animated hand anchors do not move the furniture."
+}

@@ -1,29 +1,54 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { internetEraForAltitude, internetEraIndex } from '$lib/internet-era';
+	import EraArtifacts from '$lib/components/EraArtifacts.svelte';
+	import { internetEraForAltitude, internetEraIndex, type InternetEra } from '$lib/internet-era';
 	import type { WorkflowStage } from '$lib/project-state';
 
 	let {
 		altitude,
 		stage,
 		calm = false,
+		clues = [],
 		resetSignal = 0,
 		onInteract = () => {}
 	}: {
 		altitude: number;
 		stage: WorkflowStage;
 		calm?: boolean;
+		clues?: string[];
 		resetSignal?: number;
 		onInteract?: (object: string) => void;
 	} = $props();
 
 	const era = $derived(internetEraForAltitude(altitude));
 	const eraIndex = $derived(internetEraIndex(altitude));
+	const visibleClues = $derived(
+		clues
+			.map((clue) => clue.trim())
+			.filter(Boolean)
+			.slice(0, 4)
+	);
 	let interactionMessage = $state('');
 	let resetting = $state(false);
 	let lastResetSignal = 0;
 	let messageTimer = 0;
 	let resetTimer = 0;
+	const sourcedEraAssets: Record<InternetEra, string[]> = {
+		'dos-bbs': ['terminal-back.png', 'terminal-forward.png'],
+		'personal-web': ['guestbook.png', 'proud-webmaster.png'],
+		geocities: ['under-construction.gif', 'web-design.gif'],
+		'aol-98': ['contact.png', 'heart.png'],
+		'dot-com': ['brave.png', 'winscp.png', 'ferry.gif'],
+		'windows-xp': ['bucket-now.png', 'buckets.png'],
+		'flash-games': ['hollow-knight.gif', 'rain-world.gif'],
+		myspace: ['glitter-town.gif', 'bored.png', 'headache.gif'],
+		'early-video': ['youtube-dl.png', 'ao3.gif'],
+		'social-mobile': ['mobile-friendly.png', 'threads.png'],
+		cloud: ['netlify.png', 'mastodon.png'],
+		algorithmic: ['blockchain.gif', 'graphic-design.png', 'static.gif'],
+		'ai-slop': ['diy.png', 'no-no-no.png'],
+		cosmic: ['apollo.png', 'artemis.png']
+	};
 
 	$effect(() => {
 		if (resetSignal <= lastResetSignal) return;
@@ -67,6 +92,7 @@
 			</div>
 			<div class="modem"><i></i><i></i><i></i><span>AA · CD · OH</span></div>
 			<div class="pipe"></div>
+			<EraArtifacts era="dos-bbs" assets={sourcedEraAssets['dos-bbs']} />
 		</section>
 
 		<section class="world-zone personal-zone">
@@ -78,6 +104,7 @@
 			</div>
 			<div class="construction">UNDER ETERNAL CONSTRUCTION</div>
 			<div class="pipe left"></div>
+			<EraArtifacts era="personal-web" assets={sourcedEraAssets['personal-web']} />
 		</section>
 
 		<section class="world-zone geocities-zone">
@@ -86,6 +113,7 @@
 			<img class="era-cat" src="/images/retro/kitka-cat.gif" alt="" />
 			<div class="guestbook">GUESTBOOK<br /><b>12 nice · 901 rude</b></div>
 			<div class="sparkles">✦ ✧ ★ ✦ ✧</div>
+			<EraArtifacts era="geocities" assets={sourcedEraAssets.geocities} />
 		</section>
 
 		<section class="world-zone aol-zone">
@@ -98,6 +126,7 @@
 			</div>
 			<div class="taskbar"><button>START</button><span>Oracle Online · 7:42 PM</span></div>
 			<div class="dialup"></div>
+			<EraArtifacts era="aol-98" assets={sourcedEraAssets['aol-98']} />
 		</section>
 
 		<section class="world-zone dotcom-zone">
@@ -106,6 +135,7 @@
 			<div class="banner ad-two">PET FOOD · BUT ONLINE</div>
 			<div class="cubicle"><i></i><i></i><i></i><span>SYNERGY FLOOR</span></div>
 			<div class="blimp">DOT.COM!</div>
+			<EraArtifacts era="dot-com" assets={sourcedEraAssets['dot-com']} />
 		</section>
 
 		<section class="world-zone xp-zone">
@@ -118,6 +148,7 @@
 			</div>
 			<div class="recycle">♲<span>Rejected Ideas</span></div>
 			<div class="taskbar xp"><b>start</b><span>☁ Connected · 12:00 PM</span></div>
+			<EraArtifacts era="windows-xp" assets={sourcedEraAssets['windows-xp']} />
 		</section>
 
 		<section class="world-zone flash-zone">
@@ -129,6 +160,7 @@
 			</div>
 			<div class="flash-score">HI 999999<br />YOU 000013</div>
 			<div class="energy"></div>
+			<EraArtifacts era="flash-games" assets={sourcedEraAssets['flash-games']} />
 		</section>
 
 		<section class="world-zone myspace-zone">
@@ -145,6 +177,7 @@
 				<div>ME</div>
 			</div>
 			<div class="glitter">thx 4 the add!!! ✧✧✧</div>
+			<EraArtifacts era="myspace" assets={sourcedEraAssets.myspace} />
 		</section>
 
 		<section class="world-zone video-zone">
@@ -159,6 +192,7 @@
 				<p>fake and wizardpilled</p>
 				<p>song name?</p>
 			</div>
+			<EraArtifacts era="early-video" assets={sourcedEraAssets['early-video']} />
 		</section>
 
 		<section class="world-zone social-zone">
@@ -174,6 +208,7 @@
 			</div>
 			<div class="notifications">♥<i>99+</i> ↻<i>1</i> ★<i>???</i></div>
 			<div class="cell-tower"></div>
+			<EraArtifacts era="social-mobile" assets={sourcedEraAssets['social-mobile']} />
 		</section>
 
 		<section class="world-zone cloud-zone">
@@ -186,6 +221,7 @@
 				<i></i><i></i><i></i><i></i><span>THE CLOUD<br />(someone else's beige computer)</span>
 			</div>
 			<div class="pipeline">COMMIT → BUILD → PANIC → ROLLBACK</div>
+			<EraArtifacts era="cloud" assets={sourcedEraAssets.cloud} />
 		</section>
 
 		<section class="world-zone algorithm-zone">
@@ -196,6 +232,7 @@
 			</div>
 			<div class="algo-eye">◉<span>ENGAGEMENT ORACLE</span></div>
 			<div class="cookie-wall">WE VALUE YOUR PRIVACY<br /><button>ACCEPT ALL 847</button></div>
+			<EraArtifacts era="algorithmic" assets={sourcedEraAssets.algorithmic} />
 		</section>
 
 		<section class="world-zone slop-zone">
@@ -213,6 +250,7 @@
 			</div>
 			<div class="six-finger">six-finger<br />stock founder</div>
 			<div class="modern-roast">THE SAGE HAS DETECTED<br /><b>UNLICENSED GRADIENTS</b></div>
+			<EraArtifacts era="ai-slop" assets={sourcedEraAssets['ai-slop']} />
 		</section>
 
 		<section class="world-zone cosmic-zone">
@@ -223,10 +261,25 @@
 			<div class="floppy">▣</div>
 			<div class="satellite">╾━◈━╼</div>
 			<div class="constellation">· · ✦ · ·<br />· · · ✧ ·<br />✦ · ·</div>
+			<EraArtifacts era="cosmic" assets={sourcedEraAssets.cosmic} />
 		</section>
 	</div>
 
 	<div class="parallax near-grid"></div>
+	{#if visibleClues.length > 0}
+		<div class="clue-scraps" aria-label={`${clues.length} saved problem clues`}>
+			<strong>{clues.length} SAVED CLUE{clues.length === 1 ? '' : 'S'}</strong>
+			{#each visibleClues as clue, index (`${index}:${clue}`)}
+				<article style={`--clue-index:${index}`}>
+					<b>CLUE {String(index + 1).padStart(2, '0')}</b>
+					<span>{clue}</span>
+				</article>
+			{/each}
+			{#if clues.length > visibleClues.length}
+				<i>+{clues.length - visibleClues.length} MORE IN THE SAGE'S POCKET</i>
+			{/if}
+		</div>
+	{/if}
 	<div class="vignette"></div>
 	<div class="scanlines"></div>
 	<div class="scenery-controls" aria-label="Optional scenery">
@@ -252,9 +305,21 @@
 				onclick={() => inspect('flash-orb', 'ORB CLICKED. Absolutely nothing useful happened.')}
 				>◉</button
 			>{/if}
+		{#if era === 'early-video'}<button
+				type="button"
+				aria-label="Inspect the video counter"
+				onclick={() => inspect('view-counter', '301 views. The number is legally sacred.')}
+				>301</button
+			>{/if}
 		{#if era === 'algorithmic'}<button
 				type="button"
 				onclick={() => inspect('cookie', '847 partners now know you clicked that.')}>COOKIE?</button
+			>{/if}
+		{#if era === 'ai-slop'}<button
+				type="button"
+				aria-label="Reject generated slop"
+				onclick={() => inspect('unslop', 'One gradient revoked. Seven thought-leaders resigned.')}
+				>UNSLOP</button
 			>{/if}
 	</div>
 	{#if interactionMessage}<div class="scenery-reaction" role="status">
@@ -323,6 +388,71 @@
 		background-size: 80px 44px;
 		transform: perspective(260px) rotateX(55deg) translateY(calc(var(--camera-altitude) * -18vh));
 		transform-origin: bottom;
+	}
+	.clue-scraps {
+		position: absolute;
+		z-index: 8;
+		left: clamp(14px, 2.2vw, 34px);
+		top: clamp(92px, 15vh, 150px);
+		width: clamp(150px, 15vw, 220px);
+		min-height: 118px;
+		filter: drop-shadow(7px 8px 0 #02010b88);
+	}
+	.clue-scraps article {
+		position: absolute;
+		inset: calc(24px + var(--clue-index) * 66px) auto auto calc(var(--clue-index) * 4px);
+		width: 100%;
+		min-height: 62px;
+		padding: 10px 12px;
+		border: 2px solid #7c5b24;
+		background: repeating-linear-gradient(0deg, transparent 0 15px, #876b3b40 15px 16px), #e9d596;
+		color: #241805;
+		font:
+			700 clamp(9px, 0.72vw, 11px) / 1.35 Tomo,
+			'Courier New',
+			monospace;
+		transform: rotate(calc((var(--clue-index) - 1.5) * 0.9deg));
+		clip-path: polygon(0 2%, 97% 0, 100% 95%, 94% 100%, 2% 97%);
+	}
+	.clue-scraps article b,
+	.clue-scraps article span {
+		display: block;
+	}
+	.clue-scraps article b {
+		margin-bottom: 5px;
+		color: #67260e;
+		letter-spacing: 0.12em;
+	}
+	.clue-scraps article span {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+	.clue-scraps > strong {
+		display: inline-block;
+		padding: 4px 7px;
+		border: 2px solid #f0c75b;
+		background: #0c0618dd;
+		color: #ffe083;
+		font:
+			8px Tomo,
+			'Courier New',
+			monospace;
+		letter-spacing: 0.1em;
+	}
+	.clue-scraps > i {
+		position: absolute;
+		top: 296px;
+		left: 12px;
+		padding: 4px 7px;
+		background: #0c0618dd;
+		color: #ffc95b;
+		font:
+			8px Tomo,
+			'Courier New',
+			monospace;
 	}
 	.scanlines,
 	.vignette {
@@ -1309,6 +1439,9 @@
 		}
 	}
 	@media (max-width: 760px) {
+		.clue-scraps {
+			display: none;
+		}
 		.terminal,
 		.homepage,
 		.profile,

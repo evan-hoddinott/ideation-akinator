@@ -13,6 +13,8 @@
 	import type { ProjectReport } from '$lib/report';
 	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
 	import type { ProjectSession } from '$lib/project-state';
+	import type { OracleEffect } from '$lib/oracle-audio';
+	import type { SageClip, SageScreenAnchors } from '$lib/sage-stage';
 
 	let {
 		project,
@@ -34,7 +36,10 @@
 		onDownloadPdf,
 		onBack,
 		onSpeakCharacter,
-		onSpeakingChange
+		onSpeakingChange,
+		anchors = null,
+		onPerformanceChange = () => {},
+		onEffect = () => {}
 	}: {
 		project: ProjectSession;
 		concept: SelectedConceptInput;
@@ -56,6 +61,9 @@
 		onBack: () => void;
 		onSpeakCharacter: (profile: SageVoiceProfile) => void;
 		onSpeakingChange: (speaking: boolean) => void;
+		anchors?: SageScreenAnchors | null;
+		onPerformanceChange?: (performance: SageClip | null) => void;
+		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 	const projectId = $derived(project.id);
 
@@ -155,6 +163,9 @@
 		}}
 		onContinue={() => (researchPerformanceOpen = false)}
 		onSkip={skipResearchPerformance}
+		{anchors}
+		{onPerformanceChange}
+		{onEffect}
 	/>
 {:else if result}
 	{#if plan && report}
@@ -164,6 +175,7 @@
 			message={pdfMessage}
 			onInspect={() => (reportOpen = true)}
 			onDownload={onDownloadPdf}
+			{onEffect}
 		/>
 	{:else}
 		<SageDialogue
@@ -208,6 +220,8 @@
 			title="The configured-project investigation"
 			kicker={`${result.sources.length} FOCUSED SOURCES BOUND`}
 			onClose={() => (researchOpen = false)}
+			{onPerformanceChange}
+			{onEffect}
 		>
 			<div class="research-scroll">
 				<div class={`scroll-verdict verdict-${result.verdict}`}>
@@ -293,6 +307,8 @@
 				title={`${plan.productName}: recalculated project file`}
 				kicker="FINAL NUMBERS BEFORE THE PDF FORGE"
 				onClose={() => (planOpen = false)}
+				{onPerformanceChange}
+				{onEffect}
 			>
 				<div class="plan-scroll">
 					{#if plan.materialWarning}<div class="material-warning">

@@ -213,18 +213,18 @@ def build_character(armature):
             cube("ChairSeatShell", (0, 0.08, 0.78), (1.10, 0.82, 0.12), chair_shell, 0.10),
             cube("SeatBolsterL", (-0.91, -0.05, 1.08), (0.18, 0.70, 0.27), chair_shell, 0.08, (0, -0.08, -0.05)),
             cube("SeatBolsterR", (0.91, -0.05, 1.08), (0.18, 0.70, 0.27), chair_shell, 0.08, (0, 0.08, 0.05)),
-            cube("ChairBack", (0, 0.50, 1.94), (1.05, 0.17, 1.14), chair_shell, 0.13),
-            cube("ChairBackPad", (0, 0.30, 1.88), (0.69, 0.10, 0.86), chair_pad, 0.08),
+            cube("ChairBack", (0, 0.50, 1.66), (1.05, 0.17, 0.76), chair_shell, 0.13),
+            cube("ChairBackPad", (0, 0.30, 1.63), (0.69, 0.10, 0.56), chair_pad, 0.08),
             cube("ChairLumbar", (0, 0.15, 1.28), (0.58, 0.13, 0.23), hat_band, 0.09),
-            cube("ChairHeadrest", (0, 0.26, 2.66), (0.62, 0.10, 0.27), chair_pad, 0.07),
-            cube("ChairWingL", (-0.91, 0.39, 2.25), (0.23, 0.24, 0.72), chair_shell, 0.07, (0, -0.16, -0.12)),
-            cube("ChairWingR", (0.91, 0.39, 2.25), (0.23, 0.24, 0.72), chair_shell, 0.07, (0, 0.16, 0.12)),
-            cube("ChairPipeL", (-1.01, 0.29, 1.93), (0.035, 0.035, 1.01), chair_trim, 0.015, (0, 0, -0.015)),
-            cube("ChairPipeR", (1.01, 0.29, 1.93), (0.035, 0.035, 1.01), chair_trim, 0.015, (0, 0, 0.015)),
-            cube("HeadrestGlowL", (-0.27, 0.13, 2.69), (0.18, 0.025, 0.11), chair_trim, 0.035, (0, 0, -0.08)),
-            cube("HeadrestGlowR", (0.27, 0.13, 2.69), (0.18, 0.025, 0.11), chair_trim, 0.035, (0, 0, 0.08)),
-            cube("HeadrestCutoutL", (-0.27, 0.10, 2.69), (0.13, 0.020, 0.065), case_dark, 0.025, (0, 0, -0.08)),
-            cube("HeadrestCutoutR", (0.27, 0.10, 2.69), (0.13, 0.020, 0.065), case_dark, 0.025, (0, 0, 0.08)),
+            cube("ChairHeadrest", (0, 0.26, 2.73), (0.62, 0.10, 0.16), chair_pad, 0.07),
+            cube("ChairWingL", (-0.91, 0.39, 1.95), (0.23, 0.24, 0.48), chair_shell, 0.07, (0, -0.16, -0.12)),
+            cube("ChairWingR", (0.91, 0.39, 1.95), (0.23, 0.24, 0.48), chair_shell, 0.07, (0, 0.16, 0.12)),
+            cube("ChairPipeL", (-1.01, 0.29, 1.69), (0.035, 0.035, 0.75), chair_trim, 0.015, (0, 0, -0.015)),
+            cube("ChairPipeR", (1.01, 0.29, 1.69), (0.035, 0.035, 0.75), chair_trim, 0.015, (0, 0, 0.015)),
+            cube("HeadrestGlowL", (-0.27, 0.13, 2.74), (0.18, 0.025, 0.065), chair_trim, 0.035, (0, 0, -0.08)),
+            cube("HeadrestGlowR", (0.27, 0.13, 2.74), (0.18, 0.025, 0.065), chair_trim, 0.035, (0, 0, 0.08)),
+            cube("HeadrestCutoutL", (-0.27, 0.10, 2.74), (0.13, 0.020, 0.038), case_dark, 0.025, (0, 0, -0.08)),
+            cube("HeadrestCutoutR", (0.27, 0.10, 2.74), (0.13, 0.020, 0.038), case_dark, 0.025, (0, 0, 0.08)),
             cylinder("ArmPostL", (-1.10, -0.02, 1.16), 0.07, 0.48, chair_metal, 8),
             cylinder("ArmPostR", (1.10, -0.02, 1.16), 0.07, 0.48, chair_metal, 8),
             cube("ArmRestL", (-1.10, -0.18, 1.39), (0.17, 0.44, 0.09), chair_pad, 0.045),
@@ -540,6 +540,194 @@ def build_actions(armature):
             ],
         )
     )
+
+    # Presentation recovery inventory. These are deliberately separate actions so
+    # the browser state machine can ask for a readable silhouette instead of
+    # pretending that one generic reaction covers every joke.
+    authored_actions = {
+        "talk": [
+            (1, {"spine": {"rotation": (-0.04, 0, -0.02)}, "head": {"rotation": (0.03, 0, 0)}}),
+            (6, {"spine": {"rotation": (-0.10, 0, 0.05)}, "head": {"rotation": (-0.04, 0, -0.06)}, "forearm.L": {"rotation": (0, 0, -0.38)}}),
+            (12, {"spine": {"rotation": (-0.07, 0, -0.04)}, "head": {"rotation": (0.05, 0, 0.05)}, "forearm.R": {"rotation": (0, 0, 0.42)}}),
+            (18, {}),
+        ],
+        "attentive": [
+            (1, {}),
+            (7, {"spine": {"rotation": (-0.22, 0, 0)}, "head": {"rotation": (0.14, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 0.20)}, "upper_arm.R": {"rotation": (0, 0, -0.20)}}),
+            (17, {"spine": {"rotation": (-0.17, 0, 0)}, "head": {"rotation": (0.10, 0, 0)}}),
+            (24, {}),
+        ],
+        "approval": [
+            (1, {}),
+            (5, {"head": {"rotation": (0.22, 0, 0)}, "spine": {"rotation": (-0.08, 0, 0)}}),
+            (9, {"head": {"rotation": (-0.20, 0, 0)}, "upper_arm.R": {"rotation": (0, 0, -0.65)}, "forearm.R": {"rotation": (0, 0, 0.72)}}),
+            (13, {"head": {"rotation": (0.18, 0, 0)}}),
+            (20, {}),
+        ],
+        "confusion": [
+            (1, {}),
+            (7, {"head": {"rotation": (0.02, 0, -0.32)}, "spine": {"rotation": (0.06, 0, 0.10)}, "upper_arm.L": {"rotation": (0, 0, 0.92)}, "upper_arm.R": {"rotation": (0, 0, -0.92)}, "forearm.L": {"rotation": (0, 0, 0.22)}, "forearm.R": {"rotation": (0, 0, -0.22)}}),
+            (15, {"head": {"rotation": (-0.04, 0, 0.28)}, "upper_arm.L": {"rotation": (0, 0, 0.72)}, "upper_arm.R": {"rotation": (0, 0, -0.72)}}),
+            (23, {}),
+        ],
+        "lie": [
+            (1, {}),
+            (6, {"head": {"rotation": (0.04, 0, 0.46)}, "spine": {"rotation": (0.02, 0, -0.12)}, "forearm.R": {"rotation": (0, 0, 0.82)}}),
+            (13, {"head": {"rotation": (0.04, 0, -0.50)}, "spine": {"rotation": (0.02, 0, 0.12)}, "forearm.L": {"rotation": (0, 0, -0.82)}}),
+            (20, {"head": {"rotation": (0.10, 0, 0)}}),
+            (27, {}),
+        ],
+        "chair_wobble": [
+            (1, {}),
+            (4, {"chair": {"rotation": (0.06, 0, 0.12), "location": (0, 0, 0.05)}}),
+            (8, {"chair": {"rotation": (-0.05, 0, -0.15), "location": (0, 0, -0.04)}}),
+            (12, {"chair": {"rotation": (0.03, 0, 0.08)}}),
+            (18, {}),
+        ],
+        "drop": [
+            (1, {"chair": {"location": (0, 0, 0.10)}, "spine": {"rotation": (-0.10, 0, 0)}}),
+            (4, {"chair": {"location": (0, 0, -0.22)}, "spine": {"rotation": (0.28, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 1.0)}, "upper_arm.R": {"rotation": (0, 0, -1.0)}}),
+            (9, {"chair": {"location": (0, 0, -0.48)}, "head": {"rotation": (0.32, 0, 0)}}),
+            (15, {"chair": {"location": (0, 0, -0.08)}, "spine": {"rotation": (-0.18, 0, 0)}}),
+            (22, {}),
+        ],
+        "popup_notice": [
+            (1, {}),
+            (7, {"head": {"rotation": (0.02, 0, 0.46)}, "spine": {"rotation": (0, 0, 0.10)}}),
+            (14, {"head": {"rotation": (0.02, 0, -0.08)}, "spine": {"rotation": (-0.05, 0, -0.02)}}),
+            (22, {"head": {"rotation": (0, 0, 0.52)}}),
+            (28, {}),
+        ],
+        "workstation_exit": [
+            (1, {}),
+            (6, {"chair": {"rotation": (0.03, 0, -0.10)}, "spine": {"rotation": (-0.26, 0, -0.08)}, "upper_arm.L": {"rotation": (0, 0, -0.34)}, "upper_arm.R": {"rotation": (0, 0, 0.34)}}),
+            (13, {"chair": {"rotation": (-0.04, 0, 0.13)}, "spine": {"rotation": (-0.20, 0, 0.08)}}),
+            (20, {"chair": {"rotation": (0.02, 0, -0.08)}, "spine": {"rotation": (-0.24, 0, -0.05)}}),
+        ],
+        "workstation_push": [
+            (1, {"spine": {"rotation": (-0.30, 0, 0)}, "upper_arm.L": {"rotation": (0.12, 0, 0.62)}, "upper_arm.R": {"rotation": (-0.12, 0, -0.62)}, "forearm.L": {"rotation": (0, 0, -0.56)}, "forearm.R": {"rotation": (0, 0, 0.56)}}),
+            (7, {"chair": {"location": (0, 0, 0.06), "rotation": (0.04, 0, 0.05)}, "spine": {"rotation": (-0.42, 0, 0)}}),
+            (14, {"chair": {"location": (0, 0, -0.05), "rotation": (-0.04, 0, -0.04)}, "spine": {"rotation": (-0.28, 0, 0)}}),
+            (21, {"spine": {"rotation": (-0.36, 0, 0)}, "upper_arm.L": {"rotation": (0.12, 0, 0.70)}, "upper_arm.R": {"rotation": (-0.12, 0, -0.70)}}),
+        ],
+        "workstation_park": [
+            (1, {"spine": {"rotation": (-0.28, 0, 0)}}),
+            (4, {"chair": {"rotation": (0.10, 0, -0.18), "location": (0, 0, -0.10)}, "spine": {"rotation": (0.18, 0, 0.12)}}),
+            (8, {"chair": {"rotation": (-0.06, 0, 0.14), "location": (0, 0, 0.08)}, "head": {"rotation": (-0.20, 0, -0.16)}}),
+            (13, {"chair": {"rotation": (0.02, 0, -0.04)}, "spine": {"rotation": (-0.10, 0, 0)}}),
+            (19, {}),
+        ],
+        "workstation_turn": [
+            (1, {}),
+            (7, {"chair": {"rotation": (0.02, 0, -0.10)}, "head": {"rotation": (0.02, 0, 0.30)}, "spine": {"rotation": (-0.10, 0, 0.08)}}),
+            (14, {"chair": {"rotation": (-0.02, 0, 0.08)}, "head": {"rotation": (0.02, 0, -0.30)}, "upper_arm.L": {"rotation": (0, 0, 0.46)}, "upper_arm.R": {"rotation": (0, 0, -0.46)}}),
+            (20, {"head": {"rotation": (0.02, 0, 0)}, "spine": {"rotation": (-0.08, 0, 0)}}),
+        ],
+    }
+
+    # The browser rotates the entire presentation group for the 180-degree chair
+    # turn. Research clips stay in the rig's normal local frame so arms, head, and
+    # anchor objects cannot orbit around an arbitrary bone pivot.
+    # When the whole presentation turns away, the tall gaming-chair shell moves
+    # between the camera and its tiny occupant. Lift only the occupant rig so the
+    # CRT face and real hands stay readable above/around the chair back.
+    back_head = {
+        # Lift only the CRT above the chair back. Keeping the arms at their
+        # seated height preserves the real hand/keyboard contact points.
+        "location": (0, 1.06, 0),
+        "rotation": (0, -math.pi, 0),
+    }
+    back_pose = {
+        "pelvis": {"location": (0, 0, 0.46)},
+        # The head bone runs vertically, so its local Y axis is the monitor's
+        # yaw axis. Counter-rotate there while the presentation group turns;
+        # rotating local Z would only roll the CRT and leave its rear facing us.
+        "head": back_head,
+    }
+    authored_actions.update({
+        "research_typing": [
+            (1, {**back_pose, "upper_arm.L": {"rotation": (0.30, 0, 1.10)}, "upper_arm.R": {"rotation": (-0.30, 0, -1.10)}, "forearm.L": {"rotation": (0.25, 0, -0.70)}, "forearm.R": {"rotation": (-0.25, 0, 0.70)}}),
+            (5, {**back_pose, "spine": {"rotation": (-0.10, 0, 0)}, "forearm.L": {"rotation": (0.18, 0, -0.52)}, "forearm.R": {"rotation": (-0.18, 0, 0.82)}}),
+            (9, {**back_pose, "spine": {"rotation": (-0.06, 0, 0)}, "forearm.L": {"rotation": (0.22, 0, -0.82)}, "forearm.R": {"rotation": (-0.22, 0, 0.52)}}),
+            (13, {**back_pose, "upper_arm.L": {"rotation": (0.30, 0, 1.10)}, "upper_arm.R": {"rotation": (-0.30, 0, -1.10)}, "forearm.L": {"rotation": (0.25, 0, -0.70)}, "forearm.R": {"rotation": (-0.25, 0, 0.70)}}),
+        ],
+        "research_one_hand": [
+            (1, {**back_pose, "spine": {"rotation": (-0.08, 0, -0.16)}, "upper_arm.R": {"rotation": (-0.25, 0, -1.08)}, "forearm.R": {"rotation": (-0.2, 0, 0.66)}, "forearm.L": {"rotation": (0, 0, -0.15)}}),
+            (7, {**back_pose, "head": {**back_head, "rotation": (0.02, -math.pi, -0.18)}, "forearm.R": {"rotation": (-0.22, 0, 0.88)}}),
+            (14, {**back_pose, "spine": {"rotation": (-0.06, 0, 0.12)}, "forearm.R": {"rotation": (-0.20, 0, 0.56)}}),
+        ],
+        "research_inspect": [
+            (1, {**back_pose}),
+            (7, {**back_pose, "spine": {"rotation": (-0.42, 0, 0)}, "head": {**back_head, "rotation": (0.24, -math.pi, 0)}, "upper_arm.L": {"rotation": (0, 0, 0.30)}, "upper_arm.R": {"rotation": (0, 0, -0.30)}}),
+            (16, {**back_pose, "spine": {"rotation": (-0.34, 0, 0)}, "head": {**back_head, "rotation": (0.18, -math.pi, 0)}}),
+            (23, {**back_pose}),
+        ],
+        "research_smack": [
+            (1, {**back_pose}),
+            (6, {**back_pose, "spine": {"rotation": (0.02, 0, -0.18)}, "upper_arm.R": {"rotation": (-0.20, 0, -1.52)}, "forearm.R": {"rotation": (-0.10, 0, 1.18)}}),
+            (9, {**back_pose, "spine": {"rotation": (-0.30, 0, 0.24)}, "upper_arm.R": {"rotation": (0.28, 0, -0.42)}, "forearm.R": {"rotation": (-0.32, 0, -0.28)}, "hand.R": {"scale": (1.24, 1.24, 1.24)}}),
+            (16, {**back_pose, "upper_arm.R": {"rotation": (0, 0, -0.52)}, "forearm.R": {"rotation": (0, 0, 0.42)}}),
+            (23, {**back_pose}),
+        ],
+        "research_cable": [
+            (1, {**back_pose}),
+            (8, {**back_pose, "spine": {"rotation": (0.34, 0, 0.30)}, "head": {**back_head, "rotation": (0.28, -math.pi, -0.28)}, "upper_arm.L": {"rotation": (0.12, 0, 1.24)}, "forearm.L": {"rotation": (0.20, 0, 0.66)}}),
+            (15, {**back_pose, "spine": {"rotation": (0.42, 0, 0.38)}, "forearm.L": {"rotation": (0.22, 0, 0.96)}}),
+            (24, {**back_pose}),
+        ],
+        "research_sleep": [
+            (1, {**back_pose}),
+            (10, {**back_pose, "spine": {"rotation": (0.38, 0, -0.08)}, "head": {**back_head, "rotation": (0.48, -math.pi, -0.12)}, "upper_arm.L": {"rotation": (0, 0, 0.18)}, "upper_arm.R": {"rotation": (0, 0, -0.18)}}),
+            (22, {**back_pose, "spine": {"rotation": (0.46, 0, 0.08)}, "head": {**back_head, "rotation": (0.54, -math.pi, 0.10)}}),
+            (25, {**back_pose, "chair": {"rotation": (-0.10, 0, 0)}, "spine": {"rotation": (-0.42, 0, 0)}, "head": {**back_head, "rotation": (-0.32, -math.pi, 0)}, "upper_arm.L": {"rotation": (0, 0, 1.12)}, "upper_arm.R": {"rotation": (0, 0, -1.12)}}),
+            (34, {**back_pose}),
+        ],
+        "research_celebrate": [
+            (1, {**back_pose}),
+            (7, {**back_pose, "spine": {"rotation": (-0.24, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 1.42)}, "upper_arm.R": {"rotation": (0, 0, -1.42)}, "forearm.L": {"rotation": (0, 0, -0.38)}, "forearm.R": {"rotation": (0, 0, 0.38)}}),
+            (14, {**back_pose, "chair": {"location": (0, 0, 0.10)}, "head": {**back_head, "rotation": (-0.20, -math.pi, 0)}}),
+            (22, {**back_pose}),
+        ],
+        "research_complete": [
+            (1, {**back_pose}),
+            (5, {**back_pose, "head": {**back_head, "rotation": (0, -math.pi, -0.42)}, "spine": {"rotation": (-0.14, 0, 0.10)}}),
+            (10, {**back_pose, "upper_arm.R": {"rotation": (-0.25, 0, -1.20)}, "forearm.R": {"rotation": (-0.20, 0, 0.76)}}),
+            (13, {**back_pose, "spine": {"rotation": (-0.26, 0, -0.12)}, "forearm.R": {"rotation": (-0.30, 0, 0.30)}, "hand.R": {"scale": (1.30, 1.30, 1.30)}}),
+            (21, {**back_pose}),
+        ],
+        "scroll_present": [
+            (1, {}),
+            (8, {"spine": {"rotation": (-0.18, 0, 0)}, "upper_arm.L": {"rotation": (0.12, 0, 1.20)}, "upper_arm.R": {"rotation": (-0.12, 0, -1.20)}, "forearm.L": {"rotation": (0, 0, -0.36)}, "forearm.R": {"rotation": (0, 0, 0.36)}}),
+            (22, {"spine": {"rotation": (-0.12, 0, 0)}, "upper_arm.L": {"rotation": (0.10, 0, 1.08)}, "upper_arm.R": {"rotation": (-0.10, 0, -1.08)}}),
+        ],
+        "mail_notice": [
+            (1, {}),
+            (7, {"head": {"rotation": (-0.05, 0, -0.55)}, "spine": {"rotation": (-0.08, 0, -0.18)}}),
+            (14, {"head": {"rotation": (0.12, 0, 0)}, "upper_arm.R": {"rotation": (0, 0, -0.74)}, "forearm.R": {"rotation": (0, 0, 0.66)}}),
+            (22, {}),
+        ],
+        "mail_click": [
+            (1, {}),
+            (6, {"spine": {"rotation": (-0.20, 0, -0.20)}, "upper_arm.R": {"rotation": (-0.12, 0, -1.18)}, "forearm.R": {"rotation": (0.14, 0, -0.52)}}),
+            (10, {"spine": {"rotation": (-0.28, 0, -0.26)}, "forearm.R": {"rotation": (0.10, 0, -0.82)}, "hand.R": {"scale": (1.18, 1.18, 1.18)}}),
+            (18, {}),
+        ],
+        "defeat": [
+            (1, {}),
+            (9, {"chair": {"location": (0, 0, -0.10)}, "spine": {"rotation": (0.42, 0, 0)}, "head": {"rotation": (0.52, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, -0.22)}, "upper_arm.R": {"rotation": (0, 0, 0.22)}}),
+            (26, {"chair": {"location": (0, 0, -0.14)}, "spine": {"rotation": (0.48, 0, 0)}, "head": {"rotation": (0.58, 0, 0)}}),
+        ],
+        "forbidden": [
+            (1, {}),
+            (7, {"chair": {"location": (0, 0, 0.12)}, "spine": {"rotation": (-0.20, 0, 0)}, "head": {"rotation": (-0.20, 0, 0)}, "upper_arm.L": {"rotation": (0, 0, 1.18)}, "upper_arm.R": {"rotation": (0, 0, -1.18)}}),
+            (14, {"chair": {"location": (0, 0, 0.18)}, "head": {"rotation": (-0.10, 0, 0.22)}, "upper_arm.L": {"rotation": (0, 0, 1.42)}, "upper_arm.R": {"rotation": (0, 0, -1.42)}}),
+            (24, {"chair": {"location": (0, 0, 0.10)}, "head": {"rotation": (-0.18, 0, -0.20)}}),
+            (32, {}),
+        ],
+    })
+
+    for action_name, keyframes in authored_actions.items():
+        actions.append(create_action(armature, action_name, keyframes))
     return actions
 
 
@@ -626,8 +814,9 @@ def main():
     build_character(armature)
     actions = build_actions(armature)
     export_glb(armature, actions)
-    setup_preview(armature)
-    print("PREVIEWS", PREVIEW_PATH, SWAT_PREVIEW_PATH, REVEAL_PREVIEW_PATH, SIDE_PREVIEW_PATH)
+    if os.environ.get("SAGE_SKIP_PREVIEWS") != "1":
+        setup_preview(armature)
+        print("PREVIEWS", PREVIEW_PATH, SWAT_PREVIEW_PATH, REVEAL_PREVIEW_PATH, SIDE_PREVIEW_PATH)
 
 
 if __name__ == "__main__":
