@@ -316,8 +316,8 @@
 		position: absolute;
 		top: 50%;
 		right: 26px;
-		width: min(820px, calc(100vw - 360px));
-		height: min(620px, calc(100vh - 130px));
+		width: min(920px, calc(100vw - 330px));
+		height: min(660px, calc(100vh - 110px));
 		margin: 0;
 		border: 5px ridge #bcc4d4;
 		background: #070611;
@@ -338,7 +338,7 @@
 		border-bottom: 3px outset #ccd;
 	}
 	.folder-bar span {
-		font-size: 9px;
+		font-size: 11px;
 		color: #b6d9ff;
 	}
 	.folder-bar h2 {
@@ -385,7 +385,7 @@
 		background: #c0c0c0;
 		color: #111;
 		font:
-			9px 'Silkscreen',
+			11px 'Silkscreen',
 			monospace;
 		text-align: left;
 		cursor: pointer;
@@ -407,12 +407,12 @@
 	}
 	.project-tabs b {
 		color: #22e486;
-		font-size: 7px;
+		font-size: 9px;
 	}
 	.feature-screen {
 		display: grid;
 		grid-template-columns: 255px 1fr;
-		height: 310px;
+		height: calc(100% - 244px);
 	}
 	.feature-screen aside {
 		padding: 20px;
@@ -420,7 +420,7 @@
 		background: #130d28;
 	}
 	.feature-screen aside span {
-		font-size: 8px;
+		font-size: 11px;
 		color: #7cefff;
 	}
 	.feature-screen aside h3 {
@@ -430,7 +430,7 @@
 	}
 	.feature-screen aside p {
 		font:
-			12px/1.5 Georgia,
+			14px/1.5 Georgia,
 			serif;
 		color: #d9cfe2;
 	}
@@ -438,7 +438,7 @@
 		display: block;
 		margin-top: 22px;
 		color: #7effba;
-		font-size: 10px;
+		font-size: 12px;
 	}
 	.rpg-list {
 		padding: 10px;
@@ -446,7 +446,7 @@
 		background: repeating-linear-gradient(0deg, #080811 0 2px, #0d0b18 2px 4px);
 	}
 	.feature-choice {
-		height: 67px;
+		height: 76px;
 		margin-bottom: 7px;
 		border: 2px solid #4c4263;
 		background: #100c20;
@@ -492,19 +492,19 @@
 	}
 	.feature-choice strong {
 		color: #ffe8ae;
-		font-size: 11px;
+		font-size: 13px;
 	}
 	.feature-choice small {
 		margin-top: 5px;
 		color: #c8bdd3;
 		font:
-			10px/1.3 Georgia,
+			12px/1.35 Georgia,
 			serif;
 	}
 	.feature-choice em {
 		margin-top: 4px;
 		color: #70eaff;
-		font-size: 7px;
+		font-size: 9px;
 	}
 	.delete-file {
 		align-self: center;
@@ -512,7 +512,8 @@
 		border: 2px outset #faa;
 		background: #5d1527;
 		color: #fff;
-		font: 8px 'Silkscreen';
+		min-height: 34px;
+		font: 10px 'Silkscreen';
 		cursor: pointer;
 	}
 	.page-controls {
@@ -528,14 +529,15 @@
 		border: 2px outset #ddd;
 		background: #c0c0c0;
 		color: #111;
-		font: 9px 'Silkscreen';
+		min-height: 34px;
+		font: 11px 'Silkscreen';
 		cursor: pointer;
 	}
 	.page-controls button:disabled {
 		opacity: 0.4;
 	}
 	.page-controls span {
-		font-size: 9px;
+		font-size: 11px;
 		color: #8cecff;
 	}
 	.workshop-message {
@@ -545,7 +547,7 @@
 		box-sizing: border-box;
 		border-top: 1px solid #423955;
 		color: #ffdc77;
-		font-size: 8px;
+		font-size: 10px;
 		overflow: hidden;
 	}
 	.rpg-workshop > footer {
@@ -595,7 +597,7 @@
 	.custom-dialog label {
 		display: block;
 		margin-top: 10px;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.custom-dialog input,
 	.custom-dialog textarea {
@@ -606,6 +608,7 @@
 		padding: 7px;
 		background: #050307;
 		color: #fff;
+		font-size: 14px;
 	}
 	.dependency-list {
 		max-height: 120px;
@@ -622,7 +625,8 @@
 		border: 2px outset #ddd;
 		padding: 7px;
 		background: #c0c0c0;
-		font: 8px 'Silkscreen';
+		min-height: 38px;
+		font: 11px 'Silkscreen';
 		cursor: pointer;
 	}
 	.dependency-dialog span {
@@ -644,7 +648,7 @@
 			height: 620px;
 		}
 		.feature-screen {
-			height: 320px;
+			height: calc(100% - 244px);
 		}
 		.feature-choice {
 			height: 68px;

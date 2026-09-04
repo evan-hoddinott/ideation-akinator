@@ -110,7 +110,7 @@
 	}
 	.crt-shell {
 		position: relative;
-		width: min(860px, 90vw);
+		width: min(980px, 94vw);
 		padding: 24px 28px 46px;
 		border: 9px ridge #a69f8e;
 		border-radius: 30px 30px 55px 55px;
@@ -121,7 +121,7 @@
 	}
 	.screen {
 		position: relative;
-		height: min(520px, 70vh);
+		height: min(590px, 72vh);
 		overflow: hidden;
 		border: 12px inset #625e55;
 		border-radius: 35px/24px;
@@ -140,7 +140,7 @@
 		inset: 22px;
 		color: #59ff78;
 		font:
-			11px/1.6 'Courier New',
+			14px/1.6 'Courier New',
 			monospace;
 	}
 	.boot-log p {
@@ -154,7 +154,7 @@
 		position: absolute;
 		z-index: 4;
 		inset: auto 7% 9%;
-		padding: 14px;
+		padding: 18px;
 		border: 2px solid #53ff76;
 		background: #020603ee;
 		box-shadow: 0 0 20px #36ff6455;
@@ -169,8 +169,8 @@
 		border-bottom: 1px dashed #318e45;
 	}
 	.login-terminal img {
-		width: 58px;
-		height: 58px;
+		width: 72px;
+		height: 72px;
 		border: 2px solid #68ff83;
 		object-fit: cover;
 		object-position: 50% 24%;
@@ -179,12 +179,12 @@
 	.login-terminal span,
 	.login-terminal label {
 		color: #63ff7d;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.login-terminal h1 {
 		margin: 4px 0 0;
 		color: #ffe36c;
-		font-size: clamp(17px, 3vw, 28px);
+		font-size: clamp(25px, 3vw, 36px);
 	}
 	.login-terminal form {
 		display: grid;
@@ -192,7 +192,7 @@
 	}
 	.command-row {
 		display: grid;
-		grid-template-columns: 18px 1fr 80px;
+		grid-template-columns: 22px 1fr 110px;
 		align-items: center;
 		gap: 5px;
 	}
@@ -209,18 +209,18 @@
 		color: #ddffe4;
 		background: #07120a;
 		font:
-			15px 'Courier New',
+			18px 'Courier New',
 			monospace;
 		caret-color: #ffe36c;
 	}
 	.command-row button {
-		height: 36px;
+		height: 44px;
 		border: 3px outset #aaa;
 		color: #111;
 		background: #d5d2c7;
 		cursor: pointer;
 		font:
-			8px 'Silkscreen',
+			11px 'Silkscreen',
 			monospace;
 	}
 	.command-row button:disabled {
@@ -236,7 +236,7 @@
 	.login-terminal footer {
 		margin-top: 12px;
 		color: #668b6d;
-		font-size: 7px;
+		font-size: 10px;
 	}
 	.monitor-controls {
 		position: absolute;
@@ -246,7 +246,7 @@
 		align-items: center;
 		gap: 7px;
 		color: #302d29;
-		font-size: 7px;
+		font-size: 9px;
 	}
 	.monitor-controls i {
 		width: 8px;
@@ -265,7 +265,7 @@
 		position: absolute;
 		bottom: 12px;
 		color: #71677c;
-		font-size: 7px;
+		font-size: 9px;
 	}
 	@keyframes type-line {
 		from {
@@ -310,7 +310,7 @@
 			grid-column: 2;
 		}
 		.boot-log {
-			font-size: 9px;
+			font-size: 11px;
 		}
 	}
 </style>

@@ -534,7 +534,7 @@
 		display: block;
 		margin-top: 15px;
 		color: #7eeeff;
-		font-size: 9px;
+		font-size: 12px;
 	}
 	.summoning-screen h2 {
 		color: #ffe082;
@@ -548,9 +548,10 @@
 	.summoning-screen button,
 	.stage-actions button {
 		border: 3px outset #ddd;
-		padding: 10px;
+		min-height: 42px;
+		padding: 10px 13px;
 		background: #c0c0c0;
-		font: 9px 'Silkscreen';
+		font: 11px 'Silkscreen';
 		cursor: pointer;
 	}
 	.mail-notification {
@@ -605,9 +606,10 @@
 	}
 	.mail-toast button {
 		border: 3px outset #eee;
-		padding: 10px;
+		min-height: 42px;
+		padding: 10px 12px;
 		background: #c0c0c0;
-		font: 8px 'Silkscreen';
+		font: 11px 'Silkscreen';
 		cursor: pointer;
 	}
 	@keyframes toast-in {
@@ -624,13 +626,13 @@
 		position: absolute;
 		top: 50%;
 		right: 26px;
-		width: min(820px, calc(100vw - 360px));
-		height: min(620px, calc(100vh - 130px));
+		width: min(920px, calc(100vw - 330px));
+		height: min(660px, calc(100vh - 110px));
 		border: 5px outset #eee;
 		background: #c0c0c0;
 		box-shadow: 16px 18px #020105;
 		display: grid;
-		grid-template-rows: 30px 42px 1fr 24px;
+		grid-template-rows: 36px 48px 1fr 30px;
 		overflow: hidden;
 		transform: translateY(-50%);
 	}
@@ -641,7 +643,7 @@
 		box-sizing: border-box;
 		background: linear-gradient(90deg, #000080, #2185c5);
 		color: #fff;
-		font-size: 10px;
+		font-size: 12px;
 	}
 	.stretch-mail .client-title {
 		background: repeating-linear-gradient(
@@ -661,7 +663,8 @@
 	.client-tools button {
 		border: 2px outset #eee;
 		background: #c0c0c0;
-		font: 8px 'Tomo';
+		min-height: 32px;
+		font: 11px 'Tomo';
 		cursor: pointer;
 	}
 	.client-tools button:disabled {
@@ -669,11 +672,11 @@
 	}
 	.client-tools span {
 		margin-left: auto;
-		font-size: 8px;
+		font-size: 10px;
 	}
 	.client-body {
 		display: grid;
-		grid-template-columns: 210px 1fr;
+		grid-template-columns: 240px 1fr;
 		min-height: 0;
 	}
 	.inbox-list {
@@ -692,7 +695,7 @@
 		border-bottom: 1px solid #aaa;
 		background: #fff;
 		text-align: left;
-		font: 10px 'Tomo';
+		font: 12px 'Tomo';
 		cursor: pointer;
 	}
 	.inbox-list button.active {
@@ -809,7 +812,7 @@
 		font: bold 20px monospace;
 	}
 	.dossier-head span {
-		font: 8px 'Tomo';
+		font: 11px 'Tomo';
 		color: #711654;
 	}
 	.dossier-head h2 {
@@ -835,7 +838,7 @@
 	.stat-row span {
 		padding: 6px;
 		border: 1px solid #aaa;
-		font: 8px 'Tomo';
+		font: 11px 'Tomo';
 	}
 	.stat-row b {
 		display: block;
@@ -843,7 +846,7 @@
 	}
 	.dossier-scroll h3 {
 		color: #000080;
-		font: 10px 'Tomo';
+		font: 13px 'Tomo';
 	}
 	.competitor {
 		padding: 8px;
@@ -867,9 +870,10 @@
 	.dossier-actions button,
 	.configure-button {
 		border: 2px outset #eee;
-		padding: 7px;
+		min-height: 38px;
+		padding: 8px 10px;
 		background: #c0c0c0;
-		font: 8px 'Tomo';
+		font: 11px 'Tomo';
 		cursor: pointer;
 	}
 	.dossier-actions .next-mail,
@@ -882,7 +886,7 @@
 		justify-content: space-between;
 		padding: 6px;
 		border-top: 2px ridge #eee;
-		font-size: 7px;
+		font-size: 10px;
 	}
 	.comparison-pane {
 		grid-template-rows: auto 1fr auto;
@@ -890,7 +894,7 @@
 		box-sizing: border-box;
 	}
 	.comparison-pane header span {
-		font-size: 8px;
+		font-size: 11px;
 		color: #006044;
 	}
 	.comparison-pane h2 {
@@ -914,7 +918,7 @@
 		padding: 0;
 		background: #fff;
 		color: #111;
-		font: 8px 'Tomo';
+		font: 10px 'Tomo';
 		cursor: pointer;
 	}
 	.dimension-column b,
@@ -1004,7 +1008,7 @@
 	}
 	.defeat-dialog span {
 		color: #ff83d9;
-		font: 9px 'Silkscreen';
+		font: 11px 'Silkscreen';
 	}
 	.defeat-dialog h2 {
 		color: #ffe080;
@@ -1023,7 +1027,8 @@
 		border: 2px outset #ddd;
 		padding: 8px;
 		background: #c0c0c0;
-		font: 8px 'Silkscreen';
+		min-height: 40px;
+		font: 11px 'Silkscreen';
 		cursor: pointer;
 	}
 	@media (prefers-reduced-motion: reduce) {

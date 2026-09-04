@@ -713,7 +713,7 @@
 		background: #090820f2;
 		box-shadow: 7px 8px 0 #02010a99;
 		font:
-			8px/1.3 'Courier New',
+			11px/1.4 'Courier New',
 			monospace;
 	}
 
@@ -727,7 +727,7 @@
 
 	.real-research-strip > strong {
 		grid-column: 1;
-		font-size: 11px;
+		font-size: 14px;
 	}
 
 	.real-research-strip small {
@@ -739,11 +739,12 @@
 		grid-column: 2;
 		grid-row: 1 / span 3;
 		align-self: center;
-		padding: 8px 10px;
+		min-height: 42px;
+		padding: 9px 12px;
 		border: 3px outset #d6d2de;
 		background: #c0c0c0;
 		font:
-			700 8px 'Courier New',
+			700 11px 'Courier New',
 			monospace;
 		cursor: pointer;
 	}

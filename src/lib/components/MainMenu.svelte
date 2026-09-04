@@ -244,8 +244,8 @@
 	.main-menu {
 		position: relative;
 		z-index: 4;
-		width: min(760px, 88vw);
-		padding: 18px;
+		width: min(900px, 92vw);
+		padding: 22px;
 		border: 5px double #d9b765;
 		background: #0c081bef;
 		box-shadow:
@@ -255,15 +255,15 @@
 	}
 	.menu-title-card {
 		display: grid;
-		grid-template-columns: 150px 1fr;
+		grid-template-columns: 180px 1fr;
 		align-items: center;
 		gap: 20px;
 		padding: 10px 16px 16px;
 		border-bottom: 2px dotted #67547a;
 	}
 	.menu-title-card img {
-		width: 150px;
-		height: 150px;
+		width: 180px;
+		height: 180px;
 		object-fit: cover;
 		object-position: 50% 24%;
 		image-rendering: pixelated;
@@ -272,12 +272,12 @@
 	}
 	.menu-title-card span {
 		color: #65f6a2;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.menu-title-card h1 {
 		margin: 5px 0;
 		color: #ffe16b;
-		font-size: clamp(28px, 5vw, 54px);
+		font-size: clamp(38px, 5vw, 64px);
 		line-height: 0.9;
 		text-shadow: 4px 4px #7d225c;
 	}
@@ -285,19 +285,20 @@
 		margin: 10px 0 0;
 		color: #cfc3da;
 		font:
-			13px Verdana,
+			16px Verdana,
 			sans-serif;
 	}
 	nav {
 		display: grid;
-		gap: 7px;
+		gap: 10px;
 		margin-top: 14px;
 	}
 	nav button {
 		display: grid;
 		gap: 3px;
 		width: 100%;
-		padding: 10px 12px;
+		min-height: 64px;
+		padding: 12px 15px;
 		border: 3px outset #7a6d89;
 		color: #eee7f5;
 		background: #271b39;
@@ -312,11 +313,11 @@
 		transform: translateX(5px);
 	}
 	nav button b {
-		font-size: 10px;
+		font-size: 13px;
 	}
 	nav button span {
 		font:
-			10px Verdana,
+			13px Verdana,
 			sans-serif;
 		opacity: 0.75;
 	}
@@ -339,7 +340,7 @@
 		background: transparent;
 		cursor: pointer;
 		font:
-			7px 'Silkscreen',
+			10px 'Silkscreen',
 			monospace;
 	}
 	.main-menu footer {
@@ -347,7 +348,7 @@
 		left: 14px;
 		bottom: -28px;
 		color: #6e627c;
-		font-size: 7px;
+		font-size: 9px;
 	}
 	.loading-save {
 		color: #6aff8b;
@@ -452,10 +453,11 @@
 			font-size: 27px;
 		}
 		.menu-title-card p {
-			font-size: 10px;
+			font-size: 13px;
 		}
 		nav button {
-			padding: 8px;
+			min-height: 58px;
+			padding: 10px;
 		}
 	}
 </style>

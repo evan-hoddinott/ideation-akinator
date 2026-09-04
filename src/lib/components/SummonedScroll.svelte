@@ -92,7 +92,7 @@
 	.summoned-scroll header p {
 		margin: 0 0 6px;
 		font:
-			700 9px/1 'Courier New',
+			700 11px/1 'Courier New',
 			monospace;
 		letter-spacing: 0.12em;
 		color: #733249;
@@ -109,12 +109,13 @@
 		position: absolute;
 		right: 0;
 		top: 0;
-		padding: 8px 10px;
+		min-height: 40px;
+		padding: 9px 12px;
 		border: 3px outset #ded8c5;
 		color: #221322;
 		background: #c8c0aa;
 		font:
-			700 9px/1 'Courier New',
+			700 11px/1 'Courier New',
 			monospace;
 		cursor: pointer;
 	}
@@ -122,7 +123,7 @@
 	.scroll-content {
 		padding: 20px 0 10px;
 		font:
-			14px/1.55 Georgia,
+			16px/1.6 Georgia,
 			serif;
 	}
 

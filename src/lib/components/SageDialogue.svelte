@@ -221,7 +221,7 @@
 				<span></span>
 			</figure>
 
-			<div class="dialogue-column">
+			<div class="dialogue-column" class:responses-ready={responsesReady}>
 				<button
 					class="dialogue-copy"
 					type="button"
@@ -270,8 +270,8 @@
 		z-index: 13;
 		left: 50%;
 		bottom: clamp(12px, 2.4vh, 28px);
-		width: min(920px, calc(100vw - 48px));
-		height: clamp(270px, 40vh, 390px);
+		width: min(1040px, calc(100vw - 40px));
+		height: clamp(350px, 52vh, 480px);
 		pointer-events: none;
 		transform: translateX(-50%);
 	}
@@ -294,12 +294,12 @@
 		grid-template-columns: minmax(0, 1fr) auto auto;
 		align-items: center;
 		gap: 12px;
-		height: 25px;
-		padding: 0 7px;
+		height: 31px;
+		padding: 0 10px;
 		color: #f5f0ff;
 		background: linear-gradient(90deg, #170082, #5b175f 72%, #170082);
 		font:
-			10px/1 'Silkscreen',
+			12px/1 'Silkscreen',
 			monospace;
 		text-transform: uppercase;
 	}
@@ -323,23 +323,23 @@
 
 	.speech-titlebar small {
 		color: #9ffbff;
-		font-size: 8px;
+		font-size: 10px;
 		white-space: nowrap;
 	}
 
 	.speech-titlebar b {
 		min-width: 26px;
 		color: #ffd75a;
-		font-size: 11px;
+		font-size: 14px;
 		text-align: right;
 	}
 
 	.rpg-panel {
 		display: grid;
-		grid-template-columns: 112px minmax(0, 1fr);
-		gap: 17px;
-		height: calc(100% - 25px);
-		padding: 16px;
+		grid-template-columns: 140px minmax(0, 1fr);
+		gap: 22px;
+		height: calc(100% - 31px);
+		padding: 18px;
 		border: 4px solid #f5f0df;
 		background:
 			repeating-linear-gradient(0deg, rgb(255 255 255 / 2%) 0 2px, transparent 2px 4px), #08070d;
@@ -349,8 +349,8 @@
 	.sage-portrait {
 		position: relative;
 		align-self: start;
-		width: 112px;
-		height: 112px;
+		width: 140px;
+		height: 140px;
 		margin: 0;
 		overflow: hidden;
 		border: 3px solid #f5f0df;
@@ -378,9 +378,13 @@
 
 	.dialogue-column {
 		display: grid;
-		grid-template-rows: 94px minmax(0, 1fr) auto;
+		grid-template-rows: minmax(0, 1fr) 0 auto;
 		min-width: 0;
 		min-height: 0;
+	}
+
+	.dialogue-column.responses-ready {
+		grid-template-rows: minmax(88px, auto) minmax(0, 1fr) auto;
 	}
 
 	.dialogue-copy {
@@ -388,16 +392,23 @@
 		display: block;
 		width: 100%;
 		min-width: 0;
-		padding: 3px 28px 8px 0;
+		align-self: center;
+		padding: 6px 34px 10px 0;
 		border: 0;
 		color: #fffbed;
 		background: transparent;
 		font:
-			14px/1.7 'Silkscreen',
+			clamp(20px, 1.65vw, 25px) / 1.55 'Silkscreen',
 			monospace;
 		text-align: left;
 		text-shadow: 2px 2px 0 #351963;
 		cursor: pointer;
+	}
+
+	.responses-ready .dialogue-copy {
+		align-self: start;
+		font-size: clamp(17px, 1.25vw, 20px);
+		line-height: 1.5;
 	}
 
 	.spoken-text {
@@ -406,8 +417,8 @@
 
 	.typing-cursor {
 		display: inline-block;
-		width: 8px;
-		height: 14px;
+		width: 10px;
+		height: 20px;
 		margin-left: 3px;
 		vertical-align: -2px;
 		background: #ffc94a;
@@ -425,7 +436,8 @@
 
 	.dialogue-responses {
 		min-height: 0;
-		overflow: auto;
+		overflow-x: hidden;
+		overflow-y: auto;
 		opacity: 0;
 		pointer-events: none;
 		scrollbar-color: #7f6aa4 #15121e;
@@ -445,13 +457,13 @@
 		padding-top: 5px;
 		color: #aaa0bd;
 		font:
-			9px/1 'Silkscreen',
+			11px/1 'Silkscreen',
 			monospace;
 	}
 
 	.choice-pager button {
-		width: 30px;
-		height: 23px;
+		width: 38px;
+		height: 30px;
 		padding: 0;
 		border: 2px outset #aaa4b1;
 		color: #fff4cb;
@@ -533,31 +545,56 @@
 		.sage-dialogue-stage {
 			bottom: 8px;
 			width: calc(100vw - 16px);
-			height: min(390px, 58vh);
+			height: min(440px, 64vh);
 		}
 
 		.rpg-panel {
-			grid-template-columns: 72px minmax(0, 1fr);
-			gap: 10px;
-			padding: 10px;
+			position: relative;
+			display: block;
+			padding: 12px;
 		}
 
 		.sage-portrait {
-			width: 72px;
-			height: 72px;
+			position: absolute;
+			z-index: 3;
+			left: 12px;
+			top: 12px;
+			width: 82px;
+			height: 82px;
 		}
 
 		.dialogue-copy {
-			font-size: 11px;
+			min-height: 82px;
+			padding-left: 96px;
+			font-size: 16px;
 			line-height: 1.55;
 		}
 
 		.dialogue-column {
-			grid-template-rows: 72px minmax(0, 1fr) auto;
+			height: 100%;
+		}
+
+		.dialogue-column.responses-ready {
+			grid-template-rows: minmax(78px, auto) minmax(0, 1fr) auto;
+		}
+
+		.responses-ready .dialogue-copy {
+			font-size: 14px;
 		}
 
 		.speech-titlebar small {
 			display: none;
+		}
+	}
+
+	@media (max-height: 760px) and (min-width: 761px) {
+		.dialogue-column.responses-ready {
+			grid-template-rows: minmax(64px, auto) minmax(0, 1fr) auto;
+		}
+
+		.responses-ready .dialogue-copy {
+			font-size: 16px;
+			line-height: 1.4;
 		}
 	}
 

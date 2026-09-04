@@ -327,20 +327,20 @@
 	}
 	.sage-verdict span {
 		color: #ffc857;
-		font-size: 10px;
+		font-size: 12px;
 	}
 	.sage-verdict p {
 		min-height: 2.6em;
 		margin: 8px 0 0;
 		font:
-			12px/1.45 Verdana,
+			14px/1.5 Verdana,
 			sans-serif;
 	}
 	.score-machine {
 		position: absolute;
 		top: 64px;
 		right: clamp(18px, 3vw, 58px);
-		width: min(58vw, 820px);
+		width: min(62vw, 900px);
 		max-height: calc(100dvh - 90px);
 		overflow: hidden auto;
 		border: 5px ridge #a5a0aa;
@@ -357,7 +357,7 @@
 		padding: 7px 10px;
 		color: white;
 		background: linear-gradient(90deg, #391f79, #9f397c);
-		font-size: 10px;
+		font-size: 12px;
 	}
 	.score-machine > header i {
 		color: #9effbe;
@@ -382,7 +382,7 @@
 	h2 {
 		margin: 0 0 8px;
 		color: #ffc857;
-		font-size: 12px;
+		font-size: 14px;
 		text-transform: uppercase;
 	}
 	.factors {
@@ -394,7 +394,7 @@
 		justify-content: space-between;
 		padding: 4px 6px;
 		background: #0a0714;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.factors b {
 		color: #8effd0;
@@ -407,7 +407,7 @@
 		padding-top: 8px;
 		border-top: 2px dotted #766688;
 		color: #c8bdd5;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.base-total b {
 		color: #fff;
@@ -435,7 +435,7 @@
 	}
 	.final-kicker {
 		color: #d1c2dc;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.final-card strong {
 		color: #ffe36e;
@@ -445,12 +445,12 @@
 	}
 	.final-card small {
 		color: #a79bb4;
-		font-size: 8px;
+		font-size: 10px;
 	}
 	.final-card p {
 		margin: 8px 0 0;
 		color: #8effd0;
-		font-size: 8px;
+		font-size: 10px;
 	}
 	.stamp {
 		margin-top: 8px;
@@ -469,7 +469,7 @@
 		display: flex;
 		justify-content: space-between;
 		color: #f0c967;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.modifier-reel > div {
 		display: flex;
@@ -482,7 +482,7 @@
 		padding: 4px 6px;
 		color: #06170e;
 		background: #7cf0ae;
-		font-size: 7px;
+		font-size: 10px;
 		animation: card-in 0.3s steps(4) both;
 	}
 	.modifier-reel span.penalty {
@@ -507,13 +507,13 @@
 	.score-actions button,
 	.board-entry button,
 	.fake-paywall button {
-		min-height: 32px;
+		min-height: 40px;
 		padding: 6px 10px;
 		border: 3px outset #8b8296;
 		color: #fff;
 		background: #322449;
 		cursor: pointer;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.score-actions .download {
 		color: #112017;
@@ -534,7 +534,7 @@
 		display: flex;
 		justify-content: space-between;
 		color: #ffd66a;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.leaderboard > header span {
 		color: #8e829a;
@@ -551,7 +551,7 @@
 		border: 3px inset #70677c;
 		color: #f8f1ff;
 		background: #080610;
-		font-size: 9px;
+		font-size: 12px;
 	}
 	.board-entry button {
 		min-width: 100px;
@@ -579,7 +579,7 @@
 		padding: 4px 5px;
 		color: #cbbfd6;
 		background: #0b0715;
-		font-size: 7px;
+		font-size: 10px;
 	}
 	.leaderboard li i {
 		color: #f7c75e;
@@ -636,7 +636,7 @@
 		padding: 6px 8px;
 		color: white;
 		background: #2f1877;
-		font-size: 8px;
+		font-size: 10px;
 	}
 	.fake-paywall > header button {
 		min-height: 0;
@@ -658,7 +658,7 @@
 		margin: 0 15px;
 		padding: 8px;
 		border-bottom: 1px dotted #635970;
-		font-size: 8px;
+		font-size: 11px;
 	}
 	.invoice-total {
 		align-items: end;
