@@ -1,7 +1,14 @@
 # Presentation recovery evidence
 
-This bundle records the local acceptance pass for
-[`PRESENTATION-RECOVERY-PRD.md`](./PRESENTATION-RECOVERY-PRD.md). The public verification entry is added only after the same commit is deployed to `idea.battery.rip`.
+This bundle records the local and public acceptance pass for
+[`PRESENTATION-RECOVERY-PRD.md`](./PRESENTATION-RECOVERY-PRD.md). Implementation commit `35088b2` was deployed to `idea.battery.rip` and verified there on 2026-09-04.
+
+## Public deployment
+
+- `artifacts/recovery/final-public-workstation.png` — fresh 1,440×900 capture from the authenticated public production route in held research mode. It shows the Sage, gaming chair, hands, keyboard, cart, CRT, readable clue scraps, and status UI in one composed frame.
+- `artifacts/recovery/public-production-browser-check.json` — public health, request, console, page-error, container, and model-hash summary. All 76 browser requests succeeded. The only second host was Cloudflare's own analytics beacon; no presentation asset was hotlinked.
+- `npm run deploy:verify` passed public DNS and health, the anonymous password gate, anonymous API rejection, container health and hardening, loopback-only binding, tunnel reachability, and retirement of the legacy service.
+- The public `signal-sage.glb` SHA-256 was `d56736a9c11897e4f93a5fbef8377dbbb46c39e04c042e6cf5e648041e932606`, identical to the locally accepted model.
 
 ## Complete runs
 

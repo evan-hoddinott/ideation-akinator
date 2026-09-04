@@ -5,7 +5,7 @@
 | Product        | Ideation Akinator                                                                     |
 | Document type  | Anti-drift execution contract                                                         |
 | Version        | 1.0                                                                                   |
-| Status         | Verified locally; public deployment pending                                           |
+| Status         | Completed, deployed, and publicly verified                                            |
 | Scope          | Visual direction, character performance, sourced assets, audio, and game presentation |
 | Product logic  | Frozen unless a requirement below explicitly says otherwise                           |
 | Primary URL    | `https://idea.battery.rip`                                                            |
@@ -512,6 +512,8 @@ The implementation handoff must fill this table. Blank evidence means the requir
 | PR-COMP-01  | Hero-size ordinary Sage and separate research framing in `SageStage.svelte`                                         | `final-compose-1440x900.png`; `final-sage-1440x900.png`                                | verified |
 | PR-COMP-02  | One active dialogue/window focus model and internal document pagination                                             | Complete mouse and Calm keyboard demo runs                                             | verified |
 | PR-COMP-03  | Fixed desktop staging plus functional mobile fallback styles                                                        | Four `final-compose-*` viewport captures                                               | verified |
+
+Public acceptance was completed on 2026-09-04 against implementation commit `35088b2`. The fresh 1,440 by 900 browser pass is recorded in `artifacts/recovery/public-production-browser-check.json` and `final-public-workstation.png`. All 76 observed requests succeeded, the console and page-error logs were empty, and the live Sage GLB matched the locally verified file byte for byte.
 
 ## 15. Definition of done
 

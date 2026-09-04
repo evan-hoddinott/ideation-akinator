@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-09-04",
+  "origin": "https://idea.battery.rip",
+  "implementationCommit": "35088b21ca5beadd105e054de887736a3d4b11ff",
+  "route": "/?sageDebug=workstation&hold=1",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "health": {
+    "status": "ok",
+    "service": "ideation-akinator"
+  },
+  "browser": {
+    "requestCount": 76,
+    "failedRequestCount": 0,
+    "consoleErrorCount": 0,
+    "pageErrorCount": 0,
+    "hosts": [
+      "idea.battery.rip",
+      "static.cloudflareinsights.com"
+    ],
+    "externalAssetHosts": [],
+    "cloudflareAnalyticsBeaconObserved": true
+  },
+  "sageModel": {
+    "localSha256": "d56736a9c11897e4f93a5fbef8377dbbb46c39e04c042e6cf5e648041e932606",
+    "publicSha256": "d56736a9c11897e4f93a5fbef8377dbbb46c39e04c042e6cf5e648041e932606",
+    "matches": true
+  },
+  "container": {
+    "status": "running",
+    "health": "healthy",
+    "imageId": "sha256:989a0f49a172e6343adf217f6c17ce0e92f8ed50e5442dfe5c2d63da8af92da7"
+  },
+  "screenshot": "final-public-workstation.png",
+  "visualInspection": "passed"
+}

@@ -4,7 +4,7 @@
 | --- | --- |
 | Product | Ideation Akinator |
 | Version | 1.3 |
-| Status | Core workflow complete; presentation recovery open |
+| Status | Core workflow and presentation recovery complete |
 | Primary URL | `https://idea.battery.rip` |
 | Audience | Solo creators and students |
 | Product type | Personal, password-protected tech demo |
@@ -12,7 +12,7 @@
 | Primary device | Desktop computer |
 | Last updated | 2026-09-04 |
 
-> **Presentation status notice:** The completion records for presentation slices 14 through 22 are historical implementation notes, not current acceptance claims. The visual audit found material gaps in the pixel portrait, sourced asset library, Sage animation set, workstation choreography, audio, popup tutorial, concept-mail performance, and scene composition. [The presentation recovery PRD](./PRESENTATION-RECOVERY-PRD.md) is the authoritative anti-drift contract for closing those gaps.
+> **Presentation status notice:** The completion records for presentation slices 14 through 22 are historical implementation notes. Their gaps were closed by the seven-slice [presentation recovery PRD](./PRESENTATION-RECOVERY-PRD.md), which is the authoritative acceptance record for the finished presentation.
 
 ## 1. Product summary
 
@@ -1385,6 +1385,19 @@ Slice 22 was completed and deployed on 2026-09-03 after both token-free and real
 - The public real run found and fixed four integration defects: Svelte's numeric-input coercion no longer breaks interview answers; synchronous concept and final-plan requests can no longer stack SDK retries beyond Cloudflare's edge limit; the nested project-file menu now accepts pointer input as well as keyboard input; and citation-heavy focused research has a five-minute asynchronous ceiling while remaining cancellable and responsive.
 - The score room preserved the server-signed completion contract, fake paywall, direct PDF handoff, internal report pagination, optional validated leaderboard, and viewport-sized document shell. The real report included requirements, architecture, prototype and production plans, competition, risks, validation, phases, and linked source citations.
 - Final verification passed Svelte diagnostics, 120 unit tests, formatting, lint, a production build, the deployment verifier, container hardening checks, public health and password-gate checks, PDF validation, asset loading, and fresh-browser console/error inspection at desktop widths.
+
+### 19.14 Presentation recovery completion record
+
+The seven-slice presentation recovery was completed, pushed, deployed, and publicly verified on 2026-09-04. It supersedes the acceptance claims in the historical Slice 14 through 22 records without changing the product workflow or AI contracts.
+
+- All 24 anti-drift requirement IDs are marked `verified` in [`PRESENTATION-RECOVERY-PRD.md`](./PRESENTATION-RECOVERY-PRD.md).
+- The recovery added nine authored pixel portraits; 35 named Sage actions; stable gaze, expression, and dialogue blending; a seat-anchored research cart; visible model hands at the keyboard; the complete printer and handoff performance; and the repaired popup, Purl, mail, scroll, clue, and restart sequences.
+- Thirty-one locally served sourced visuals, including ten GIFs, now build the fourteen connected internet-era zones. Their provenance, rights status, reproducible retrieval, and hashes are maintained in the asset ledger.
+- Twenty-seven physical-action effects and seven materially different MIDI arrangements now score the character and world performances without adding token calls.
+- Two complete token-free acceptance runs covered mouse and keyboard-primary play, normal waits, Calm mode, authenticated PDF generation, fixed desktop staging, and the mobile fallback. One bounded provider smoke call preserved the structured intake contract.
+- Local acceptance passed diagnostics, formatting, lint, 123 unit tests, a production build, asset hashes, browser network inspection, and a two-minute motion-stability recording.
+- Public acceptance against implementation commit `35088b2` passed the deployment verifier and a fresh 1,440 by 900 browser inspection. All 76 observed requests succeeded, no browser or page errors appeared, and the public Sage model hash matched the locally accepted model.
+- The complete sanitized proof bundle is indexed in [`RECOVERY-EVIDENCE.md`](./RECOVERY-EVIDENCE.md).
 
 ## 20. Risks and mitigations
 
