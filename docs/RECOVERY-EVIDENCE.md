@@ -5,13 +5,19 @@ This bundle records the local and public acceptance pass for
 
 ## September 4 follow-up presentation repair
 
+Follow-up commit `24942d0` is deployed at `idea.battery.rip`. The public held
+workstation route was checked in a fresh authenticated browser after the
+container replacement; it produced no console or page errors. The deployment
+verifier also passed its complete public, container, tunnel, and hardening
+checklist.
+
 - The broad-research workstation now renders beside the Sage rather than inside the higher workbench stacking context. Its CRT, side-mounted tower, keyboard, and cart sit behind the Sage; the real status strip and paper handoff remain above the performance.
 - Sage and workstation entrance movement now share the same right-to-left travel distance. The Sage exits toward the computer, returns with it, parks it, turns, and settles without the former opposite-direction meeting motion.
 - Workstation horizontal placement now derives from the projected midpoint of the model's hands. Sage marker projection uses the stable final stage rectangle rather than chasing the CSS entrance transform.
 - Research poses no longer counter-rotate the Sage's monitor head toward the player. After the chair turn, his face points at the workstation CRT until the job completes.
 - Dialogue now requires a separate advance after the last line before response controls appear. Key repeat is ignored, response clicks lock during their short confirmation beat, and the prompt keeps its readable size when the response area opens.
 - The nine dialogue portraits now use a 48 by 48 logical grid, strict black-and-white edge art, and nearest-neighbor 96 by 96 output.
-- Browser evidence for this follow-up lives under `artifacts/revisions/2026-09-04-workstation-dialogue/` locally. The key captures are `workstation-entrance-contact-sheet.png`, `after-workstation-depth.png`, `dialogue-awaiting-advance.png`, and `dialogue-response-screen.png`.
+- Browser evidence for this follow-up lives under `artifacts/revisions/2026-09-04-workstation-dialogue/` locally. The key captures are `workstation-entrance-contact-sheet.png`, `workstation-final-local.png`, `workstation-final-public.png`, `dialogue-awaiting-advance.png`, and `dialogue-response-screen.png`.
 
 ## Public deployment
 

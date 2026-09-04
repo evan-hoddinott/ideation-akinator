@@ -52,6 +52,15 @@ The checks cover DNS, local and public health, the anonymous password screen, an
 
 ## Last acceptance pass
 
+On 2026-09-04, follow-up commit `24942d0` repaired the broad-research staging and
+dialogue pacing. The Sage and workstation now enter from the same side, the
+Sage remains in front of the cart and keyboard, his monitor face stays turned
+toward the research CRT, and the tower is parked beside rather than over the
+screen. The same deployment added black-and-white RPG dialogue portraits and a
+deliberate advance between the last spoken line and response controls. The
+public workstation route loaded without browser or page errors, and the full
+deployment verifier passed after the container replacement.
+
 On 2026-09-04, implementation commit `35088b2` completed the seven-slice presentation recovery. A fresh authenticated public browser loaded the held workstation scene at 1,440 by 900 with the Sage, chair, model hands, keyboard, cart, CRT, and clue scraps visibly aligned. All 76 observed requests succeeded; the console and page-error logs were empty; and the public Sage GLB hash exactly matched the locally accepted model. The deployment verifier again passed DNS, local and public health, the password gate, anonymous API rejection, loopback binding, container hardening, tunnel reachability, and legacy-service retirement.
 
 On 2026-09-03, fresh authenticated browser sessions completed both the public token-free walkthrough and a separate real-provider workflow. The real run covered intake analysis, cited broad research, twelve adaptive questions, four concepts, mouse-operated feature selection, cited focused research, final recalculation, the score room, fake invoice, report viewer, and a valid 21-page PDF. The token-free run covered the same stage choreography, hidden skips, keyboard controls, credits, and restart path without provider calls.
