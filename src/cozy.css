@@ -1,0 +1,181 @@
+/* Shared art direction: paper, painted wood, sage green, and dusty violet. */
+/* The held documents use printed ink and a folded-paper scroll grip. */
+body :is(.paper-handoff, .summoned-scroll) {
+	color: #493721;
+}
+body :is(.paper-content, .scroll-content) {
+	font:
+		17px/1.65 Georgia,
+		'Times New Roman',
+		serif;
+	scrollbar-color: #9a7745 #deca9c;
+	scrollbar-width: auto;
+	scrollbar-gutter: stable;
+	padding-right: 12px;
+}
+body :is(.paper-handoff, .summoned-scroll) :is(h2, h3, h4, header b) {
+	font-family: Georgia, 'Times New Roman', serif;
+	color: #493721;
+}
+body :is(.paper-handoff, .summoned-scroll) a {
+	color: #70512f;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+}
+@supports selector(::-webkit-scrollbar) {
+	body :is(.paper-content, .scroll-content) {
+		scrollbar-color: auto;
+	}
+	body :is(.paper-content, .scroll-content)::-webkit-scrollbar {
+		width: 16px;
+		height: 16px;
+	}
+	body :is(.paper-content, .scroll-content)::-webkit-scrollbar-track {
+		background: #deca9c url('/images/props/paper-color.jpg') center / 160px;
+		background-blend-mode: multiply;
+		border: 1px solid #ac8c58;
+		box-shadow: inset 2px 0 3px #79603d33;
+	}
+	body :is(.paper-content, .scroll-content)::-webkit-scrollbar-thumb {
+		min-height: 48px;
+		border: 2px solid #deca9c;
+		background: #aa8652 url('/images/props/paper-color.jpg') center / 90px;
+		background-blend-mode: multiply;
+		box-shadow:
+			inset 1px 1px #e8d3a4,
+			inset -1px -1px #775a32;
+	}
+	body :is(.paper-content, .scroll-content)::-webkit-scrollbar-thumb:hover {
+		background-color: #927044;
+	}
+	body :is(.paper-content, .scroll-content)::-webkit-scrollbar-corner {
+		background: #deca9c;
+	}
+}
+:root {
+	color: #50483f;
+	background: #c5d2bd;
+	--ink: #50483f;
+	--muted: #746b61;
+	--night: #c5d2bd;
+	--panel: #f2e5ca;
+	--purple: #766789;
+	--gold: #9c753c;
+	--cyan: #4e7869;
+	--danger: #965956;
+}
+body {
+	color: var(--ink);
+	background: #c5d2bd;
+}
+body::before,
+body::after,
+.star-field {
+	display: none;
+}
+body :is(.pause-button, .pause-menu, .floating-state-notice, .game-hud .demo-badge) {
+	color: #514a42;
+	background: #f4e7cd;
+	border: 3px solid #8c7c69;
+	box-shadow: 4px 4px #76654d44;
+	backdrop-filter: none;
+}
+body .pause-menu :is(p, small, button) {
+	color: #5b5148;
+}
+body .pause-menu button {
+	background: #e4d7bb;
+	border-color: #9d8b71;
+}
+body
+	.app-frame
+	:is(
+		.game-choice-list button,
+		.answer-button,
+		.innovation-choices button,
+		.quiet-game-action,
+		.detected-tags button,
+		.game-tag-editor > button,
+		.choice-pager button
+	) {
+	color: #514a42;
+	background: #e7dcc6;
+	border: 2px solid #a18b70;
+	box-shadow: 2px 3px #78665033;
+	text-shadow: none;
+}
+body
+	.app-frame
+	:is(.answer-button.primary, .game-choice-list button.chosen, .innovation-choices button.chosen) {
+	background: #c4d3ac;
+	border-color: #748969;
+	color: #3d5042;
+}
+body
+	.app-frame
+	:is(.game-choice-list button, .answer-button, .innovation-choices button):hover:not(:disabled) {
+	background: #f4d99e;
+	border-color: #927745;
+}
+body
+	.app-frame
+	:is(.dialogue-form, .rpg-feature-workshop, .constraint-grid, .game-tag-editor)
+	:is(input, textarea, select) {
+	color: #50483f;
+	background: #fff5df;
+	border: 2px solid #a58d70;
+	box-shadow: none;
+}
+body
+	.app-frame
+	:is(.compact-field, .game-name-grid, .clarity-whisper, .dialogue-form, .innovation-choices)
+	:is(p, small, span, label) {
+	color: #6a6055;
+}
+body .app-frame :is(.dialogue-warning, .clarity-whisper) {
+	background: #e8d8be;
+	border-color: #a18b70;
+	color: #655441;
+}
+body .app-frame .dialogue-warning {
+	color: #8b524b;
+}
+body .app-frame .real-research-strip {
+	color: #50483f;
+	background: #f2e5ca;
+	border: 3px solid #8d7a64;
+	box-shadow: 4px 4px #72684c44;
+}
+body .app-frame .real-research-strip :is(b, strong, small) {
+	color: #665c50;
+}
+body .app-frame .strip-light {
+	background: #7b9976;
+	box-shadow: none;
+}
+body :focus-visible {
+	outline: 3px solid #946f40;
+	outline-offset: 3px;
+}
+body .app-frame .game-choice-list button:focus-visible::before {
+	filter: none;
+}
+body .app-frame .state-notice {
+	color: #655b4f;
+	background: #f1e4c8;
+	border: 2px solid #9b876d;
+	box-shadow: 3px 3px #8d826355;
+}
+body .app-frame .state-notice span {
+	color: #7a6757;
+	border-color: #a89173;
+}
+body :is(button, a, summary, [role='button']) {
+	cursor:
+		url('/images/ui/choice-hand.svg') 13 3,
+		pointer;
+}
+body .app-frame :is(.game-choice-list button, .answer-button):disabled {
+	opacity: 0.55;
+	cursor: default;
+}

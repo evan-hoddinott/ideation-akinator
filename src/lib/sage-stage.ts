@@ -54,6 +54,8 @@ export interface SageScreenAnchors {
 	head: { x: number; y: number };
 	leftHand: { x: number; y: number };
 	rightHand: { x: number; y: number };
+	keyboardLeft?: { x: number; y: number };
+	keyboardRight?: { x: number; y: number };
 	updatedAt: number;
 }
 
@@ -76,7 +78,7 @@ const DEFAULT_FACE: SageFaceProfile = {
 	eyeLift: 0,
 	mouthWidth: 1,
 	mouthHeight: 1,
-	color: 0xff701f
+	color: 0xffbf63
 };
 
 export const SAGE_FACE_PROFILES: Record<SageMood, SageFaceProfile> = {

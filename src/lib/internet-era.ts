@@ -8,8 +8,8 @@ export const INTERNET_ERAS = [
 	'flash-games',
 	'myspace',
 	'early-video',
+	'forums',
 	'social-mobile',
-	'cloud',
 	'algorithmic',
 	'ai-slop',
 	'cosmic'

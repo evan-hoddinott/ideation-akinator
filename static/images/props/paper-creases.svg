@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+<defs><linearGradient id="fold"><stop stop-color="#704e26" stop-opacity="0"/><stop offset=".48" stop-color="#704e26" stop-opacity=".07"/><stop offset=".5" stop-color="#fff9e7" stop-opacity=".6"/><stop offset="1" stop-color="#fff9e7" stop-opacity="0"/></linearGradient><filter id="grain"><feTurbulence baseFrequency=".65" numOctaves="3" seed="8" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></defs>
+<path fill="url(#fold)" d="M0 0H150L640 1000H550Z"/><path fill="url(#fold)" d="M850 0H940L220 1000H110Z"/>
+<path fill="#765331" opacity=".06" d="M0 380L1000 340V354L0 391Z M0 715L1000 746V756L0 730Z"/>
+<path fill="#fff9e8" opacity=".5" d="M0 392L1000 354V359L0 398Z M0 730L1000 756V761L0 736Z"/>
+<path fill="#765331" opacity=".08" d="M0 0L105 48L0 120ZM1000 1000L907 934L1000 868Z"/>
+<rect width="1000" height="1000" filter="url(#grain)" opacity=".045"/>
+</svg>

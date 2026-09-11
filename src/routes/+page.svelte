@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { WorkstationView } from '$lib/workstation-3d';
 	import { resolve } from '$app/paths';
 	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
 	import ChaosLayer from '$lib/components/ChaosLayer.svelte';
@@ -79,7 +80,8 @@
 	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
 	import { clearTokenUsage, recordResponseTokenUsage, recordTokenUsage } from '$lib/token-usage';
 	import { DEMO_RESEARCH_DURATION_MS, startVisibleTimer } from '$lib/research-performance';
-	import { internetEraForAltitude, internetEraIndex } from '$lib/internet-era';
+	import { INTERNET_ERAS } from '$lib/internet-era';
+	import { projectSceneryAltitude } from '$lib/era-journey';
 	import { projectAltitude, type SageClip, type SageScreenAnchors } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
@@ -141,6 +143,8 @@
 	let sageVoicePulse = $state(0);
 	let sageVoiceEnergy = $state(0.5);
 	let sagePerformance = $state<SageClip | null>(null);
+	let sageModelFallback = $state(false);
+	let workstationView = $state<WorkstationView | null>(null);
 	let sageAnchors = $state<SageScreenAnchors | null>(null);
 	let previewMuted = $state(true);
 	let previewCalm = $state(false);
@@ -168,9 +172,13 @@
 		}
 	);
 	const demoMode = $derived(isDemoProject(project));
+	const sceneryAltitude = $derived(
+		debugAltitude ?? (project ? projectSceneryAltitude(project) : 0.5 / 14)
+	);
 	const sageAltitude = $derived(debugAltitude ?? (project ? projectAltitude(project) : 0.04));
-	const worldEra = $derived(internetEraForAltitude(sageAltitude));
-	const worldEraIndex = $derived(internetEraIndex(sageAltitude));
+	let sceneryEraIndex = $state(0);
+	const worldEra = $derived(INTERNET_ERAS[sceneryEraIndex]);
+	const worldEraIndex = $derived(sceneryEraIndex);
 	const finalReport = $derived(project ? buildProjectReport(project) : null);
 
 	const insightSignature = $derived(
@@ -212,11 +220,11 @@
 	);
 	const researchSourceCount = $derived(project?.research.result?.sources.length ?? 0);
 	const preferencePrompts = [
-		'What technology should I favor, if any?',
-		'I implicated these industries. Have I embarrassed myself?',
-		'How dangerous may the idea become?',
-		'How much money may I incinerate?',
-		'Any final limitations before I open the terrible web?'
+		'Should the ideas use any particular technology?',
+		'Which industries should the research and ideas focus on?',
+		'How original should the ideas be?',
+		'What can you spend on a prototype?',
+		'What else must every idea respect?'
 	];
 	const sageDebugClips: SageClip[] = [
 		'idle',
@@ -2214,13 +2222,15 @@
 		data-era={worldEra}
 	>
 		<VerticalWorld
-			altitude={sageAltitude}
+			paused={mainMenuOpen || pauseMenuOpen}
+			altitude={sceneryAltitude}
 			stage={visualProject.stage}
 			calm={visualProject.personality.calmMode}
 			clues={visualProject.problemInput.cards
 				.map((card) => card.text)
 				.filter((text) => text.trim())}
 			resetSignal={resetWorldSignal}
+			onEraChange={(index) => (sceneryEraIndex = index)}
 			onInteract={() => playSageCue('blip')}
 		/>
 		{#if stateReady}
@@ -2228,12 +2238,18 @@
 				personality={visualProject.personality}
 				altitude={sageAltitude}
 				researching={researchIsActive}
+				workstation={workstationView}
+				onFallbackChange={(fallback) => (sageModelFallback = fallback)}
+				paused={mainMenuOpen || pauseMenuOpen}
 				speaking={sageSpeaking}
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
 				performance={sagePerformance}
 				resetSignal={resetWorldSignal}
-				allowPopup={!!project && project.stage !== 'welcome' && !researchIsActive}
+				allowPopup={!!project &&
+					project.stage !== 'welcome' &&
+					!researchIsActive &&
+					!workstationView}
 				onAnchors={(anchors) => (sageAnchors = anchors)}
 				onEffect={playOracleEffect}
 				onSecret={findForbiddenFloppy}
@@ -2242,13 +2258,15 @@
 		{#if stateReady && project?.stage === 'research' && (broadResearchIsActive || (project.research.result && broadResearchPerformanceOpen))}
 			<ResearchWorkstation
 				active={true}
-				calm={project.personality.calmMode || broadResearchSkipped}
+				calm={project.personality.calmMode || broadResearchSkipped || sageModelFallback}
 				projectId={project.id}
 				task="broad"
 				message={researchMessage}
 				sourceCount={researchSourceCount}
 				complete={!!project.research.result}
 				summary={project.research.result?.summary ?? ''}
+				findings={project.research.result?.findings ?? []}
+				gaps={project.research.result?.gaps ?? []}
 				findingCount={project.research.result?.findings.length ?? 0}
 				gapCount={project.research.result?.gaps.length ?? 0}
 				onCancel={() => cancelResearchJob()}
@@ -2259,6 +2277,7 @@
 				onContinue={() => (broadResearchPerformanceOpen = false)}
 				onSkip={skipBroadResearchPerformance}
 				anchors={sageAnchors}
+				onWorkstationChange={(view) => (workstationView = view)}
 				onPerformanceChange={(performance) => (sagePerformance = performance)}
 				onEffect={playOracleEffect}
 			/>
@@ -2288,6 +2307,7 @@
 		{/if}
 		{#if project && project.stage !== 'welcome' && project.stage !== 'concepts'}
 			<ChaosLayer
+				eraIndex={sceneryEraIndex}
 				projectId={project.id}
 				stage={project.stage}
 				calm={project.personality.calmMode}
@@ -2353,7 +2373,7 @@
 							personality={visualProject.personality}
 							mode="wait"
 							label="RESTORING THE PROPHECY"
-							prompt="Hold still. I am checking beneath the browser cushions."
+							prompt="I am reopening the project saved in this browser."
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
@@ -2366,8 +2386,8 @@
 							label={`CLUE ${String(project.problemInput.cards.length).padStart(2, '0')}`}
 							meta={`${filledProblemCount} offered · ${project.problemInput.clarityLabel ?? 'signal unread'}`}
 							prompt={filledProblemCount === 0
-								? 'What mortal inconvenience summoned you?'
-								: 'Is there another problem from this same cursed situation?'}
+								? 'Describe the real problem you want a project to solve.'
+								: 'Add another related problem, or continue to the project constraints.'}
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
@@ -2383,11 +2403,11 @@
 								</label>
 								{#if activeProblemCard}
 									<label class="compact-field main-response">
-										<span>Offer the Sage a specific clue</span>
+										<span>What happens, who is affected, and why does it matter?</span>
 										<textarea
 											rows="4"
 											value={activeProblemCard.text}
-											placeholder="Who is affected, what happens, and why does it keep being annoying?"
+											placeholder="Example: Students miss the last bus because schedule changes are buried in PDF notices."
 											oninput={(event) =>
 												setProblemText(activeProblemCard.id, event.currentTarget.value)}></textarea>
 									</label>
@@ -2416,13 +2436,13 @@
 										class="answer-button secondary"
 										type="button"
 										disabled={!activeProblemCard?.text.trim()}
-										onclick={addProblem}>Yes, another clue</button
+										onclick={addProblem}>Add another related problem</button
 									>
 									<button
 										class="answer-button primary"
 										type="button"
 										disabled={filledProblemCount === 0}
-										onclick={goToPreferences}>No, set the limitations</button
+										onclick={goToPreferences}>Continue to project constraints</button
 									>
 								</div>
 								<button
@@ -2479,7 +2499,7 @@
 							altitude={sageAltitude}
 							personality={project.personality}
 							label={`LIMITATION ${preferenceStep + 1} OF 5`}
-							meta="one ridiculous constraint at a time"
+							meta="five quick choices"
 							prompt={preferencePrompts[preferenceStep] ?? preferencePrompts[0]}
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
@@ -2594,7 +2614,7 @@
 										class="quiet-game-action"
 										type="button"
 										onclick={() => (preferenceReviewOpen = true)}
-										>Open the complete limitation spellbook</button
+										>Edit additional constraints</button
 									>
 								{/if}
 
@@ -2609,11 +2629,11 @@
 									>
 									{#if preferenceStep < 4}
 										<button class="answer-button primary" type="button" onclick={nextPreferenceStep}
-											>That will do</button
+											>Save and continue</button
 										>
 									{:else}
 										<button class="answer-button primary" type="button" onclick={sealPreferences}
-											>Open the terrible web</button
+											>Review and start research</button
 										>
 									{/if}
 								</div>
@@ -2646,16 +2666,17 @@
 							<SageDialogue
 								altitude={sageAltitude}
 								personality={project.personality}
-								label="THE TERRIBLE WEB"
-								meta="one to two mortal minutes"
-								prompt="Shall I fetch the large computer and investigate this properly?"
+								label="RESEARCH THE PROBLEM"
+								meta="usually one to two minutes"
+								prompt="Ready for me to check what already exists and where the gaps are?"
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
 								<div class="dialogue-form research-launch">
 									<p>
-										I will check competitors, adjacent tools, failed attempts, prior art, standards,
-										customer complaints, and useful technical parts.
+										I will search for competitors, similar tools, failed attempts, prior art,
+										standards, customer complaints, and useful technical building blocks. You can
+										inspect every source afterward.
 									</p>
 									<div class="research-boundary-chips">
 										<span
@@ -2668,7 +2689,7 @@
 										</p>{/if}
 									<div class="dialogue-primary-actions">
 										<button class="answer-button secondary" type="button" onclick={goToPreferences}
-											>Reconsider limitations</button
+											>Back to constraints</button
 										><button
 											class="answer-button primary"
 											type="button"
@@ -2686,9 +2707,9 @@
 								altitude={sageAltitude}
 								personality={project.personality}
 								mode="announce"
-								label="RECOVERED FILES"
+								label="RESEARCH COMPLETE"
 								meta={`${project.research.result.sources.length} sources bound`}
-								prompt="I have returned from the web. It was worse than I remembered."
+								prompt="Research complete. Review the evidence now, or continue to a short interview."
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
@@ -2703,9 +2724,10 @@
 										<button
 											class="answer-button secondary"
 											type="button"
-											onclick={() => (researchScrollOpen = true)}>Unfurl recovered files</button
+											onclick={() => (researchScrollOpen = true)}
+											>Review research and sources</button
 										><button class="answer-button primary" type="button" onclick={enterInterview}
-											>Begin interrogation</button
+											>Continue to follow-up questions</button
 										>
 									</div>
 								</div>
@@ -2801,11 +2823,11 @@
 								altitude={sageAltitude}
 								personality={project.personality}
 								mode="announce"
-								label="THE SIGNAL IS SHARP ENOUGH"
+								label="INTERVIEW COMPLETE"
 								meta={`${answeredQuestionCount} responses recorded`}
 								prompt={project.interview.status === 'ended-early'
-									? 'Fine. I will guess before wisdom arrives.'
-									: 'Your future project is becoming embarrassingly obvious.'}
+									? 'You ended the interview early, so the four concepts may be less precise.'
+									: 'I have enough context to generate four project concepts for you to compare.'}
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
@@ -2813,11 +2835,11 @@
 									<p>{project.interview.completionReason}</p>
 									<div class="dialogue-primary-actions">
 										<button class="answer-button secondary" type="button" onclick={goToResearch}
-											>Inspect research</button
+											>Review research</button
 										><button class="answer-button primary" type="button" onclick={enterConceptRoom}
 											>{project.concepts.portfolio
-												? 'Return to four futures'
-												: 'Guess my future project'}</button
+												? 'Return to the four concepts'
+												: 'Generate four project concepts'}</button
 										>
 									</div>
 								</div>
@@ -2978,6 +3000,7 @@
 						{@const focusedInput = focusedResearchRequest(project)}
 						{#if focusedInput}
 							<FinalizationRoom
+								workstationFallback={sageModelFallback}
 								{project}
 								concept={focusedInput.selectedConcept}
 								features={focusedInput.includedFeatures}
@@ -2999,6 +3022,7 @@
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 								anchors={sageAnchors}
+								onWorkstationChange={(view) => (workstationView = view)}
 								onPerformanceChange={(performance) => (sagePerformance = performance)}
 								onEffect={playOracleEffect}
 							/>
@@ -3021,15 +3045,16 @@
 						<SageDialogue
 							altitude={sageAltitude}
 							personality={visualProject.personality}
-							label="WELCOME, POSSIBLE MORTAL"
-							prompt="Bring me a problem. I will guess the project hiding inside it."
+							label="WELCOME TO IDEATION AKINATOR"
+							prompt="Give me a problem. I will turn it into researched, buildable project options."
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
 							<div class="dialogue-form welcome-response">
 								<p>
-									I will research what already exists, interrogate you briefly, and reveal four
-									buildable futures.
+									First, describe the problem and your constraints. I will research what already
+									exists, ask a short set of follow-up questions, and generate four concepts. You
+									will choose the concept and features before I produce the final plan.
 								</p>
 								<div class="welcome-name-grid game-name-grid">
 									<label
@@ -3047,7 +3072,7 @@
 									>
 								</div>
 								<button class="answer-button primary full" type="button" onclick={beginProject}
-									>Begin the divination</button
+									>Start with my problem</button
 								>
 								<div class="demo-launch-divider"><span>or inspect the machinery</span></div>
 								<button class="answer-button demo-launch full" type="button" onclick={beginDemo}>

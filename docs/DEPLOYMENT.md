@@ -77,6 +77,8 @@ Do not put the plain password, hash, signing secret, OpenAI key, or tunnel crede
 
 ## Rollback
 
+The September 4 visual pass is deployed in image `sha256:ee9ee5f40a7b9fc3fcc631df1210c7739942fa1f723d79ab164a71aa14ce04a8`. The previous running image is retained as `ideation-akinator:before-design-20260904`. Health and deployment audits passed after recreation; fresh public browser checks and model hash verification are recorded in [DESIGN-PASS.md](DESIGN-PASS.md).
+
 Keep rollback narrow. If a newly built container does not become healthy, inspect its logs and return to the prior image tag or source commit. The old system service can run the Node build directly, but it should remain disabled while Compose owns port 4187. Never run both at once.
 
 After any rollback, check local health first, then the public hostname, then a fresh password session. Other tunnel hostnames and services should not need configuration changes for this app.

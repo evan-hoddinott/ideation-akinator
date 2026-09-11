@@ -97,3 +97,5 @@ Keep `.env` out of source control. The password helper hides terminal input when
 - `npm run build`
 
 See [the product requirements document](docs/PRD.md) for the approved workflow and [the asset record](docs/ASSETS.md) for original visual provenance.
+
+The [September 4 design pass](docs/DESIGN-PASS.md) records the portrait, animation, dialogue, and world changes with their verification scope.

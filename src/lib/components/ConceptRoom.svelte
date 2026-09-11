@@ -281,9 +281,14 @@
 		<div class="summoning-screen" aria-live="polite">
 			<div class="crystal" class:busy aria-hidden="true">?</div>
 			<span>PROPHECY.EXE</span>
-			<h2>{busy ? 'ASKING THE FUTURE TO ATTACH FOUR FILES...' : 'NO FUTURES IN THE INBOX'}</h2>
-			<p>{message || 'Your research and answers are ready. Make the Sage commit to a guess.'}</p>
-			{#if !busy}<button type="button" onclick={onGenerate}>GUESS MY FUTURE PROJECT ▶</button>{/if}
+			<h2>
+				{busy ? 'BUILDING FOUR PROJECT CONCEPTS...' : 'YOUR FOUR CONCEPTS ARE READY TO GENERATE'}
+			</h2>
+			<p>
+				{message ||
+					'I will use your problem, constraints, research, and answers to propose four different approaches.'}
+			</p>
+			{#if !busy}<button type="button" onclick={onGenerate}>GENERATE FOUR CONCEPTS ▶</button>{/if}
 		</div>
 	{:else if view === 'notification'}
 		<div class="mail-notification">
@@ -293,11 +298,11 @@
 			<div class="mail-toast">
 				<img src="/images/retro/windows93/mail.png" alt="" />
 				<div>
-					<small>CURSED MAIL ONLINE</small><strong>YOU'VE GOT 4 MAIL</strong><span
-						>sender: Purl, allegedly</span
+					<small>FOUR PROJECT CONCEPTS READY</small><strong>YOU'VE GOT 4 MAIL</strong><span
+						>Open each attachment, then compare and configure one.</span
 					>
 				</div>
-				<button type="button" onclick={openMailClient}>SMACK IT OPEN</button>
+				<button type="button" onclick={openMailClient}>OPEN CONCEPT INBOX</button>
 			</div>
 		</div>
 	{:else if view === 'features'}
@@ -348,7 +353,8 @@
 					<section class="comparison-pane">
 						<header>
 							<span>ALL 4 ATTACHMENTS RECOVERED</span>
-							<h2>CHOOSE A FUTURE TO TAMPER WITH</h2>
+							<h2>COMPARE THE FOUR CONCEPTS</h2>
+							<p>Select a concept to reread it, or open Project Files to choose features.</p>
 						</header>
 						<div class="comparison-grid">
 							<div class="dimension-column">
@@ -371,7 +377,7 @@
 							{/each}
 						</div>
 						<button class="configure-button" type="button" onclick={() => (view = 'features')}
-							>OPEN PROJECT FILES ▶</button
+							>CHOOSE A CONCEPT AND FEATURES ▶</button
 						>
 					</section>
 				{:else if activeConcept}
@@ -386,8 +392,8 @@
 								<p>{envelope.preview}</p>
 								<p>
 									{activeConcept.isStretch
-										? 'I require no bank details. Merely the courage to open PROJECT_04.GLTCH.'
-										: 'Purl attached a project and several hairs to this message.'}
+										? 'This is the high-risk option. Open it anyway if you want the full comparison.'
+										: 'Open the attachment to read the concept, budget, timeline, features, and evidence.'}
 								</p>
 								<button
 									class="attachment"
@@ -403,7 +409,7 @@
 										><small
 											>{downloading
 												? 'DOWNLOADING THROUGH 56K PORTAL...'
-												: 'CLICK TO DOWNLOAD ATTACHMENT'}</small
+												: 'OPEN THIS PROJECT CONCEPT'}</small
 										></span
 									>
 								</button>{#if downloading}<div class="download-track"><i></i></div>{/if}
@@ -413,7 +419,7 @@
 								<div class="dossier-head">
 									<div class="concept-portrait">
 										<img
-											src={`/images/sage-pixel/${conceptPortraits[activeIndex] ?? 'neutral'}.png`}
+											src={`/images/sage-pixel/${conceptPortraits[activeIndex] ?? 'neutral'}.svg`}
 											alt={`The Sage's expression for ${activeConcept.name}`}
 										/>
 										<span>{iconGlyphs[activeConcept.icon]}</span>
@@ -466,7 +472,7 @@
 								<button type="button" onclick={() => trashConcept(activeConcept)}
 									>MOVE TO TRASH</button
 								><button class="next-mail" type="button" onclick={nextMessage}
-									>{allDownloaded ? 'COMPARE ALL FOUR ▶' : 'OPEN NEXT MAIL ▶'}</button
+									>{allDownloaded ? 'COMPARE ALL FOUR ▶' : 'OPEN NEXT CONCEPT ▶'}</button
 								>
 							</footer>
 						{/if}
@@ -485,7 +491,7 @@
 		</div>{/if}
 	{#if message && portfolio}<p class="concept-error" role="alert">{message}</p>{/if}
 	<div class="stage-actions">
-		<button type="button" disabled={busy} onclick={onBack}>← QUESTIONS</button
+		<button type="button" disabled={busy} onclick={onBack}>← BACK TO QUESTIONS</button
 		>{#if portfolio}<button type="button" onclick={() => defeatDialog?.showModal()}
 				>DEFEAT THE SAGE</button
 			>{/if}
@@ -537,8 +543,8 @@
 		width: min(760px, 90vw);
 		padding: 30px;
 		border: 5px ridge #ceb4ff;
-		background: #080616ed;
-		color: #fff;
+		background: #f3e5cced;
+		color: #4c4c4c;
 		text-align: center;
 		box-shadow: 16px 16px #020104;
 	}
@@ -564,11 +570,11 @@
 	.summoning-screen span {
 		display: block;
 		margin-top: 15px;
-		color: #7eeeff;
+		color: #395b60;
 		font-size: 12px;
 	}
 	.summoning-screen h2 {
-		color: #ffe082;
+		color: #605739;
 		font-size: 18px;
 	}
 	.summoning-screen p {
@@ -581,7 +587,7 @@
 		border: 3px outset #ddd;
 		min-height: 42px;
 		padding: 10px 13px;
-		background: #c0c0c0;
+		background: #eee2c9;
 		font: 11px 'Silkscreen';
 		cursor: pointer;
 	}
@@ -603,8 +609,8 @@
 	.running-purl span {
 		display: block;
 		padding: 6px;
-		background: #090417;
-		color: #ffe46f;
+		background: #d7d2e4;
+		color: #605939;
 	}
 	.mail-toast {
 		position: absolute;
@@ -617,8 +623,8 @@
 		width: min(620px, 75vw);
 		padding: 15px;
 		border: 5px outset #eee;
-		background: #c0c0c0;
-		box-shadow: 14px 16px #030106;
+		background: #eee2c9;
+		box-shadow: 5px 6px #85776166;
 		animation: toast-in 0.8s steps(8);
 	}
 	.mail-toast img {
@@ -632,14 +638,14 @@
 	}
 	.mail-toast strong {
 		margin: 5px 0;
-		color: #000080;
+		color: #6e6583;
 		font-size: 20px;
 	}
 	.mail-toast button {
 		border: 3px outset #eee;
 		min-height: 42px;
 		padding: 10px 12px;
-		background: #c0c0c0;
+		background: #eee2c9;
 		font: 11px 'Silkscreen';
 		cursor: pointer;
 	}
@@ -660,8 +666,8 @@
 		width: min(920px, calc(100vw - 330px));
 		height: min(660px, calc(100vh - 110px));
 		border: 5px outset #eee;
-		background: #c0c0c0;
-		box-shadow: 16px 18px #020105;
+		background: #eee2c9;
+		box-shadow: 5px 6px #85776166;
 		display: grid;
 		grid-template-rows: 36px 48px 1fr 30px;
 		overflow: hidden;
@@ -672,8 +678,8 @@
 		justify-content: space-between;
 		padding: 7px 9px;
 		box-sizing: border-box;
-		background: linear-gradient(90deg, #000080, #2185c5);
-		color: #fff;
+		background: #b5c7ac;
+		color: #4c4c4c;
 		font-size: 12px;
 	}
 	.stretch-mail .client-title {
@@ -693,7 +699,7 @@
 	}
 	.client-tools button {
 		border: 2px outset #eee;
-		background: #c0c0c0;
+		background: #eee2c9;
 		min-height: 32px;
 		font: 11px 'Tomo';
 		cursor: pointer;
@@ -730,11 +736,11 @@
 		cursor: pointer;
 	}
 	.inbox-list button.active {
-		background: #000080;
-		color: #fff;
+		background: #d2d2e4;
+		color: #4c4c4c;
 	}
 	.inbox-list button.locked {
-		color: #888;
+		color: #4c4c4c;
 		background: #ddd;
 	}
 	.inbox-list button.trashed {
@@ -790,7 +796,7 @@
 		margin: 22px auto 5px;
 		padding: 11px;
 		border: 3px outset #eee;
-		background: #c0c0c0;
+		background: #eee2c9;
 		text-align: left;
 		cursor: pointer;
 	}
@@ -830,7 +836,7 @@
 	}
 	.dossier-head {
 		display: grid;
-		grid-template-columns: 65px 1fr;
+		grid-template-columns: 112px minmax(0, 1fr);
 		gap: 13px;
 	}
 	.concept-portrait {
@@ -839,7 +845,7 @@
 		height: 104px;
 		flex: 0 0 104px;
 		border: 4px ridge #cfb56e;
-		background: #100826;
+		background: #d7d2e4;
 	}
 	.concept-portrait img {
 		display: block;
@@ -853,7 +859,7 @@
 		bottom: -8px;
 		padding: 3px 5px;
 		border: 2px outset #ddd;
-		background: #c0c0c0;
+		background: #eee2c9;
 		color: #130628;
 		font:
 			700 10px Tomo,
@@ -864,8 +870,8 @@
 		place-items: center;
 		height: 58px;
 		border: 3px outset #ddd;
-		background: #060616;
-		color: #ffe477;
+		background: #d2d2e4;
+		color: #605839;
 		font: bold 20px monospace;
 	}
 	.dossier-head span {
@@ -883,7 +889,7 @@
 	.dossier-scroll blockquote {
 		margin: 14px 0;
 		padding: 9px;
-		border-left: 5px solid #000080;
+		border-left: 5px solid #6e6583;
 		background: #efefff;
 		color: #421347;
 	}
@@ -902,7 +908,7 @@
 		margin-top: 4px;
 	}
 	.dossier-scroll h3 {
-		color: #000080;
+		color: #6e6583;
 		font: 13px 'Tomo';
 	}
 	.competitor {
@@ -922,21 +928,21 @@
 		gap: 8px;
 		padding: 8px;
 		border-top: 2px ridge #bbb;
-		background: #c0c0c0;
+		background: #eee2c9;
 	}
 	.dossier-actions button,
 	.configure-button {
 		border: 2px outset #eee;
 		min-height: 38px;
 		padding: 8px 10px;
-		background: #c0c0c0;
+		background: #eee2c9;
 		font: 11px 'Tomo';
 		cursor: pointer;
 	}
 	.dossier-actions .next-mail,
 	.configure-button {
-		background: #000080;
-		color: #fff;
+		background: #d2d2e4;
+		color: #4c4c4c;
 	}
 	.status-bar {
 		display: flex;
@@ -956,7 +962,7 @@
 	}
 	.comparison-pane h2 {
 		margin: 4px 0 10px;
-		color: #000080;
+		color: #6e6583;
 		font-size: 17px;
 	}
 	.comparison-grid {
@@ -990,7 +996,7 @@
 		text-align: center;
 	}
 	.comparison-grid > button > b {
-		color: #000080;
+		color: #6e6583;
 	}
 	.comparison-grid > button.trashed {
 		opacity: 0.35;
@@ -1014,7 +1020,7 @@
 		z-index: 30;
 		padding: 8px;
 		border: 4px outset #eee;
-		background: #c0c0c0;
+		background: #eee2c9;
 		color: #c00000;
 		font: 8px 'Tomo';
 		animation: glitch-pop 0.3s steps(3);
@@ -1050,25 +1056,25 @@
 		top: 55px;
 		right: 25px;
 		padding: 8px;
-		background: #430c22;
-		color: #fff;
+		background: #e4d2da;
+		color: #4c4c4c;
 	}
 	.defeat-dialog {
 		max-width: 560px;
 		border: 5px ridge #ff68d5;
-		background: #13081d;
-		color: #fff;
+		background: #dcd2e4;
+		color: #4c4c4c;
 		box-shadow: 16px 16px #020104;
 	}
 	.defeat-dialog::backdrop {
-		background: #020104dd;
+		background: #c1c8aedf;
 	}
 	.defeat-dialog span {
-		color: #ff83d9;
+		color: #603954;
 		font: 11px 'Silkscreen';
 	}
 	.defeat-dialog h2 {
-		color: #ffe080;
+		color: #605739;
 	}
 	.defeat-dialog p {
 		font:
@@ -1083,7 +1089,7 @@
 	.defeat-dialog button {
 		border: 2px outset #ddd;
 		padding: 8px;
-		background: #c0c0c0;
+		background: #eee2c9;
 		min-height: 40px;
 		font: 11px 'Silkscreen';
 		cursor: pointer;

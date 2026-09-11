@@ -33,7 +33,9 @@
 	let customDescription = $state('');
 	let customDependencies = $state<string[]>([]);
 	let filedFeature = $state('');
-	let message = $state('Arrow keys move. Space toggles. The mouse is also legal.');
+	let message = $state(
+		'Choose one concept, turn its features on or off, then seal that configuration.'
+	);
 
 	const activeConcept = $derived(
 		portfolio.concepts.find((concept) => concept.id === activeConceptId) ?? portfolio.concepts[0]
@@ -89,7 +91,7 @@
 		page = 0;
 		cursor = 0;
 		pendingFeature = null;
-		message = `Opened ${portfolio.concepts.find((concept) => concept.id === id)?.name ?? 'project'}.`;
+		message = `Now configuring ${portfolio.concepts.find((concept) => concept.id === id)?.name ?? 'this concept'}. Choose the features you want to keep.`;
 	}
 
 	function setPage(next: number) {
@@ -113,8 +115,8 @@
 		filedFeature = included ? feature.id : '';
 		window.setTimeout(() => (filedFeature = ''), 700);
 		message = included
-			? `${feature.name}.exe flew into PROJECT_FILES.`
-			: `${feature.name} moved to Trash.`;
+			? `${feature.name} is included in this concept.`
+			: `${feature.name} is excluded from this concept.`;
 		onChange(result.state, 'changed');
 	}
 
@@ -122,7 +124,7 @@
 		if (!activeConcept || !pendingFeature) return;
 		const result = toggleWorkshopFeature(workshop, activeConcept.id, pendingFeature.id, true, true);
 		filedFeature = pendingFeature.id;
-		message = `${pendingFeature.name} and its required files were installed.`;
+		message = `${pendingFeature.name} and its required features are now included.`;
 		pendingFeature = null;
 		pendingDependencies = [];
 		onChange(result.state, 'changed');
@@ -136,14 +138,14 @@
 			onChange(workshop, 'blocked');
 			return;
 		}
-		message = `${feature.name} was recycled with extreme prejudice.`;
+		message = `${feature.name} was removed from this concept.`;
 		onChange(result.state, 'changed');
 	}
 
 	function addCustom(event: SubmitEvent) {
 		event.preventDefault();
 		if (!activeConcept || !customName.trim() || !customDescription.trim()) {
-			message = 'Name and describe the forbidden addition first.';
+			message = 'Give the custom feature a name and a short description first.';
 			return;
 		}
 		const next = addCustomFeature(workshop, activeConcept.id, {
@@ -153,10 +155,10 @@
 			dependencies: customDependencies
 		});
 		if (next === workshop) {
-			message = 'That file already exists or has an escaped dependency.';
+			message = 'That feature already exists, or one of its dependencies is unavailable.';
 			return;
 		}
-		message = `${customName.trim()}.wiz was added.`;
+		message = `${customName.trim()} was added to this concept.`;
 		customName = '';
 		customDescription = '';
 		customDependencies = [];
@@ -168,10 +170,10 @@
 		if (!activeConcept) return;
 		const next = confirmWorkshopConcept(workshop, activeConcept.id);
 		if (next === workshop) {
-			message = 'At least one project file must survive.';
+			message = 'Keep at least one feature before choosing this concept.';
 			return;
 		}
-		message = `${activeConcept.name} is sealed. Estimates remain frozen until the final pass.`;
+		message = `${activeConcept.name} is selected. Continue to test this exact feature set against current evidence.`;
 		onChange(next, 'confirmed');
 	}
 </script>
@@ -180,7 +182,7 @@
 	<header class="folder-bar">
 		<div>
 			<span>C:\PROPHECIES\PROJECT_FILES</span>
-			<h2 id="rpg-workshop-title">BUILD YOUR GUESS</h2>
+			<h2 id="rpg-workshop-title">CHOOSE A CONCEPT AND FEATURES</h2>
 		</div>
 		<div class="folder-icon" class:filing={!!filedFeature} aria-hidden="true">📁<i>FILE</i></div>
 	</header>
@@ -205,7 +207,9 @@
 				<span>{activeConcept.isStretch ? 'QUARANTINED BUILD' : 'ACTIVE PROJECT'}</span>
 				<h3>{activeConcept.name}</h3>
 				<p>{activeConcept.pitch}</p>
-				<b>{activeConfiguration.features.filter((feature) => feature.included).length} FILES ON</b>
+				<b
+					>{activeConfiguration.features.filter((feature) => feature.included).length} FEATURES INCLUDED</b
+				>
 			</aside>
 			<div class="rpg-list" role="listbox" aria-label="Feature files">
 				{#each visibleFeatures as feature, index (feature.id)}
@@ -247,16 +251,16 @@
 
 		<p class="workshop-message" role="status">{message}</p>
 		<footer>
-			<button type="button" onclick={() => (customOpen = !customOpen)}>+ CUSTOM FILE</button>
+			<button type="button" onclick={() => (customOpen = !customOpen)}>+ ADD CUSTOM FEATURE</button>
 			<button class="seal" type="button" onclick={confirmSelection}>
 				{workshop.status === 'confirmed' && workshop.selectedConceptId === activeConcept.id
-					? '✓ PROPHECY SEALED'
-					: 'SEAL THIS PROJECT'}
+					? '✓ CONCEPT SELECTED'
+					: 'SELECT THIS CONCEPT'}
 			</button>
 			{#if workshop.status === 'confirmed'}<button
 					class="reality"
 					type="button"
-					onclick={onContinue}>CHECK AGAINST REALITY →</button
+					onclick={onContinue}>CONTINUE TO FOCUSED RESEARCH →</button
 				>{/if}
 		</footer>
 
@@ -320,10 +324,10 @@
 		height: min(660px, calc(100vh - 110px));
 		margin: 0;
 		border: 5px ridge #bcc4d4;
-		background: #070611;
-		color: #fff;
+		background: #d4d2e4;
+		color: #4c4c4c;
 		font-family: 'Silkscreen', 'Courier New', monospace;
-		box-shadow: 14px 16px #020105;
+		box-shadow: 5px 6px #85776166;
 		overflow: hidden;
 		transform: translateY(-50%);
 	}
@@ -334,12 +338,12 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 10px 18px;
-		background: linear-gradient(90deg, #001d79, #174eab);
+		background: #bdcaa8;
 		border-bottom: 3px outset #ccd;
 	}
 	.folder-bar span {
 		font-size: 11px;
-		color: #b6d9ff;
+		color: #394c60;
 	}
 	.folder-bar h2 {
 		margin: 4px 0 0;
@@ -354,7 +358,7 @@
 		right: 34px;
 		top: 10px;
 		font-size: 8px;
-		color: #fff;
+		color: #4c4c4c;
 		opacity: 0;
 	}
 	.folder-icon.filing i {
@@ -392,8 +396,8 @@
 	}
 	.project-tabs button.active {
 		border-style: inset;
-		background: #000080;
-		color: #fff;
+		background: #d2d2e4;
+		color: #4c4c4c;
 	}
 	.project-tabs span {
 		display: block;
@@ -417,45 +421,45 @@
 	.feature-screen aside {
 		padding: 20px;
 		border-right: 3px double #756c93;
-		background: #130d28;
+		background: #d6d2e4;
 	}
 	.feature-screen aside span {
 		font-size: 11px;
-		color: #7cefff;
+		color: #395c60;
 	}
 	.feature-screen aside h3 {
 		margin: 10px 0;
-		color: #ffe181;
+		color: #605739;
 		font-size: 21px;
 	}
 	.feature-screen aside p {
 		font:
 			14px/1.5 Georgia,
 			serif;
-		color: #d9cfe2;
+		color: #4d3a5f;
 	}
 	.feature-screen aside b {
 		display: block;
 		margin-top: 22px;
-		color: #7effba;
+		color: #39604b;
 		font-size: 12px;
 	}
 	.rpg-list {
 		padding: 10px;
 		overflow: hidden;
-		background: repeating-linear-gradient(0deg, #080811 0 2px, #0d0b18 2px 4px);
+		background: #f4e8ce;
 	}
 	.feature-choice {
 		height: 76px;
 		margin-bottom: 7px;
 		border: 2px solid #4c4263;
-		background: #100c20;
+		background: #d6d2e4;
 		display: flex;
 		transition: none;
 	}
 	.feature-choice.cursor {
-		border-color: #ffe477;
-		background: #241536;
+		border-color: #605839;
+		background: #dad2e4;
 	}
 	.feature-choice.included {
 		box-shadow: inset 5px 0 #4be59c;
@@ -476,12 +480,12 @@
 		flex: 1;
 		border: 0;
 		background: transparent;
-		color: #fff;
+		color: #4c4c4c;
 		text-align: left;
 		cursor: pointer;
 	}
 	.feature-choice i {
-		color: #ff5da8;
+		color: #60394b;
 		font-style: normal;
 		font-size: 18px;
 	}
@@ -491,27 +495,27 @@
 		display: block;
 	}
 	.feature-choice strong {
-		color: #ffe8ae;
+		color: #605539;
 		font-size: 13px;
 	}
 	.feature-choice small {
 		margin-top: 5px;
-		color: #c8bdd3;
+		color: #4c3d5c;
 		font:
 			12px/1.35 Georgia,
 			serif;
 	}
 	.feature-choice em {
 		margin-top: 4px;
-		color: #70eaff;
+		color: #395b60;
 		font-size: 9px;
 	}
 	.delete-file {
 		align-self: center;
 		margin-right: 8px;
 		border: 2px outset #faa;
-		background: #5d1527;
-		color: #fff;
+		background: #e4d2d7;
+		color: #4c4c4c;
 		min-height: 34px;
 		font: 10px 'Silkscreen';
 		cursor: pointer;
@@ -522,7 +526,7 @@
 		align-items: center;
 		gap: 18px;
 		height: 34px;
-		background: #090712;
+		background: #d6d2e4;
 	}
 	.page-controls button,
 	.rpg-workshop footer button {
@@ -538,7 +542,7 @@
 	}
 	.page-controls span {
 		font-size: 11px;
-		color: #8cecff;
+		color: #395a60;
 	}
 	.workshop-message {
 		height: 30px;
@@ -546,7 +550,7 @@
 		padding: 9px 16px;
 		box-sizing: border-box;
 		border-top: 1px solid #423955;
-		color: #ffdc77;
+		color: #605639;
 		font-size: 10px;
 		overflow: hidden;
 	}
@@ -558,21 +562,21 @@
 		gap: 10px;
 		padding: 10px 15px;
 		box-sizing: border-box;
-		background: #191324;
+		background: #d9d2e4;
 		border-top: 3px ridge #655879;
 	}
 	.rpg-workshop footer button {
 		padding: 9px;
 	}
 	.rpg-workshop footer .seal {
-		background: #743360;
-		color: #fff;
-		border-color: #f6b4e2;
+		background: #e4d2df;
+		color: #4c4c4c;
+		border-color: #603954;
 	}
 	.rpg-workshop footer .reality {
-		background: #145d45;
-		color: #fff;
-		border-color: #83edbb;
+		background: #d2e4de;
+		color: #4c4c4c;
+		border-color: #39604e;
 	}
 	.custom-dialog,
 	.dependency-dialog {
@@ -585,14 +589,14 @@
 		box-sizing: border-box;
 		padding: 14px;
 		border: 5px ridge #d390e5;
-		background: #12091a;
-		color: #fff;
+		background: #dcd2e4;
+		color: #4c4c4c;
 		box-shadow: 0 0 0 100vmax #020106bb;
 	}
 	.custom-dialog header {
 		display: flex;
 		justify-content: space-between;
-		color: #ff98dc;
+		color: #603953;
 	}
 	.custom-dialog label {
 		display: block;
@@ -606,8 +610,8 @@
 		margin-top: 4px;
 		border: 2px inset #aaa;
 		padding: 7px;
-		background: #050307;
-		color: #fff;
+		background: #dbd2e4;
+		color: #4c4c4c;
 		font-size: 14px;
 	}
 	.dependency-list {
@@ -630,7 +634,7 @@
 		cursor: pointer;
 	}
 	.dependency-dialog span {
-		color: #ffd360;
+		color: #605539;
 		font-size: 10px;
 	}
 	.dependency-dialog p {

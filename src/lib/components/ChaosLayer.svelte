@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
+	import { eraExhibits } from '$lib/era-journey';
+	import { eraArtAssets } from '$lib/era-art-assets';
 	import {
 		PURL_EVENTS,
-		POPUP_DEFINITIONS,
 		loadChaosRun,
 		nextUnseenId,
 		saveChaosRun,
@@ -12,6 +13,7 @@
 	import type { WorkflowStage } from '$lib/project-state';
 
 	let {
+		eraIndex = 0,
 		projectId,
 		stage,
 		calm,
@@ -22,6 +24,7 @@
 		onPurlShoo,
 		onPurlHelp
 	}: {
+		eraIndex?: number;
 		projectId: string;
 		stage: WorkflowStage;
 		calm: boolean;
@@ -33,13 +36,14 @@
 		onPurlHelp: () => void;
 	} = $props();
 
-	type PopupDefinition = (typeof POPUP_DEFINITIONS)[number];
+	type PopupDefinition = { id: string; title: string; icon: string; body: string; action: string };
 	interface PopupInstance {
 		definition: PopupDefinition;
 		x: number;
 		y: number;
 		z: number;
 		note: string;
+		era: number;
 	}
 
 	let mounted = $state(false);
@@ -52,14 +56,17 @@
 	let purlHideTimer = 0;
 	let purlActionTimer = 0;
 	let zCounter = 20;
-	const iconPath = (icon: string) =>
-		`/images/retro/windows93/${icon}.${icon === 'drive-harddisk' ? 'gif' : 'png'}`;
+
+	$effect(() => {
+		const currentEra = eraIndex;
+		popups = untrack(() => popups.filter((p) => p.era === currentEra));
+	});
 
 	$effect(() => {
 		if (!mounted || calm || !tutorialComplete || !projectId) return;
 		window.clearTimeout(popupTimer);
 		window.clearTimeout(purlTimer);
-		if (!researching) popupTimer = window.setTimeout(spawnPopup, 4_800);
+		if (!researching) popupTimer = window.setTimeout(spawnPopup, 14_000);
 		purlTimer = window.setTimeout(spawnPurl, researching ? 4_600 : 8_200);
 		return () => {
 			window.clearTimeout(popupTimer);
@@ -90,24 +97,28 @@
 	}
 
 	function spawnPopup() {
-		if (calm || researching || !tutorialComplete || popups.length >= 3) {
+		if (calm || researching || !tutorialComplete || popups.length >= 1) {
 			popupTimer = window.setTimeout(spawnPopup, 5_500);
 			return;
 		}
 		const state = runState();
-		const id = nextUnseenId(
-			POPUP_DEFINITIONS.map((popup) => popup.id),
-			state.seenPopupIds,
-			projectId,
-			state.seenPopupIds.length
-		);
-		if (!id) return;
-		const definition = POPUP_DEFINITIONS.find((popup) => popup.id === id);
-		if (!definition) return;
+		const id = `era-${eraIndex}`;
+		if (state.seenPopupIds.includes(id)) {
+			popupTimer = window.setTimeout(spawnPopup, 12_000);
+			return;
+		}
+		const exhibit = eraExhibits[eraIndex];
+		const definition = {
+			id,
+			title: exhibit[3],
+			body: exhibit[4],
+			icon: eraArtAssets[eraIndex][0],
+			action: eraIndex < 3 ? 'LEAVE A NOTE' : eraIndex === 6 ? 'HIGH SCORE' : 'GOT IT'
+		};
 		const position = popupPosition(state.seenPopupIds.length);
 		state.seenPopupIds.push(id);
 		writeState(state);
-		popups = [...popups, { definition, ...position, z: ++zCounter, note: '' }];
+		popups = [...popups, { definition, ...position, z: ++zCounter, note: '', era: eraIndex }];
 		onCue(id === 'error' || id === 'antivirus' ? 'error' : 'blip');
 		popupTimer = window.setTimeout(spawnPopup, 7_000 + (state.seenPopupIds.length % 4) * 1_300);
 	}
@@ -133,7 +144,15 @@
 			onAchievement('INSTALLED THE CAT');
 		}
 		popups = popups.map((popup) =>
-			popup.definition.id === id ? { ...popup, note: 'Operation completed suspiciously.' } : popup
+			popup.definition.id === id
+				? {
+						...popup,
+						note:
+							popup.era < 3
+								? 'Your note is in the guestbook.'
+								: 'Purl has filed this under: probably fine.'
+					}
+				: popup
 		);
 		onCue('sparkle');
 	}
@@ -217,11 +236,12 @@
 	}
 
 	function popupPosition(index: number): { x: number; y: number } {
+		const right = Math.max(12, window.innerWidth - 270);
 		const positions = [
-			{ x: 28, y: 42 },
-			{ x: Math.max(320, window.innerWidth - 286), y: 74 },
-			{ x: Math.max(390, window.innerWidth * 0.58), y: 42 },
-			{ x: 80, y: 92 }
+			{ x: right, y: 118 },
+			{ x: 22, y: 140 },
+			{ x: right - 18, y: 125 },
+			{ x: 28, y: 155 }
 		];
 		return positions[index % positions.length];
 	}
@@ -232,6 +252,22 @@
 		{#each popups as popup (popup.definition.id)}
 			<section
 				class={`junk-window popup-${popup.definition.id}`}
+				data-period={[
+					'terminal',
+					'html',
+					'geocities',
+					'aol',
+					'portal',
+					'xp',
+					'flash',
+					'myspace',
+					'video',
+					'forum',
+					'mobile',
+					'feed',
+					'chat',
+					'blank'
+				][popup.era]}
 				style={`left:${popup.x}px;top:${popup.y}px;z-index:${popup.z}`}
 				aria-label={popup.definition.title}
 			>
@@ -247,10 +283,9 @@
 					>
 				</header>
 				<div class="junk-body">
-					<img src={iconPath(popup.definition.icon)} alt="" />
-					<p>{popup.definition.body}</p>
+					<img src={`/images/era-collection/${popup.definition.icon}`} alt="" />
+					<p aria-live="polite">{popup.note || popup.definition.body}</p>
 				</div>
-				{#if popup.note}<small>{popup.note}</small>{/if}
 				<footer>
 					<button type="button" onclick={() => popupAction(popup.definition.id)}
 						>{popup.definition.action}</button
@@ -278,6 +313,98 @@
 {/if}
 
 <style>
+	.junk-window[data-period] {
+		background: var(--popup-paper, #ece8d9);
+		color: var(--popup-ink, #4a4542);
+		border: 3px solid var(--popup-edge, #9b978d);
+	}
+	.junk-window[data-period] header {
+		background: var(--popup-title, #7b8eaa);
+		color: var(--popup-title-ink, #fff4d9);
+	}
+	.junk-window[data-period='terminal'] {
+		--popup-paper: #253d35;
+		--popup-ink: #d8e7b3;
+		--popup-title: #48634c;
+		--popup-edge: #b6c99a;
+		border-style: double;
+	}
+	.junk-window[data-period='html'] {
+		--popup-paper: #ceccc4;
+		--popup-title: #aaa9a5;
+		--popup-title-ink: #3b3b40;
+		--popup-edge: #7b7c79;
+		font-family: serif;
+	}
+	.junk-window[data-period='geocities'] {
+		--popup-paper: #46405e;
+		--popup-title: #8672a0;
+		--popup-ink: #eee0ae;
+		--popup-edge: #c3ad77;
+	}
+	.junk-window[data-period='aol'] {
+		--popup-paper: #eae7d9;
+		--popup-title: #526e9c;
+		--popup-edge: #bbb9ba;
+		border-style: outset;
+	}
+	.junk-window[data-period='portal'] {
+		--popup-paper: #f3ecd6;
+		--popup-title: #9a7491;
+		--popup-edge: #c9b99f;
+	}
+	.junk-window[data-period='xp'] {
+		--popup-paper: #eae7d7;
+		--popup-title: #4c79b7;
+		--popup-edge: #4c79b7;
+		border-radius: 6px 6px 0 0;
+	}
+	.junk-window[data-period='flash'] {
+		--popup-paper: #eed59f;
+		--popup-title: #4c536c;
+		--popup-edge: #b29263;
+	}
+	.junk-window[data-period='myspace'] {
+		--popup-paper: #eee2e8;
+		--popup-title: #8c74a2;
+		--popup-edge: #c59bb7;
+	}
+	.junk-window[data-period='video'] {
+		--popup-paper: #f3edd9;
+		--popup-title: #b75f56;
+		--popup-edge: #b8afa2;
+		box-shadow: 3px 3px #4b433633;
+	}
+	.junk-window[data-period='forum'] {
+		--popup-paper: #dfe2da;
+		--popup-title: #58768d;
+		--popup-edge: #9daeb8;
+	}
+	.junk-window[data-period='mobile'] {
+		--popup-paper: #eff0e3;
+		--popup-title: #7095a8;
+		--popup-edge: #adb8bb;
+		border-radius: 10px;
+	}
+	.junk-window[data-period='feed'] {
+		--popup-paper: #eee2e2;
+		--popup-title: #a57b8f;
+		--popup-edge: #c5a6b0;
+		border-radius: 8px;
+	}
+	.junk-window[data-period='chat'] {
+		--popup-paper: #e5e9dc;
+		--popup-title: #78927f;
+		--popup-edge: #a9b5a4;
+		border-radius: 8px;
+	}
+	.junk-window[data-period='blank'] {
+		--popup-paper: #55556e;
+		--popup-ink: #efe6d0;
+		--popup-title: #858299;
+		--popup-edge: #bdb0c6;
+	}
+
 	@font-face {
 		font-family: 'Tomo';
 		src: url('/fonts/Tomo.woff2') format('woff2');
@@ -348,11 +475,6 @@
 	}
 	.junk-body p {
 		margin: 0;
-	}
-	.junk-window small {
-		display: block;
-		padding: 5px 10px;
-		color: #8a0018;
 	}
 	.junk-window footer {
 		display: flex;
@@ -580,9 +702,27 @@
 	}
 	@media (max-width: 760px) {
 		.junk-window {
-			width: 210px;
-			transform: scale(0.82);
+			width: calc(100vw - 24px);
+			left: 12px !important;
+			top: 58px !important;
+			transform: none;
+			font-size: 10px;
 			transform-origin: top left;
+		}
+		.junk-body {
+			display: block;
+			min-height: 0;
+			padding: 4px 8px;
+		}
+		.junk-body img {
+			display: none;
+		}
+		.junk-window footer {
+			padding: 0 8px 4px;
+			flex-wrap: wrap;
+		}
+		.junk-window footer button {
+			min-height: 32px;
 		}
 		.purl-event {
 			top: 14%;

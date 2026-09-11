@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" shape-rendering="crispEdges"><title>Signal Sage, neutral</title>
+<rect fill="#100d20" x="0" y="0" width="64" height="64"/>
+<path fill="#231931" d="M7 27h50v32H7z M14 17h36v42H14z"/>
+<path fill="#82709c" d="M8 26h8v28h-8z M49 26h8v28h-8z M18 16h29v7H18z"/>
+<path fill="#442951" d="M9 28h6v25H9z M50 28h6v25h-6z M13 47h39v12H13z"/>
+<path fill="#334468" d="M23 44h18v4h5v7h4v6H14v-6h5v-7h4z"/>
+<path fill="#4a5e84" d="M24 46h5v6h-5v5h-4v-7h4z M34 48h6v10h-6z"/>
+<path fill="#513c85" d="M29 46h5v13h-5z"/>
+<path fill="#80cfc2" d="M11 30h2v18h-2z M52 30h2v18h-2z M18 60h29v2H18z"/>
+<path fill="#100d20" d="M17 22h30v2h3v21h-3v3H17v-3h-2V24h2z"/>
+<path fill="#867c71" d="M19 24h28v3h2v16h-3v4H19z"/>
+<path fill="#c2b39a" d="M17 24h29v21H17z"/>
+<rect fill="#e5d6b6" x="18" y="24" width="27" height="2"/>
+<rect fill="#10252a" x="20" y="27" width="24" height="16"/>
+<rect fill="#203a3c" x="21" y="28" width="22" height="1"/>
+<rect fill="#203a3c" x="21" y="29" width="1" height="12"/>
+<path fill="#e9bc6d" d="M22 31h7v3h-7z M36 31h7v3h-7z"/>
+
+<path fill="#e9bc6d" d="M26 40h13v2H26z"/>
+<rect fill="#fce3a0" x="39" y="44" width="3" height="1"/><rect fill="#867c71" x="22" y="44" width="10" height="1"/>
+<path fill="#100d20" d="M12 22h7v-5h4v-5h4V7h4V3h9v4h-3v5h3v5h5v4h7v5H12z"/>
+<path fill="#35285f" d="M16 22h7v-5h4v-5h4V7h3V5h4v2h-3v5h3v5h4v5h7v2H16z"/>
+<path fill="#513c85" d="M25 18h3v-5h4V8h2v7h3v7H25z"/>
+<path fill="#6d53a1" d="M29 13h2V8h2v6h-2v4h-3v3h-2v-4h3z"/>
+<path fill="#b47ba9" d="M21 21h23v2H21z"/>
+<path fill="#e9bc6d" d="M35 15h2v-2h2v2h2v2h-2v2h-2v-2h-2z"/>
+<path fill="#867c71" d="M14 51h7v7h-7z M43 51h7v7h-7z"/>
+<path fill="#e5d6b6" d="M14 50h5v2h2v4h-7v-2h-2v-2h2z M45 50h4v2h2v4h-7v-4h1z"/>
+
+
+
+</svg>

@@ -186,7 +186,7 @@ def parent_to_bone(obj, armature, bone_name):
 
 
 def build_character(armature):
-    navy = material("robe_navy", (0.025, 0.055, 0.18), roughness=0.96)
+    navy = material("robe_navy", (0.065, 0.075, 0.29), roughness=0.96)
     robe_edge = material("robe_violet", (0.23, 0.07, 0.48), roughness=0.9)
     boot_mat = material("boot_dark", (0.045, 0.025, 0.09), roughness=0.94)
     hat = material("hat_indigo", (0.045, 0.025, 0.19), roughness=0.92)
@@ -204,115 +204,86 @@ def build_character(armature):
 
     pieces = []
 
-    # An oversized racing-seat throne. Sage is intentionally too small for it.
-    pieces.extend(
-        [
-            cube("ChairSeat", (0, -0.02, 0.96), (1.02, 0.76, 0.16), chair_pad, 0.11),
-            cube("ChairSeatFront", (0, -0.72, 0.88), (0.94, 0.08, 0.13), chair_shell, 0.05),
-            cube("ChairSeatTrim", (0, -0.81, 0.94), (0.80, 0.025, 0.035), chair_trim, 0.015),
-            cube("ChairSeatShell", (0, 0.08, 0.78), (1.10, 0.82, 0.12), chair_shell, 0.10),
-            cube("SeatBolsterL", (-0.91, -0.05, 1.08), (0.18, 0.70, 0.27), chair_shell, 0.08, (0, -0.08, -0.05)),
-            cube("SeatBolsterR", (0.91, -0.05, 1.08), (0.18, 0.70, 0.27), chair_shell, 0.08, (0, 0.08, 0.05)),
-            cube("ChairBack", (0, 0.50, 1.66), (1.05, 0.17, 0.76), chair_shell, 0.13),
-            cube("ChairBackPad", (0, 0.30, 1.63), (0.69, 0.10, 0.56), chair_pad, 0.08),
-            cube("ChairLumbar", (0, 0.15, 1.28), (0.58, 0.13, 0.23), hat_band, 0.09),
-            cube("ChairHeadrest", (0, 0.26, 2.73), (0.62, 0.10, 0.16), chair_pad, 0.07),
-            cube("ChairWingL", (-0.91, 0.39, 1.95), (0.23, 0.24, 0.48), chair_shell, 0.07, (0, -0.16, -0.12)),
-            cube("ChairWingR", (0.91, 0.39, 1.95), (0.23, 0.24, 0.48), chair_shell, 0.07, (0, 0.16, 0.12)),
-            cube("ChairPipeL", (-1.01, 0.29, 1.69), (0.035, 0.035, 0.75), chair_trim, 0.015, (0, 0, -0.015)),
-            cube("ChairPipeR", (1.01, 0.29, 1.69), (0.035, 0.035, 0.75), chair_trim, 0.015, (0, 0, 0.015)),
-            cube("HeadrestGlowL", (-0.27, 0.13, 2.74), (0.18, 0.025, 0.065), chair_trim, 0.035, (0, 0, -0.08)),
-            cube("HeadrestGlowR", (0.27, 0.13, 2.74), (0.18, 0.025, 0.065), chair_trim, 0.035, (0, 0, 0.08)),
-            cube("HeadrestCutoutL", (-0.27, 0.10, 2.74), (0.13, 0.020, 0.038), case_dark, 0.025, (0, 0, -0.08)),
-            cube("HeadrestCutoutR", (0.27, 0.10, 2.74), (0.13, 0.020, 0.038), case_dark, 0.025, (0, 0, 0.08)),
-            cylinder("ArmPostL", (-1.10, -0.02, 1.16), 0.07, 0.48, chair_metal, 8),
-            cylinder("ArmPostR", (1.10, -0.02, 1.16), 0.07, 0.48, chair_metal, 8),
-            cube("ArmRestL", (-1.10, -0.18, 1.39), (0.17, 0.44, 0.09), chair_pad, 0.045),
-            cube("ArmRestR", (1.10, -0.18, 1.39), (0.17, 0.44, 0.09), chair_pad, 0.045),
-            cylinder("ReclineHingeL", (-1.05, 0.20, 0.86), 0.18, 0.12, chair_metal, 10, (math.pi / 2, 0, 0)),
-            cylinder("ReclineHingeR", (1.05, 0.20, 0.86), 0.18, 0.12, chair_metal, 10, (math.pi / 2, 0, 0)),
-            cylinder("ReclineGlowL", (-1.05, 0.13, 0.86), 0.095, 0.025, chair_trim, 10, (math.pi / 2, 0, 0)),
-            cylinder("ReclineGlowR", (1.05, 0.13, 0.86), 0.095, 0.025, chair_trim, 10, (math.pi / 2, 0, 0)),
-            cylinder("ChairStem", (0, 0.16, 0.48), 0.15, 0.58, chair_metal, 8),
-            torus("ChairHoverRing", (0, 0.16, 0.24), 0.72, 0.075, chair_trim),
-            cone("ChairThruster", (0, 0.16, -0.11), 0.22, 0.48, 0.52, magic, 8),
-        ]
-    )
+    # A padded office chair: separate upholstery, frame, arm supports and casters.
+    # Its front edge ends behind the knees; the occupant sits on the cushion.
+    pieces.extend([
+        cube("ChairSeat", (0, 0.02, 0.98), (0.76, 0.58, 0.10), chair_pad, 0.09),
+        cube("ChairSeatShell", (0, 0.06, 0.86), (0.79, 0.59, 0.065), chair_shell, 0.06),
+        cube("ChairSeatFront", (0, -0.53, 0.94), (0.68, 0.055, 0.07), chair_pad, 0.04),
+        cube("ChairSeatTrim", (0, -0.54, 0.87), (0.62, 0.015, 0.018), chair_trim, 0.01),
+        cube("ChairBack", (0, 0.48, 1.66), (0.73, 0.13, 0.65), chair_shell, 0.12, (-0.09, 0, 0)),
+        cube("ChairBackPad", (0, 0.31, 1.76), (0.59, 0.11, 0.43), chair_pad, 0.10, (-0.09, 0, 0)),
+        cube("ChairLumbar", (0, 0.22, 1.30), (0.56, 0.15, 0.16), chair_pad, 0.09),
+        cube("ChairBackSeam", (0, 0.19, 1.58), (0.49, 0.015, 0.018), chair_shell, 0.009),
+        cube("ChairBackSpine", (0, 0.65, 1.44), (0.14, 0.055, 0.58), chair_metal, 0.035),
+        cube("ChairHeadrest", (0, 0.47, 2.43), (0.46, 0.14, 0.17), chair_pad, 0.09),
+        cube("ChairHeadrestShell", (0, 0.58, 2.43), (0.48, 0.07, 0.18), chair_shell, 0.07),
+        cylinder("HeadrestPostL", (-0.22, 0.48, 2.27), 0.035, 0.30, chair_metal),
+        cylinder("HeadrestPostR", (0.22, 0.48, 2.27), 0.035, 0.30, chair_metal),
+        cube("BackBolsterL", (-0.63, 0.28, 1.72), (0.12, 0.15, 0.46), chair_shell, 0.08, (-0.09, -0.04, 0)),
+        cube("BackBolsterR", (0.63, 0.28, 1.72), (0.12, 0.15, 0.46), chair_shell, 0.08, (-0.09, 0.04, 0)),
+        cube("ArmBracketL", (-0.79, 0.05, 0.89), (0.16, 0.11, 0.055), chair_metal, 0.03),
+        cube("ArmBracketR", (0.79, 0.05, 0.89), (0.16, 0.11, 0.055), chair_metal, 0.03),
+        cylinder("ArmPostL", (-0.86, 0.02, 1.15), 0.055, 0.48, chair_metal),
+        cylinder("ArmPostR", (0.86, 0.02, 1.15), 0.055, 0.48, chair_metal),
+        cube("ArmRestL", (-0.86, -0.13, 1.41), (0.14, 0.39, 0.075), chair_pad, 0.065),
+        cube("ArmRestR", (0.86, -0.13, 1.41), (0.14, 0.39, 0.075), chair_pad, 0.065),
+        cylinder("ReclineHingeL", (-0.77, 0.35, 1.02), 0.11, 0.075, chair_metal, 12, (0, math.pi / 2, 0)),
+        cylinder("ReclineHingeR", (0.77, 0.35, 1.02), 0.11, 0.075, chair_metal, 12, (0, math.pi / 2, 0)),
+        cube("SeatMechanism", (0, 0.10, 0.73), (0.27, 0.27, 0.09), chair_metal, 0.045),
+        cylinder("ChairStem", (0, 0.10, 0.47), 0.075, 0.49, chair_metal, 12),
+        cylinder("ChairStemSleeve", (0, 0.10, 0.36), 0.11, 0.30, chair_shell, 12),
+        cylinder("ChairBaseHub", (0, 0.10, 0.20), 0.19, 0.12, chair_metal, 12),
+        cube("HeightLever", (0.43, 0.05, 0.76), (0.27, 0.035, 0.035), chair_metal, 0.02),
+        cube("HeightLeverGrip", (0.65, 0.05, 0.76), (0.12, 0.075, 0.045), chair_pad, 0.035),
+    ])
     for index in range(5):
-        angle = index * math.tau / 5
-        pieces.append(
-            cube(
-                f"HoverFin{index}",
-                (math.cos(angle) * 0.47, 0.16 + math.sin(angle) * 0.47, 0.25),
-                (0.42, 0.075, 0.045),
-                chair_metal,
-                0.025,
-                (0, 0, angle),
-            )
-        )
+        angle = index * math.tau / 5 + math.pi / 2
+        x, y = math.cos(angle), math.sin(angle)
+        pieces.append(cube(f"ChairSpoke{index}", (x * 0.43, 0.10 + y * 0.43, 0.19), (0.42, 0.055, 0.045), chair_metal, 0.025, (0, 0, angle)))
+        pieces.append(cylinder(f"CasterStem{index}", (x * 0.83, 0.10 + y * 0.83, 0.15), 0.035, 0.14, chair_metal))
+        for side in (-1, 1):
+            # Twin wheels on each swivel fork, with visible axle caps.
+            position = (x * 0.83 - y * side * 0.065, 0.10 + y * 0.83 + x * side * 0.065, 0.09)
+            pieces.append(cylinder(f"CasterWheel{index}_{side}", position, 0.105, 0.075, chair_pad, 12, (math.pi / 2, 0, angle)))
+        pieces.append(cube(f"CasterFork{index}", (x * 0.83, 0.10 + y * 0.83, 0.14), (0.075, 0.065, 0.065), chair_shell, 0.035, (0, 0, angle)))
     for piece in pieces:
         parent_to_bone(piece, armature, "chair")
 
-    # Seated torso, lap, and boots. No intersecting belt or robe-hem meshes.
+    # Rayman-like silhouette: a tiny rounded robe and floating cartoon shoes.
+    # No thighs, knees or shins. The empty space is part of the character design.
     pelvis_parts = [
-        cone(
-            "RobeTorso",
-            occupant_point((0, 0.14, 1.52)),
-            0.33 * OCCUPANT_SCALE,
-            0.55 * OCCUPANT_SCALE,
-            0.72 * OCCUPANT_SCALE,
-            navy,
-            8,
-        ),
-        cube("RobeLap", occupant_point((0, -0.14, 1.12)), scaled_shape((0.57, 0.46, 0.18)), navy, 0.07, (-0.10, 0, 0)),
-        cube("RobeLapTrim", occupant_point((0, -0.56, 1.09)), scaled_shape((0.50, 0.035, 0.07)), robe_edge, 0.018, (-0.10, 0, 0)),
-        cube("LegL", (-0.22, -0.60, 0.96), (0.11, 0.27, 0.09), navy, 0.035, (-0.30, 0, -0.03)),
-        cube("LegR", (0.22, -0.60, 0.96), (0.11, 0.27, 0.09), navy, 0.035, (-0.30, 0, 0.03)),
-        cube("BootL", (-0.22, -0.91, 0.86), (0.17, 0.18, 0.11), boot_mat, 0.045, (-0.18, 0, -0.055)),
-        cube("BootR", (0.22, -0.91, 0.86), (0.17, 0.18, 0.11), boot_mat, 0.045, (-0.18, 0, 0.055)),
-        cube("BootSoleL", (-0.22, -1.06, 0.77), (0.18, 0.055, 0.035), case_dark, 0.018, (-0.18, 0, -0.055)),
-        cube("BootSoleR", (0.22, -1.06, 0.77), (0.18, 0.055, 0.035), case_dark, 0.018, (-0.18, 0, 0.055)),
+        sphere("RobeTorso", (0, 0.025, 1.44), (0.33, 0.27, 0.30), navy, subdivisions=2),
+        sphere("RobeLap", (0, -0.12, 1.20), (0.32, 0.28, 0.095), navy, subdivisions=2),
+        sphere("RobeLapTrim", (0, -0.12, 1.155), (0.30, 0.26, 0.045), robe_edge, subdivisions=2),
+        sphere("BootL", (-0.26, -0.91, 0.91), (0.20, 0.29, 0.14), hat_band, subdivisions=2),
+        sphere("BootR", (0.26, -0.91, 0.91), (0.20, 0.29, 0.14), hat_band, subdivisions=2),
+        sphere("BootSoleL", (-0.26, -0.94, 0.80), (0.205, 0.29, 0.045), glove, subdivisions=2),
+        sphere("BootSoleR", (0.26, -0.94, 0.80), (0.205, 0.29, 0.045), glove, subdivisions=2),
     ]
     for piece in pelvis_parts:
         parent_to_bone(
             piece,
             armature,
-            "robe_secondary" if piece.name in {"RobeLap", "RobeLapTrim"} else "pelvis",
+            "spine" if piece.name == "RobeTorso" else "robe_secondary" if piece.name in {"RobeLap", "RobeLapTrim"} else "pelvis",
         )
 
-    shoulder_parts = [
-        sphere("ShoulderL", occupant_point((-0.48, 0, 1.76)), scaled_shape((0.26, 0.28, 0.24)), navy),
-        sphere("ShoulderR", occupant_point((0.48, 0, 1.76)), scaled_shape((0.26, 0.28, 0.24)), navy),
-    ]
-    for piece in shoulder_parts:
-        parent_to_bone(piece, armature, "spine")
+    collar = cylinder("RobeCollar", occupant_point((0, 0, 1.91)), 0.21, 0.19, robe_edge, 10)
+    parent_to_bone(collar, armature, "spine")
+    for index, height in enumerate((1.48, 1.36)):
+        button = sphere(f"RobeButton{index}", (0, -0.245, height), (0.035, 0.024, 0.035), amber, subdivisions=2)
+        parent_to_bone(button, armature, "spine")
 
-    # Rigid low-poly arms follow the armature bones.
-    arm_specs = [
-        ("UpperArmL", (-0.57, 0, 1.70), 0.17, 0.58, "upper_arm.L", (0, math.pi / 2 - 0.30, 0)),
-        ("ForearmL", (-0.91, -0.01, 1.51), 0.14, 0.44, "forearm.L", (0, math.pi / 2 - 0.75, 0)),
-        ("UpperArmR", (0.57, 0, 1.70), 0.17, 0.58, "upper_arm.R", (0, math.pi / 2 + 0.30, 0)),
-        ("ForearmR", (0.91, -0.01, 1.51), 0.14, 0.44, "forearm.R", (0, math.pi / 2 + 0.75, 0)),
-    ]
-    for name, location, radius, depth, bone, rotation in arm_specs:
-        part = cylinder(
-            name,
-            occupant_point(location),
-            radius * OCCUPANT_SCALE,
-            depth * OCCUPANT_SCALE,
-            navy,
-            8,
-            rotation,
-        )
-        parent_to_bone(part, armature, bone)
-
+    # Keep the invisible arm bones and their animation clips. Only the floating
+    # mittens are drawn, including when they touch the keyboard or cart handle.
     # Mario 64-style ball hands avoid intersecting finger cylinders during large poses.
     for side, x in (("L", -1.16), ("R", 1.16)):
         hand = sphere(
             f"Hand{side}",
-            occupant_point((x, -0.04, 1.31)),
+            occupant_point((x, -0.80, 1.65)),
             scaled_shape((0.26, 0.21, 0.26), HEAD_SCALE),
             glove,
+            subdivisions=2,
         )
         parent_to_bone(hand, armature, f"hand.{side}")
 
@@ -324,7 +295,6 @@ def build_character(armature):
         cube("EyeLeft", occupant_point((-0.19, -0.542, 2.45)), scaled_shape((0.10, 0.018, 0.055), HEAD_SCALE), amber, 0.020),
         cube("EyeRight", occupant_point((0.19, -0.542, 2.45)), scaled_shape((0.10, 0.018, 0.055), HEAD_SCALE), amber, 0.020),
         cube("Mouth", occupant_point((0, -0.543, 2.24)), scaled_shape((0.16, 0.018, 0.025), HEAD_SCALE), amber, 0.010),
-        cube("MonitorNeck", occupant_point((0, 0, 1.96)), scaled_shape((0.17, 0.20, 0.16), HEAD_SCALE), case_dark, 0.032),
     ]
     for piece in head_parts:
         parent_to_bone(piece, armature, "head")
@@ -340,24 +310,68 @@ def build_character(armature):
         )
         parent_to_bone(vent, armature, "head")
 
-    # Crooked wizard hat. The clean brim keeps its silhouette free of stray nubs.
+    # One continuous crown: shared rings eliminate the old stacked-cone seams.
+    # Coordinates are relative to the brim, with the tip curling to the right.
+    base = Vector(occupant_point((0, -0.01, 2.91)))
+    rings = [(0, 0, .50), (.01, .09, .47), (.10, .53, .23),
+             (.29, .77, .08), (.43, .75, .008)]
+    vertices = []
+    segments = 6
+    for x, z, radius in rings:
+        for j in range(segments):
+            angle = 2 * math.pi * j / segments
+            vertices.append(tuple(base + Vector((x + radius * math.cos(angle),
+                                                  radius * math.sin(angle), z))))
+    faces = [tuple(reversed(range(segments)))]
+    for ring in range(len(rings) - 1):
+        for j in range(segments):
+            nxt = (j + 1) % segments
+            faces.append((ring * segments + j, ring * segments + nxt,
+                          (ring + 1) * segments + nxt, (ring + 1) * segments + j))
+    faces.append(tuple((len(rings) - 1) * segments + j for j in range(segments)))
+    mesh = bpy.data.meshes.new("ContinuousHatCrown")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    crown = bpy.data.objects.new("HatCrown", mesh)
+    bpy.context.collection.objects.link(crown)
+    finish_mesh(crown, hat)
     hat_parts = [
-        cylinder("HatBrim", occupant_point((0, -0.01, 2.91)), 0.80 * HAT_SCALE, 0.10 * HAT_SCALE, hat, 12, (0.03, 0.08, -0.05)),
-        cone("HatCrown", occupant_point((0.03, 0.04, 3.25)), 0.30 * HAT_SCALE, 0.67 * HAT_SCALE, 0.66 * HAT_SCALE, hat, 10, (0.02, 0.10, -0.04)),
-        cone("HatBend", occupant_point((0.13, 0.05, 3.65)), 0.15 * HAT_SCALE, 0.32 * HAT_SCALE, 0.48 * HAT_SCALE, hat, 9, (0.02, 0.38, -0.13)),
-        cone("HatTip", occupant_point((0.30, 0.04, 3.90)), 0.015 * HAT_SCALE, 0.17 * HAT_SCALE, 0.35 * HAT_SCALE, hat, 8, (0.04, 0.65, -0.16)),
-        torus("HatBand", occupant_point((0.02, 0.01, 3.01)), 0.57 * HAT_SCALE, 0.055 * HAT_SCALE, hat_band, (0.03, 0.08, -0.05)),
-        cube("HatStarLargeV", occupant_point((0.18, -0.58, 3.23)), scaled_shape((0.025, 0.018, 0.095), HAT_SCALE), amber, 0.008, (0, 0, 0.18)),
-        cube("HatStarLargeH", occupant_point((0.18, -0.58, 3.23)), scaled_shape((0.085, 0.018, 0.025), HAT_SCALE), amber, 0.008, (0, 0, 0.18)),
-        cube("HatStarSmallV", occupant_point((-0.24, -0.53, 3.10)), scaled_shape((0.018, 0.018, 0.06), HAT_SCALE), amber, 0.006, (0, 0, -0.15)),
-        cube("HatStarSmallH", occupant_point((-0.24, -0.53, 3.10)), scaled_shape((0.055, 0.018, 0.018), HAT_SCALE), amber, 0.006, (0, 0, -0.15)),
+        cylinder("HatBrim", tuple(base), .62, .075, hat, 6),
+        crown,
+        torus("HatBand", tuple(base + Vector((.01, 0, .065))), .48, .035, hat_band),
     ]
+    # Chunky five-point stars hug the faceted crown. Project every vertex onto
+    # the surface so the decorations stay attached even across a facet edge.
+    bpy.context.view_layer.update()
+    for index, (x, z, size, angle) in enumerate([
+        (-.19, .18, .065, -math.pi / 2),
+        (.12, .29, .095, -math.pi / 2),
+        (.14, .51, .057, -math.pi / 2),
+        (.27, .67, .035, -math.pi / 2),
+        (.01, .22, .075, -.25),
+        (.10, .46, .052, -.25),
+    ]):
+        outward = Vector((math.cos(angle), math.sin(angle), 0))
+        tangent = Vector((-math.sin(angle), math.cos(angle), 0))
+        star_vertices = []
+        for j in range(10):
+            theta = math.pi / 2 + j * math.pi / 5
+            radius = size if j % 2 == 0 else size * .46
+            origin = base + tangent * (x + radius * math.cos(theta))
+            origin += Vector((0, 0, z + radius * math.sin(theta))) + outward * 2
+            hit, point, normal, face = crown.ray_cast(origin, -outward)
+            if not hit:
+                raise RuntimeError(f"Hat star {index} extends past the crown")
+            star_vertices.append(tuple(point + outward * .012))
+        star_mesh = bpy.data.meshes.new(f"HatStar{index}")
+        star_mesh.from_pydata(star_vertices, [], [tuple(range(10))])
+        star_mesh.update()
+        star = bpy.data.objects.new(f"HatStar{index}", star_mesh)
+        bpy.context.collection.objects.link(star)
+        finish_mesh(star, amber)
+        hat_parts.append(star)
     for piece in hat_parts:
-        parent_to_bone(
-            piece,
-            armature,
-            "hat_secondary" if piece.name not in {"HatBrim", "HatBand"} else "head",
-        )
+        parent_to_bone(piece, armature, "hat_secondary")
 
     return {
         "screen": bpy.data.objects["MonitorScreen"],
@@ -391,16 +405,31 @@ def create_action(armature, name, keyframes, interpolation="CONSTANT"):
     action.use_fake_user = True
     armature.animation_data_create()
     armature.animation_data.action = action
-    for frame, pose in keyframes:
-        apply_pose(armature, pose)
+    # Authored extrema are preserved. Smoothstep in-betweens give gestures
+    # anticipation and settling, while the body holds two frames at 24 fps.
+    for frame in range(keyframes[0][0], keyframes[-1][0] + 1):
         for bone in armature.pose.bones:
-            bone.keyframe_insert(data_path="location", frame=frame, group=bone.name)
-            bone.keyframe_insert(data_path="rotation_euler", frame=frame, group=bone.name)
-            bone.keyframe_insert(data_path="scale", frame=frame, group=bone.name)
+            sample = frame if bone.name in ("root", "chair") else frame - (frame - 1) % 2
+            left_frame, left_pose = keyframes[0]
+            right_frame, right_pose = keyframes[-1]
+            for index in range(len(keyframes) - 1):
+                if keyframes[index][0] <= sample <= keyframes[index + 1][0]:
+                    left_frame, left_pose = keyframes[index]
+                    right_frame, right_pose = keyframes[index + 1]
+                    break
+            fraction = max(0, min(1, (sample - left_frame) / max(1, right_frame - left_frame)))
+            ease = fraction * fraction * (3 - 2 * fraction)
+            for channel, default in (("location", (0, 0, 0)), ("rotation", (0, 0, 0)), ("scale", (1, 1, 1))):
+                start = left_pose.get(bone.name, {}).get(channel, default)
+                end = right_pose.get(bone.name, {}).get(channel, default)
+                value = tuple(a + (b - a) * ease for a, b in zip(start, end))
+                attribute = "rotation_euler" if channel == "rotation" else channel
+                setattr(bone, attribute, value)
+                bone.keyframe_insert(data_path=attribute, frame=frame, group=bone.name)
     for fcurve in action.fcurves:
         for point in fcurve.keyframe_points:
-            point.interpolation = interpolation
-    action["pose_rate"] = 12 if interpolation == "CONSTANT" else 24
+            point.interpolation = "LINEAR" if any('bones["' + name + '"]' in fcurve.data_path for name in ("root", "chair")) else "CONSTANT"
+    action["pose_rate"] = 12
     armature.animation_data.action = None
     reset_pose(armature)
     return action
@@ -414,10 +443,10 @@ def build_actions(armature):
             "idle",
             [
                 (1, {}),
-                (7, {"chair": {"location": (0, 0, 0.025)}, "head": {"rotation": (0.02, 0, -0.025)}}),
-                (13, {"chair": {"location": (0, 0, 0.055)}, "spine": {"rotation": (0.015, 0, 0.018)}}),
-                (19, {"chair": {"location": (0, 0, 0.02)}, "head": {"rotation": (-0.015, 0, 0.03)}}),
-                (25, {}),
+                (37, {"chair": {"location": (0, 0, 0.009)}, "head": {"rotation": (0.02, 0, -0.009)}}),
+                (73, {"chair": {"location": (0, 0, 0.018)}, "spine": {"rotation": (0.015, 0, 0.018)}}),
+                (109, {"chair": {"location": (0, 0, 0.02)}, "head": {"rotation": (-0.015, 0, 0.012)}}),
+                (145, {}),
             ],
         )
     )
@@ -547,9 +576,9 @@ def build_actions(armature):
     authored_actions = {
         "talk": [
             (1, {"spine": {"rotation": (-0.04, 0, -0.02)}, "head": {"rotation": (0.03, 0, 0)}}),
-            (6, {"spine": {"rotation": (-0.10, 0, 0.05)}, "head": {"rotation": (-0.04, 0, -0.06)}, "forearm.L": {"rotation": (0, 0, -0.38)}}),
-            (12, {"spine": {"rotation": (-0.07, 0, -0.04)}, "head": {"rotation": (0.05, 0, 0.05)}, "forearm.R": {"rotation": (0, 0, 0.42)}}),
-            (18, {}),
+            (19, {"spine": {"rotation": (-0.10, 0, 0.05)}, "head": {"rotation": (-0.04, 0, -0.06)}, "forearm.L": {"rotation": (0, 0, -0.38)}}),
+            (43, {"spine": {"rotation": (-0.07, 0, -0.04)}, "head": {"rotation": (0.05, 0, 0.05)}, "forearm.R": {"rotation": (0, 0, 0.42)}}),
+            (73, {}),
         ],
         "attentive": [
             (1, {}),
@@ -625,23 +654,10 @@ def build_actions(armature):
         ],
     }
 
-    # The browser rotates the entire presentation group for the 180-degree chair
-    # turn. Research clips stay in the rig's normal local frame so arms, head, and
-    # anchor objects cannot orbit around an arbitrary bone pivot.
-    # When the whole presentation turns away, the tall gaming-chair shell moves
-    # between the camera and its tiny occupant. Lift the CRT above the chair back,
-    # but leave it facing the workstation. The research pose should read as work,
-    # not as the Sage continuing to perform for the player.
-    back_head = {
-        # Lift only the CRT above the chair back. Keeping the arms at their
-        # seated height preserves the real hand/keyboard contact points.
-        "location": (0, 1.06, 0),
-        "rotation": (0, 0, 0),
-    }
-    back_pose = {
-        "pelvis": {"location": (0, 0, 0.46)},
-        "head": back_head,
-    }
+    # Research uses the same seated anatomy as dialogue. The old rear-view
+    # head lift and pelvis slide separated the CRT and pushed the legs into the chair.
+    back_head = {"rotation": (0, 0, 0)}
+    back_pose = {"head": back_head}
     authored_actions.update({
         "research_typing": [
             (1, {**back_pose, "upper_arm.L": {"rotation": (0.30, 0, 1.10)}, "upper_arm.R": {"rotation": (-0.30, 0, -1.10)}, "forearm.L": {"rotation": (0.25, 0, -0.70)}, "forearm.R": {"rotation": (-0.25, 0, 0.70)}}),

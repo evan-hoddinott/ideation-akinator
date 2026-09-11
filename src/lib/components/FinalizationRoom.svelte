@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { WorkstationView } from '$lib/workstation-3d';
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
 	import ProjectReportViewer from '$lib/components/ProjectReport.svelte';
 	import ScoreRoom from '$lib/components/ScoreRoom.svelte';
@@ -39,6 +40,8 @@
 		onSpeakingChange,
 		anchors = null,
 		onPerformanceChange = () => {},
+		onWorkstationChange = () => {},
+		workstationFallback = false,
 		onEffect = () => {}
 	}: {
 		project: ProjectSession;
@@ -63,6 +66,8 @@
 		onSpeakingChange: (speaking: boolean) => void;
 		anchors?: SageScreenAnchors | null;
 		onPerformanceChange?: (performance: SageClip | null) => void;
+		onWorkstationChange?: (view: WorkstationView | null) => void;
+		workstationFallback?: boolean;
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 	const projectId = $derived(project.id);
@@ -116,16 +121,17 @@
 	<SageDialogue
 		{altitude}
 		{personality}
-		label="THE SECOND INTERNET"
+		label="FOCUSED RESEARCH"
 		meta={`${features.length} confirmed features`}
-		prompt={`Shall I investigate the exact ${concept.name} configuration?`}
+		prompt={`Ready to test the exact ${concept.name} feature set before I write the final plan?`}
 		{onSpeakCharacter}
 		{onSpeakingChange}
 	>
 		<div class="finalization-dialogue">
 			<p>
-				This is a paid focused research pass. I will check the chosen feature combination,
-				competitors, constraints, contrary evidence, and cost assumptions.
+				This second, paid research pass checks your selected concept and features against
+				competitors, constraints, contrary evidence, and cost assumptions. Afterward, I will
+				recalculate the plan and produce the final report.
 			</p>
 			<div class="sealed-config">
 				<b>{concept.name}</b>{#each features as feature (feature.id)}<span>{feature.name}</span
@@ -138,7 +144,7 @@
 					class="primary"
 					disabled={researchBusy}
 					onclick={beginResearch}
-					>{researchBusy ? 'Finding the large computer...' : 'Research this exact build'}</button
+					>{researchBusy ? 'Preparing focused research...' : 'Start focused research'}</button
 				>
 			</div>
 		</div>
@@ -146,13 +152,15 @@
 {:else if active || (result && researchPerformanceOpen)}
 	<ResearchWorkstation
 		active={true}
-		calm={personality.calmMode || researchPerformanceSkipped}
+		calm={personality.calmMode || researchPerformanceSkipped || workstationFallback}
 		{projectId}
 		task="focused"
 		{message}
 		sourceCount={result?.sources.length ?? 0}
 		complete={!!result}
 		summary={result?.summary ?? ''}
+		findings={result?.findings ?? []}
+		gaps={result?.gaps ?? []}
 		findingCount={result?.findings.length ?? 0}
 		gapCount={result?.gaps.length ?? 0}
 		verdict={result?.verdict ?? ''}
@@ -164,6 +172,7 @@
 		onContinue={() => (researchPerformanceOpen = false)}
 		onSkip={skipResearchPerformance}
 		{anchors}
+		{onWorkstationChange}
 		{onPerformanceChange}
 		{onEffect}
 	/>
@@ -185,8 +194,8 @@
 			label={verdictLabels[result.verdict]}
 			meta={`${result.sources.length} focused sources`}
 			prompt={result.verdict === 'weakened'
-				? 'I have bad news and, worse, citations.'
-				: 'I checked your exact build. It mostly survived.'}
+				? 'The evidence weakened this configuration. Review why before generating the final plan.'
+				: 'The focused check is complete. Review the evidence, then generate the final plan.'}
 			{onSpeakCharacter}
 			{onSpeakingChange}
 		>
@@ -208,7 +217,7 @@
 							>{/if}
 					{:else}
 						<button type="button" class="primary" disabled={planBusy} onclick={onGeneratePlan}
-							>{planBusy ? 'Recalculating everything...' : 'Recalculate my project'}</button
+							>{planBusy ? 'Building the final plan...' : 'Generate the final project plan'}</button
 						>
 					{/if}
 				</div>
@@ -434,7 +443,7 @@
 	}
 	.finalization-dialogue > p {
 		margin: 0;
-		color: #e6dcec;
+		color: #513960;
 		line-height: 1.55;
 	}
 	.sealed-config {
@@ -443,29 +452,36 @@
 		gap: 7px;
 		padding: 12px;
 		border: 2px inset #77678a;
-		background: #080611;
+		background: #d6d2e4;
 	}
 	.sealed-config b {
 		width: 100%;
-		color: #ffe190;
+		color: #605639;
 	}
 	.sealed-config span {
 		padding: 4px 7px;
 		border: 1px solid #657183;
-		color: #9ff5cf;
+		color: #39604f;
 		font:
 			10px 'Courier New',
 			monospace;
 	}
 	.room-actions {
+		position: sticky;
+		bottom: 0;
+		z-index: 2;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
+		min-height: 0;
+		margin-top: 0;
+		padding: 8px 0 2px;
+		background: #d6d2e4;
 	}
 	.room-actions button {
 		padding: 10px 14px;
 		border: 3px outset #82758e;
-		color: white;
+		color: #514a42;
 		cursor: pointer;
 		font:
 			700 11px 'Courier New',
@@ -477,42 +493,42 @@
 		cursor: wait;
 	}
 	.room-actions .primary {
-		background: #135d4c;
-		border-color: #7df5c6;
+		background: #d2e4e0;
+		border-color: #396051;
 	}
 	.room-actions .secondary {
-		background: #2a2138;
+		background: #d9d2e4;
 	}
 	.room-warning {
 		padding: 9px;
 		border: 1px solid #ff8abb;
-		background: #39142d;
-		color: #ffd7eb;
+		background: #e4d2de;
+		color: #60394c;
 	}
 	.verdict {
 		display: grid;
 		gap: 5px;
 		padding: 10px;
 		border: 2px solid #d4b46d;
-		background: #130d20;
+		background: #d8d2e4;
 	}
 	.verdict b {
-		color: #ffe091;
+		color: #605539;
 		font:
 			800 12px 'Courier New',
 			monospace;
 		text-transform: uppercase;
 	}
 	.verdict span {
-		color: #cabfd3;
+		color: #4e3e5b;
 		font-size: 12px;
 	}
 	.verdict-weakened {
-		border-color: #ff699e;
-		background: #321020;
+		border-color: #603947;
+		background: #e4d2db;
 	}
 	.verdict-supported {
-		border-color: #70e6b0;
+		border-color: #39604e;
 	}
 	.research-scroll,
 	.plan-scroll {
@@ -630,8 +646,8 @@
 		margin-top: 6px;
 		padding: 8px 12px;
 		border: 3px outset #80758a;
-		background: #245e4c;
-		color: white;
+		background: #d2e4df;
+		color: #514a42;
 		cursor: pointer;
 		font:
 			700 10px 'Courier New',

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CozyWorld from '$lib/components/CozyWorld.svelte';
 	import { onMount } from 'svelte';
 	import type { ProjectSession } from '$lib/project-state';
 
@@ -28,11 +29,11 @@
 	const stageNames: Record<ProjectSession['stage'], string> = {
 		welcome: 'not yet started',
 		problem: 'describing the problem',
-		preferences: 'setting constraints',
-		research: 'browsing the terrible web',
-		questions: 'being interrogated',
-		concepts: 'reading cursed mail',
-		focused: 'finishing the prophecy'
+		preferences: 'setting project constraints',
+		research: 'researching existing solutions',
+		questions: 'answering follow-up questions',
+		concepts: 'comparing four concepts',
+		focused: 'building the final project plan'
 	};
 
 	onMount(() => {
@@ -83,6 +84,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <main class="menu-world" class:flashing={phase === 'flash'} aria-labelledby="menu-title">
+	<CozyWorld altitude={0.035} />
 	<div class="menu-scanlines" aria-hidden="true"></div>
 	{#if phase === 'boot'}
 		<section class="resume-terminal" aria-live="polite">
@@ -102,13 +104,13 @@
 		<section class="main-menu">
 			<div class="menu-title-card">
 				<img
-					src="/images/sage/smug.webp"
+					src="/images/sage-pixel/smug.svg"
 					alt="The Signal Sage looks smugly out from an old monitor"
 				/>
 				<div>
-					<span>WELCOME TO</span>
+					<span>THE SIGNAL SAGE PRESENTS</span>
 					<h1 id="menu-title">IDEATION<br />AKINATOR</h1>
-					<p>I can guess the product hiding inside your problems.</p>
+					<p>Turn a messy problem into four researched project concepts and one practical plan.</p>
 				</div>
 			</div>
 			<nav aria-label="Main menu" bind:this={navigation}>
@@ -122,20 +124,21 @@
 					>
 				{/if}
 				<button type="button" onclick={() => choose('new')}
-					><b>NEW DIVINATION</b><span
+					><b>START A NEW PROJECT</b><span
 						>{project
 							? 'This will ask before replacing your saved run.'
-							: 'Bring the Sage a fresh problem.'}</span
+							: 'Describe a problem and let the Sage research possible solutions.'}</span
 					></button
 				>
 				<button class="demo" type="button" onclick={() => choose('demo')}
-					><b>TOKEN-FREE DEMO</b><span>Play the full canned workflow without calling AI.</span
+					><b>TRY THE TOKEN-FREE DEMO</b><span
+						>Explore the complete workflow with a sample project and instant research.</span
 					></button
 				>
 			</nav>
 			{#if !ready}<p class="loading-save">READING LOCAL SAVE SLOT...</p>{/if}
 			<form method="POST" action="?/logout"><button type="submit">[ LOCK WORKSHOP ]</button></form>
-			<footer>↑↓ choose · mouse also accepted · no account detected</footer>
+			<footer>↑↓ choose · mouse also accepted · one local save slot</footer>
 			{#if confirmAction}
 				<div
 					class="replace-confirm"
@@ -165,7 +168,7 @@
 		display: grid;
 		place-items: center;
 		overflow: hidden;
-		color: #f9f2ff;
+		color: #4e3960;
 		background: #070410 radial-gradient(circle at 50% 42%, #342050 0, #0b0718 45%, #020105 100%);
 		font-family: 'Silkscreen', monospace;
 	}
@@ -192,8 +195,8 @@
 		gap: 9px;
 		padding: 20px;
 		border: 2px solid #69ff83;
-		color: #63ff7d;
-		background: #010503;
+		color: #39603f;
+		background: #d2e4db;
 		box-shadow: 0 0 35px #48ff6933;
 		font:
 			12px 'Courier New',
@@ -201,7 +204,7 @@
 	}
 	.resume-terminal p {
 		margin: 0 0 7px;
-		color: #ffe16b;
+		color: #605839;
 	}
 	.resume-terminal i {
 		animation: blink 0.6s steps(1) infinite;
@@ -219,7 +222,7 @@
 		z-index: 4;
 		padding: 30px 45px;
 		border: 5px double #ffe16b;
-		background: #0b0718;
+		background: #d7d2e4;
 		box-shadow:
 			12px 14px 0 #000a,
 			0 0 50px #884eb566;
@@ -227,27 +230,27 @@
 		animation: title-card 1s steps(8) both;
 	}
 	.success-title span {
-		color: #6aff8b;
+		color: #396041;
 		font-size: 8px;
 	}
 	.success-title h1 {
 		margin: 10px 0;
-		color: #ffe16b;
+		color: #605839;
 		font-size: clamp(29px, 6vw, 58px);
 		text-shadow: 5px 5px #89255f;
 	}
 	.success-title p {
 		margin: 0;
-		color: #cfc3da;
+		color: #4d3a5f;
 		font-size: 9px;
 	}
 	.main-menu {
 		position: relative;
 		z-index: 4;
-		width: min(900px, 92vw);
-		padding: 22px;
-		border: 5px double #d9b765;
-		background: #0c081bef;
+		width: min(680px, 90vw);
+		padding: 24px;
+		border: 3px double #d9b765;
+		background: #f3e5c9f2;
 		box-shadow:
 			12px 15px 0 #0009,
 			0 0 55px #7b40c15c;
@@ -255,37 +258,37 @@
 	}
 	.menu-title-card {
 		display: grid;
-		grid-template-columns: 180px 1fr;
+		grid-template-columns: 128px 1fr;
 		align-items: center;
 		gap: 20px;
 		padding: 10px 16px 16px;
 		border-bottom: 2px dotted #67547a;
 	}
 	.menu-title-card img {
-		width: 180px;
-		height: 180px;
+		width: 128px;
+		height: 128px;
 		object-fit: cover;
 		object-position: 50% 24%;
 		image-rendering: pixelated;
-		border: 4px ridge #776987;
-		background: #130d25;
+		border: 0;
+		background: #d7d2e4;
 	}
 	.menu-title-card span {
-		color: #65f6a2;
-		font-size: 11px;
+		color: #396049;
+		font-size: 9px;
 	}
 	.menu-title-card h1 {
 		margin: 5px 0;
-		color: #ffe16b;
-		font-size: clamp(38px, 5vw, 64px);
-		line-height: 0.9;
+		color: #605839;
+		font-size: clamp(30px, 4vw, 44px);
+		line-height: 1.1;
 		text-shadow: 4px 4px #7d225c;
 	}
 	.menu-title-card p {
 		margin: 10px 0 0;
-		color: #cfc3da;
+		color: #4d3a5f;
 		font:
-			16px Verdana,
+			12px/1.6 Verdana,
 			sans-serif;
 	}
 	nav {
@@ -299,9 +302,10 @@
 		width: 100%;
 		min-height: 64px;
 		padding: 12px 15px;
-		border: 3px outset #7a6d89;
-		color: #eee7f5;
-		background: #271b39;
+		border: 1px solid #766080;
+		box-shadow: inset 0 0 0 3px #171021;
+		color: #4c3960;
+		background: #dbd2e4;
 		text-align: left;
 		cursor: pointer;
 	}
@@ -309,7 +313,7 @@
 	nav button:focus-visible {
 		color: #171020;
 		background: #ffe071;
-		border-color: #fff2a9;
+		border-color: #605a39;
 		transform: translateX(5px);
 	}
 	nav button b {
@@ -322,21 +326,20 @@
 		opacity: 0.75;
 	}
 	.continue {
-		border-color: #79efad;
-		background: #174934;
+		border-color: #39604a;
+		background: #d2e4dd;
 	}
 	.demo {
-		border-color: #8d6caf;
-		background: #382052;
+		border-color: #4c3960;
+		background: #dbd2e4;
 	}
 	.main-menu form {
-		position: absolute;
-		right: 14px;
-		bottom: -30px;
+		margin-top: 16px;
+		text-align: right;
 	}
 	.main-menu form button {
 		border: 0;
-		color: #6e627c;
+		color: #4d4059;
 		background: transparent;
 		cursor: pointer;
 		font:
@@ -344,14 +347,12 @@
 			monospace;
 	}
 	.main-menu footer {
-		position: absolute;
-		left: 14px;
-		bottom: -28px;
-		color: #6e627c;
+		margin-top: 10px;
+		color: #4d4059;
 		font-size: 9px;
 	}
 	.loading-save {
-		color: #6aff8b;
+		color: #396041;
 		font:
 			10px 'Courier New',
 			monospace;
@@ -365,13 +366,13 @@
 		gap: 10px;
 		padding: 18px;
 		border: 5px ridge #c6b7ce;
-		color: #f7edf9;
-		background: #180d21f7;
+		color: #5a3960;
+		background: #f5e6ccf7;
 		box-shadow: 12px 14px 0 #000b;
 		text-align: center;
 	}
 	.replace-confirm > b {
-		color: #ff7899;
+		color: #603942;
 		font-size: 14px;
 	}
 	.replace-confirm p {
@@ -388,16 +389,16 @@
 	.replace-confirm button {
 		padding: 8px 10px;
 		border: 3px outset #8d8297;
-		color: white;
-		background: #322440;
+		color: #514a42;
+		background: #dbd2e4;
 		font:
 			8px 'Silkscreen',
 			monospace;
 		cursor: pointer;
 	}
 	.replace-confirm .erase {
-		background: #8c1f49;
-		border-color: #ff7197;
+		background: #e4d2d9;
+		border-color: #603943;
 	}
 	@keyframes blink {
 		50% {
@@ -459,5 +460,35 @@
 			min-height: 58px;
 			padding: 10px;
 		}
+	}
+
+	.menu-world {
+		background: #c9d5bf;
+		color: #50483f;
+	}
+	.menu-world::before {
+		background: linear-gradient(0deg, #99af8c 0 25%, transparent 25%);
+	}
+	.menu-scanlines {
+		display: none;
+	}
+	.menu-title-card h1 {
+		color: #675774;
+		text-shadow: 3px 3px #f6e5bd;
+	}
+	.menu-title-card p {
+		color: #645b4e;
+	}
+	nav button {
+		color: #50483f;
+		background: #f1e3c7;
+		border: 3px solid #9a8568;
+		box-shadow: 3px 4px #8f927466;
+	}
+	nav button.continue {
+		background: #bdcfaa;
+	}
+	nav button.demo {
+		background: #d4c6db;
 	}
 </style>

@@ -23,7 +23,7 @@
 		'SAGE BIOS v0.9 // 640K OF PROPHECY OK',
 		'MOUNTING C:\\FORBIDDEN_IDEAS...',
 		'CHECKING WIZARD PERIPHERALS... HAT FOUND',
-		'OPENING PRIVATE DIVINATION PORT 4187...'
+		'OPENING PRIVATE DIVINATION CHANNEL...'
 	];
 	const wrongReactions = [
 		'INCORRECT. The keyboard denies knowing you.',
@@ -60,7 +60,7 @@
 			{#if terminalReady}
 				<section class="login-terminal">
 					<header>
-						<img src="/images/sage/suspicious.webp" alt="" />
+						<img src="/images/sage-pixel/suspicious.svg" alt="" />
 						<div>
 							<span>PRIVATE WIZARD NETWORK</span>
 							<h1 id="login-title">IDEATION AKINATOR</h1>
@@ -104,8 +104,8 @@
 		display: grid;
 		place-items: center;
 		overflow: hidden;
-		color: #d7ffc9;
-		background: radial-gradient(circle at 50% 35%, #302348 0, #0b0714 48%, #030207 100%);
+		color: #436039;
+		background: #c5d2bd;
 		font-family: 'Silkscreen', monospace;
 	}
 	.crt-shell {
@@ -114,7 +114,7 @@
 		padding: 24px 28px 46px;
 		border: 9px ridge #a69f8e;
 		border-radius: 30px 30px 55px 55px;
-		background: #716b60;
+		background: #dedcd8;
 		box-shadow:
 			22px 28px 0 #0008,
 			inset 0 -8px #4c473f;
@@ -125,7 +125,7 @@
 		overflow: hidden;
 		border: 12px inset #625e55;
 		border-radius: 35px/24px;
-		background: #010603;
+		background: #d2e4da;
 		box-shadow: inset 0 0 50px #12ff4f1f;
 	}
 	.scanlines {
@@ -138,7 +138,7 @@
 	.boot-log {
 		position: absolute;
 		inset: 22px;
-		color: #59ff78;
+		color: #396040;
 		font:
 			14px/1.6 'Courier New',
 			monospace;
@@ -156,7 +156,7 @@
 		inset: auto 7% 9%;
 		padding: 18px;
 		border: 2px solid #53ff76;
-		background: #020603ee;
+		background: #edf0dbee;
 		box-shadow: 0 0 20px #36ff6455;
 		animation: terminal-in 0.35s steps(5) both;
 	}
@@ -169,8 +169,8 @@
 		border-bottom: 1px dashed #318e45;
 	}
 	.login-terminal img {
-		width: 72px;
-		height: 72px;
+		width: 64px;
+		height: 64px;
 		border: 2px solid #68ff83;
 		object-fit: cover;
 		object-position: 50% 24%;
@@ -178,12 +178,12 @@
 	}
 	.login-terminal span,
 	.login-terminal label {
-		color: #63ff7d;
+		color: #39603f;
 		font-size: 11px;
 	}
 	.login-terminal h1 {
 		margin: 4px 0 0;
-		color: #ffe36c;
+		color: #605939;
 		font-size: clamp(25px, 3vw, 36px);
 	}
 	.login-terminal form {
@@ -197,7 +197,7 @@
 		gap: 5px;
 	}
 	.command-row > span {
-		color: #ffe36c;
+		color: #605939;
 		font-size: 17px;
 	}
 	.command-row input {
@@ -206,12 +206,12 @@
 		border: 0;
 		border-bottom: 2px solid #50ee6d;
 		outline: none;
-		color: #ddffe4;
-		background: #07120a;
+		color: #396041;
+		background: #d2e4d7;
 		font:
 			18px 'Courier New',
 			monospace;
-		caret-color: #ffe36c;
+		caret-color: #605939;
 	}
 	.command-row button {
 		height: 44px;
@@ -228,7 +228,7 @@
 	}
 	.terminal-error {
 		margin: 10px 0 0;
-		color: #ff6f91;
+		color: #603942;
 		font:
 			12px/1.4 'Courier New',
 			monospace;

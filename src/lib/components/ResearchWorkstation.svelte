@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
+	import type { WorkstationView, WorkstationPhase } from '$lib/workstation-3d';
 	import { researchSceneOrder, type ResearchTask } from '$lib/research-performance';
 	import type { SageClip, SageScreenAnchors } from '$lib/sage-stage';
 	import type { OracleEffect } from '$lib/oracle-audio';
@@ -16,12 +17,15 @@
 		findingCount = 0,
 		gapCount = 0,
 		verdict = '',
+		findings = [],
+		gaps = [],
 		onCancel,
 		onInspect = () => {},
 		onContinue = () => {},
 		onSkip = () => {},
 		anchors = null,
 		onPerformanceChange = () => {},
+		onWorkstationChange = () => {},
 		onEffect = () => {}
 	}: {
 		active: boolean;
@@ -35,17 +39,20 @@
 		findingCount?: number;
 		gapCount?: number;
 		verdict?: string;
+		findings?: { title: string; claim: string }[];
+		gaps?: { category: string; reason: string }[];
 		onCancel: () => void;
 		onInspect?: () => void;
 		onContinue?: () => void;
 		onSkip?: () => void;
 		anchors?: SageScreenAnchors | null;
 		onPerformanceChange?: (performance: SageClip | null) => void;
+		onWorkstationChange?: (view: WorkstationView | null) => void;
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 
+	const modelReady = $derived(!!anchors);
 	const mineCells = Array.from({ length: 48 }, (_, index) => index);
-	const keyboardKeys = Array.from({ length: 27 }, (_, index) => index);
 	const desktopFiles = [
 		'actual_research',
 		'final',
@@ -54,26 +61,19 @@
 		'DO_NOT_OPEN',
 		'taxes_2004'
 	];
-	const scenes = $derived(researchSceneOrder(projectId, task));
+	let debugScene = $state<string | null>(null);
+	const scenes = $derived(debugScene ? [debugScene] : researchSceneOrder(projectId, task));
 	let sceneIndex = $state(0);
-	type ResearchPhase =
-		| 'exit'
-		| 'arrival'
-		| 'parking'
-		| 'turning'
-		| 'researching'
-		| 'noticed'
-		| 'printing'
-		| 'presenting';
-	let phase = $state<ResearchPhase>('exit');
+	let paperElement = $state<HTMLElement>();
+	let screenElement = $state<HTMLDivElement>();
+	let phase = $state<WorkstationPhase>('exit');
 	let entranceComplete = $state(false);
 	let handoffStarted = false;
 	let debugAnchors = $state(false);
 	let entranceTimers: number[] = [];
 	let handoffTimers: number[] = [];
-	let lastSoundPhase: ResearchPhase | null = null;
+	let lastSoundPhase: WorkstationPhase | null = null;
 	let lastSoundScene = '';
-	let settledAnchors = $state<SageScreenAnchors | null>(null);
 
 	const scenePerformances: Record<string, SageClip> = {
 		minecraft: 'research_one_hand',
@@ -88,35 +88,12 @@
 		files: 'research_typing'
 	};
 
-	const rigStyle = $derived.by(() => {
-		const rigAnchors = settledAnchors ?? anchors;
-		if (!rigAnchors || typeof window === 'undefined') return '';
-		const width = Math.min(Math.max(window.innerWidth * 0.46, 520), 720);
-		const height = Math.min(Math.max(window.innerHeight * 0.6, 470), 640);
-		const handMidX = (rigAnchors.leftHand.x + rigAnchors.rightHand.x) / 2;
-		const handMidY = (rigAnchors.leftHand.y + rigAnchors.rightHand.y) / 2;
-		const left = Math.min(Math.max(handMidX - width * 0.36, 12), window.innerWidth - width - 12);
-		const top = Math.min(
-			Math.max(rigAnchors.seat.y - height * 0.82, 8),
-			window.innerHeight - height - 72
-		);
-		return `--rig-left:${left}px;--rig-top:${top}px;--rig-width:${width}px;--rig-height:${height}px;--seat-x:${rigAnchors.seat.x}px;--seat-y:${rigAnchors.seat.y}px;--head-x:${rigAnchors.head.x}px;--head-y:${rigAnchors.head.y}px;--left-hand-x:${rigAnchors.leftHand.x}px;--left-hand-y:${rigAnchors.leftHand.y}px;--right-hand-x:${rigAnchors.rightHand.x}px;--right-hand-y:${rigAnchors.rightHand.y}px;--keyboard-x:${handMidX}px;--keyboard-y:${handMidY}px`;
-	});
-
 	$effect(() => {
-		if (!active) {
-			settledAnchors = null;
-			return;
-		}
-		if (phase === 'researching' && !settledAnchors && anchors) {
-			settledAnchors = {
-				seat: { ...anchors.seat },
-				head: { ...anchors.head },
-				leftHand: { ...anchors.leftHand },
-				rightHand: { ...anchors.rightHand },
-				updatedAt: anchors.updatedAt
-			};
-		}
+		onWorkstationChange(
+			active && !calm && screenElement
+				? { screen: screenElement, phase, paper: paperElement }
+				: null
+		);
 	});
 
 	$effect(() => {
@@ -185,9 +162,8 @@
 	});
 
 	$effect(() => {
-		if (!active || calm) return;
+		if (!active || calm || !modelReady) return;
 		phase = 'exit';
-		settledAnchors = null;
 		entranceComplete = false;
 		handoffStarted = false;
 		entranceTimers.forEach((timer) => window.clearTimeout(timer));
@@ -208,13 +184,52 @@
 		phase = 'noticed';
 		handoffTimers = [
 			window.setTimeout(() => (phase = 'printing'), 760),
-			window.setTimeout(() => (phase = 'presenting'), 2_850)
+			window.setTimeout(() => (phase = 'lifting'), 2_850),
+			window.setTimeout(() => (phase = 'presenting'), 5_450)
 		];
 	});
 
+	$effect(() => {
+		if (phase !== 'presenting' || !paperElement) return;
+		const previous = document.activeElement as HTMLElement | null;
+		void tick().then(() =>
+			paperElement?.querySelector<HTMLElement>('.paper-content')?.focus({ preventScroll: true })
+		);
+		return () => {
+			if (previous?.isConnected) previous.focus({ preventScroll: true });
+		};
+	});
+
 	onMount(() => {
-		debugAnchors = new URL(window.location.href).searchParams.has('sageDebug');
+		const debugUrl = new URL(window.location.href);
+		debugAnchors = debugUrl.searchParams.has('anchors');
+		const requestedScene = debugUrl.searchParams.get('researchScene');
+		if (
+			debugUrl.searchParams.get('sageDebug') === 'workstation' &&
+			requestedScene &&
+			requestedScene in scenePerformances
+		)
+			debugScene = requestedScene;
 		const handleSkip = (event: KeyboardEvent) => {
+			if (phase === 'presenting' && paperElement) {
+				if (event.key === 'Escape') {
+					event.preventDefault();
+					onContinue();
+					return;
+				}
+				if (event.key === 'Tab') {
+					const controls = [...paperElement.querySelectorAll<HTMLElement>('button, a[href]')];
+					const index = controls.indexOf(document.activeElement as HTMLElement);
+					if (
+						(event.shiftKey && index <= 0) ||
+						(!event.shiftKey && (index < 0 || index === controls.length - 1))
+					) {
+						event.preventDefault();
+						controls[event.shiftKey ? controls.length - 1 : 0]?.focus();
+					}
+				}
+			}
+
 			if (!active || event.key.toLowerCase() !== 's' || !event.shiftKey) return;
 			const target = event.target as HTMLElement | null;
 			if (target?.matches('input, textarea, select')) return;
@@ -229,6 +244,7 @@
 		entranceTimers.forEach((timer) => window.clearTimeout(timer));
 		handoffTimers.forEach((timer) => window.clearTimeout(timer));
 		onPerformanceChange(null);
+		onWorkstationChange(null);
 	});
 </script>
 
@@ -251,123 +267,91 @@
 			class:handoff={phase === 'presenting'}
 			data-phase={phase}
 			data-anchored={anchors ? 'true' : 'false'}
-			style={rigStyle}
 			aria-label="The Signal Sage researches at a large computer"
 		>
 			{#if debugAnchors && anchors}
 				<div class="anchor-debug" aria-hidden="true">
-					<i class="seat">SEAT</i><i class="head">HEAD</i><i class="left-hand">L HAND</i><i
-						class="right-hand">R HAND</i
-					><i class="keyboard-target">KEYBOARD</i>
+					{#each Object.entries(anchors).filter(([name]) => name !== 'updatedAt') as [name, point] (name)}
+						{#if typeof point === 'object'}<i
+								data-anchor={name}
+								style={`left:${point.x}px;top:${point.y}px`}>{name}</i
+							>{/if}
+					{/each}
 				</div>
 			{/if}
-			<div class="workstation-rig">
-				<div class="crt-monitor">
-					<div class="crt-bezel">
-						<div class="crt-screen" data-scene={scenes[sceneIndex]}>
-							{#if scenes[sceneIndex] === 'minecraft'}
-								<video
-									autoplay
-									muted
-									loop
-									playsinline
-									aria-label="Minecraft Beta gameplay distraction"
-								>
-									<source src="/video/retro/minecraft-beta-gameplay.webm" type="video/webm" />
-								</video>
-								<span class="screen-caption">IMPORTANT BLOCK RESEARCH</span>
-							{:else if scenes[sceneIndex] === 'cats'}
-								<div class="cat-site">
-									<h3>CAT TUBE 2003</h3>
-									<img src="/images/retro/kitka-cat.gif" alt="A running pixel cat" />
-									<p>BUFFERING 47 OF 8 CATS...</p>
-								</div>
-							{:else if scenes[sceneIndex] === 'mines'}
-								<div class="mine-window">
-									<header>MINESWEEPER_RESEARCH.EXE</header>
-									<div class="mine-grid" aria-hidden="true">
-										{#each mineCells as index (index)}<i class:bomb={index === 13 || index === 34}
-												>{index % 7 === 0 ? '1' : index === 13 || index === 34 ? '✹' : ''}</i
-											>{/each}
-									</div>
-								</div>
-							{:else if scenes[sceneIndex] === 'search'}
-								<div class="fake-search">
-									<div>WIZARDSEARCH!!!</div>
-									<label
-										>Search <input value="can a computer have browser history" readonly /></label
-									>
-									<p>1 result found in 0.0000004 fortnights</p>
-									<a href="#research-status">DELETE EVERYTHING IMMEDIATELY</a>
-								</div>
-							{:else if scenes[sceneIndex] === 'desktop'}
-								<div class="bad-desktop">
-									{#each desktopFiles as file (file)}
-										<span><b>▤</b>{file}</span>
-									{/each}
-									<div class="ram-ad">DOWNLOAD<br /><b>MORE RAM</b><small>FREE*</small></div>
-								</div>
-							{:else if scenes[sceneIndex] === 'forums'}
-								<div class="wizard-forum">
-									<header>WIZARDZ-ONLINE FORUM</header>
-									<b>Is divination legal in Ohio?</b>
-									<p>Posted by xX_SageMaster_2001_Xx</p>
-									<p class="reply">MOD: stop asking.</p>
-								</div>
-							{:else if scenes[sceneIndex] === 'cable'}
-								<div class="cable-screen">
-									<b>CONNECTION LOST</b><span>please jiggle the purple cable</span><i></i>
-								</div>
-							{:else if scenes[sceneIndex] === 'sleep'}
-								<div class="sleep-screen">
-									<b>zzz</b><span>RESEARCHING WITH EYES CLOSED</span><small>CPU: 0%</small>
-								</div>
-							{:else if scenes[sceneIndex] === 'advert'}
-								<div class="evidence-ad">
-									<small>BREAKING EVIDENCE</small><b>HOT SINGLE WIZARDS</b><span>IN YOUR LAN</span
-									><button type="button">ACCEPT COOKIES AND CURSES</button>
-								</div>
-							{:else}
-								<div class="file-chaos">
-									<header>ACTUAL_RESEARCH_DO_NOT_DELETE</header>
-									{#each desktopFiles as file (file)}<p>▤ {file}.doc.exe</p>{/each}<span
-										>COPYING 99%... 99%... 99%...</span
-									>
-								</div>
-							{/if}
-							<div class="screen-scanlines" aria-hidden="true"></div>
-						</div>
-						<div class="monitor-controls"><i></i><i></i><b>POWER</b></div>
+			<div
+				class="crt-screen"
+				bind:this={screenElement}
+				data-scene={scenes[sceneIndex]}
+				aria-hidden="true"
+				inert
+			>
+				{#if scenes[sceneIndex] === 'minecraft'}
+					<video autoplay muted loop playsinline aria-label="Minecraft Beta gameplay distraction">
+						<source src="/video/retro/minecraft-beta-gameplay.webm" type="video/webm" />
+					</video>
+					<span class="screen-caption">IMPORTANT BLOCK RESEARCH</span>
+				{:else if scenes[sceneIndex] === 'cats'}
+					<div class="cat-site">
+						<h3>CAT TUBE 2003</h3>
+						<img src="/images/retro/kitka-cat.gif" alt="A running pixel cat" />
+						<p>BUFFERING 47 OF 8 CATS...</p>
 					</div>
-					<div class="monitor-neck"></div>
-					<div class="monitor-foot"></div>
-				</div>
-
-				<div class="computer-tower">
-					<div class="drive-slot"></div>
-					<div class="drive-slot small"></div>
-					<div class="tower-light"></div>
-					<span>PENTIUM<br />MYSTERIUM</span>
-				</div>
-				<div class="cheap-speaker left"><i></i><b>R</b></div>
-				<div class="cheap-speaker right"><i></i><b>L?</b></div>
-				<div class="printer">
-					<div class="printer-slot"></div>
-					<span>INK: CYAN 2%<br />YELLOW: FEDERAL</span>
-					<div class="printing-paper"><i></i><b>RESEARCH<br />TOTALLY LEGAL</b></div>
-				</div>
-				<div class="cup-holder"><span>WORLD'S<br />#4 SAGE</span></div>
-
-				<div class="keyboard">
-					{#each keyboardKeys as key (key)}<i></i>{/each}
-				</div>
-				<div class="cart-shelf"></div>
-				<div class="cart-leg left"></div>
-				<div class="cart-leg right"></div>
-				<div class="cart-wheel left"></div>
-				<div class="cart-wheel right"></div>
-				<div class="tangled-cable" aria-hidden="true"></div>
+				{:else if scenes[sceneIndex] === 'mines'}
+					<div class="mine-window">
+						<header>MINESWEEPER_RESEARCH.EXE</header>
+						<div class="mine-grid" aria-hidden="true">
+							{#each mineCells as index (index)}<i class:bomb={index === 13 || index === 34}
+									>{index % 7 === 0 ? '1' : index === 13 || index === 34 ? '✹' : ''}</i
+								>{/each}
+						</div>
+					</div>
+				{:else if scenes[sceneIndex] === 'search'}
+					<div class="fake-search">
+						<div>WIZARDSEARCH!!!</div>
+						<label>Search <input value="can a computer have browser history" readonly /></label>
+						<p>1 result found in 0.0000004 fortnights</p>
+						<a href="#research-status">DELETE EVERYTHING IMMEDIATELY</a>
+					</div>
+				{:else if scenes[sceneIndex] === 'desktop'}
+					<div class="bad-desktop">
+						{#each desktopFiles as file (file)}
+							<span><b>▤</b>{file}</span>
+						{/each}
+						<div class="ram-ad">DOWNLOAD<br /><b>MORE RAM</b><small>FREE*</small></div>
+					</div>
+				{:else if scenes[sceneIndex] === 'forums'}
+					<div class="wizard-forum">
+						<header>WIZARDZ-ONLINE FORUM</header>
+						<b>Is divination legal in Ohio?</b>
+						<p>Posted by xX_SageMaster_2001_Xx</p>
+						<p class="reply">MOD: stop asking.</p>
+					</div>
+				{:else if scenes[sceneIndex] === 'cable'}
+					<div class="cable-screen">
+						<b>CONNECTION LOST</b><span>please jiggle the purple cable</span><i></i>
+					</div>
+				{:else if scenes[sceneIndex] === 'sleep'}
+					<div class="sleep-screen">
+						<b>zzz</b><span>RESEARCHING WITH EYES CLOSED</span><small>CPU: 0%</small>
+					</div>
+				{:else if scenes[sceneIndex] === 'advert'}
+					<div class="evidence-ad">
+						<small>BREAKING EVIDENCE</small><b>HOT SINGLE WIZARDS</b><span>IN YOUR LAN</span><button
+							type="button">ACCEPT COOKIES AND CURSES</button
+						>
+					</div>
+				{:else}
+					<div class="file-chaos">
+						<header>ACTUAL_RESEARCH_DO_NOT_DELETE</header>
+						{#each desktopFiles as file (file)}<p>▤ {file}.doc.exe</p>{/each}<span
+							>COPYING 99%... 99%... 99%...</span
+						>
+					</div>
+				{/if}
+				<div class="screen-scanlines" aria-hidden="true"></div>
 			</div>
+
 			<div class="parking-caption" aria-hidden="true">
 				{phase === 'exit'
 					? 'I AM NOT SHOWING YOU MY BROWSER HISTORY.'
@@ -376,7 +360,7 @@
 						: phase === 'parking'
 							? 'PERFECTLY PARKED'
 							: phase === 'turning'
-								? 'ROTATING WIZARD 180°'
+								? 'GETTING COMFORTABLE'
 								: phase === 'noticed'
 									? 'OH. IT FINISHED.'
 									: phase === 'printing'
@@ -384,7 +368,12 @@
 										: ''}
 			</div>
 
-			<div class="real-research-strip" id="research-status" aria-live="polite">
+			<div
+				class="real-research-strip"
+				class:paper-hidden={phase === 'presenting'}
+				id="research-status"
+				aria-live="polite"
+			>
 				<div><span class="strip-light"></span><b>ACTUAL RESEARCH STATUS</b></div>
 				<strong>{message || 'Consulting the dusty web...'}</strong>
 				<small>{sourceCount} sources bound so far · DECORATIVE CRT NONSENSE IS NOT A SOURCE</small>
@@ -398,24 +387,49 @@
 					aria-modal="true"
 					aria-label="Printed research summary"
 				>
-					<article>
-						<header>
-							<small>{task === 'broad' ? 'BROAD WEB DIVINATION' : 'CONFIGURATION CHECK'}</small><b
-								>RECOVERED INTERNET PAPER</b
+					<article
+						bind:this={paperElement}
+						role="document"
+						tabindex="-1"
+						aria-label="Research paper. Scroll to read."
+					>
+						<div
+							class="paper-content"
+							tabindex="-1"
+							role="document"
+							aria-label="Research paper contents"
+						>
+							<header>
+								<small>{task === 'broad' ? 'BROAD WEB DIVINATION' : 'CONFIGURATION CHECK'}</small><b
+									>RECOVERED INTERNET PAPER</b
+								>
+							</header>
+							{#if verdict}<span class={`paper-verdict ${verdict}`}>{verdict}</span>{/if}
+							<p>{summary}</p>
+							<div class="paper-counts">
+								<span><b>{sourceCount}</b> sources</span><span><b>{findingCount}</b> findings</span
+								><span><b>{gapCount}</b> gaps</span>
+							</div>
+							<small>Scroll to read · I’ve got the edges.</small>
+							{#each findings as finding, index (index)}<section>
+									<h3>{finding.title}</h3>
+									<p>{finding.claim}</p>
+								</section>{/each}
+							{#if gaps.length}<section>
+									<h3>Still uncertain</h3>
+									{#each gaps as gap, index (index)}<p>
+											<b>{gap.category}:</b>
+											{gap.reason}
+										</p>{/each}
+								</section>{/if}
+							<small class="tracking-joke">•• yellow dots included at no additional charge ••</small
 							>
-						</header>
-						{#if verdict}<span class={`paper-verdict ${verdict}`}>{verdict}</span>{/if}
-						<p>{summary}</p>
-						<div class="paper-counts">
-							<span><b>{sourceCount}</b> sources</span><span><b>{findingCount}</b> findings</span
-							><span><b>{gapCount}</b> gaps</span>
-						</div>
-						<small class="tracking-joke">•• yellow dots included at no additional charge ••</small>
-						<div class="paper-actions">
-							<button type="button" onclick={onInspect}>Inspect recovered files</button><button
-								type="button"
-								onclick={onContinue}>Take the paper</button
-							>
+							<div class="paper-actions">
+								<button type="button" onclick={onInspect}>Inspect recovered files</button><button
+									type="button"
+									onclick={onContinue}>Take the paper</button
+								>
+							</div>
 						</div>
 					</article>
 				</div>
@@ -430,66 +444,19 @@
 		pointer-events: none;
 	}
 
-	.workstation-rig {
-		position: fixed;
-		left: var(--rig-left, 42vw);
-		top: var(--rig-top, 7vh);
-		width: var(--rig-width, min(48vw, 720px));
-		height: var(--rig-height, min(62vh, 640px));
-		transition:
-			opacity 320ms steps(4, end),
-			transform 320ms steps(4, end);
-	}
-
-	.workstation-rig {
-		z-index: 6;
-		filter: drop-shadow(13px 18px 0 #02010b99);
-	}
-
-	.research-performance[data-phase='exit'] .workstation-rig {
-		opacity: 0;
-		transform: translateX(110vw) rotate(4deg);
-	}
-
-	.research-performance[data-phase='arrival'] .workstation-rig {
-		animation: workstation-arrival 1.9s steps(14, end) both;
-	}
-
-	.research-performance[data-phase='parking'] .workstation-rig {
-		animation: bad-parking 900ms steps(8, end) both;
-	}
-
-	.research-performance[data-phase='presenting'] .workstation-rig,
-	.research-performance[data-phase='presenting'] .real-research-strip {
-		opacity: 0;
-		transform: scale(0.92);
-	}
-
-	.crt-monitor {
-		position: absolute;
-		left: 34%;
-		top: 1%;
-		width: min(48%, 400px);
-		aspect-ratio: 1.28;
-	}
-
-	.crt-bezel {
-		position: absolute;
-		inset: 0 0 17%;
-		padding: 8% 9% 11%;
-		border: 5px outset #e7dfc3;
-		border-radius: 10% 10% 14% 14% / 8% 8% 18% 18%;
-		background: #bdb493;
-		box-shadow: inset -15px -13px 0 #8f876e;
-	}
-
 	.crt-screen {
-		position: relative;
-		width: 100%;
-		height: 100%;
+		position: fixed;
+		left: 0;
+		top: 0;
+		width: 320px;
+		height: 240px;
+		z-index: 6;
+		visibility: hidden;
+		transform-origin: 0 0;
+		pointer-events: none;
 		overflow: hidden;
-		border: 8px inset #817a66;
-		border-radius: 9% / 12%;
+		border: 0;
+		border-radius: 4%;
 		background: #061321;
 		color: #3cff67;
 		font:
@@ -520,272 +487,6 @@
 		inset: 0;
 		pointer-events: none;
 		background: repeating-linear-gradient(0deg, transparent 0 2px, #0004 2px 3px);
-	}
-
-	.monitor-controls {
-		position: absolute;
-		left: 9%;
-		right: 9%;
-		bottom: 3%;
-		display: flex;
-		justify-content: flex-end;
-		align-items: center;
-		gap: 5px;
-		color: #4e493d;
-		font:
-			6px 'Courier New',
-			monospace;
-	}
-
-	.monitor-controls i {
-		width: 7px;
-		height: 7px;
-		border: 2px inset #d9d1b7;
-		background: #332d24;
-	}
-
-	.monitor-controls i:first-child {
-		background: #41ed63;
-		box-shadow: 0 0 5px #41ed63;
-	}
-
-	.monitor-neck {
-		position: absolute;
-		left: 37%;
-		bottom: 7%;
-		width: 26%;
-		height: 18%;
-		background: #9f967d;
-		clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%);
-	}
-
-	.monitor-foot {
-		position: absolute;
-		left: 22%;
-		right: 22%;
-		bottom: 0;
-		height: 9%;
-		border: 4px outset #d8cfb1;
-		background: #aca287;
-	}
-
-	.computer-tower {
-		position: absolute;
-		right: 1%;
-		top: 15%;
-		width: 16%;
-		height: 58%;
-		padding: 9% 4% 4%;
-		border: 5px outset #ddd5b7;
-		background: #aaa184;
-		box-shadow: inset -12px -8px #817965;
-		color: #453f34;
-		font:
-			700 7px/1.3 'Courier New',
-			monospace;
-		text-align: center;
-	}
-
-	.cheap-speaker {
-		position: absolute;
-		top: 49%;
-		width: 8%;
-		aspect-ratio: 0.72;
-		border: 4px outset #bbb29a;
-		background: #817965;
-		color: #393229;
-		font:
-			700 6px 'Courier New',
-			monospace;
-		text-align: center;
-	}
-
-	.cheap-speaker.left {
-		left: 1%;
-	}
-	.cheap-speaker.right {
-		right: 28%;
-		transform: rotate(5deg);
-	}
-	.cheap-speaker i {
-		display: block;
-		width: 70%;
-		aspect-ratio: 1;
-		margin: 18% auto 8%;
-		border: 4px inset #aaa18b;
-		border-radius: 50%;
-		background: repeating-radial-gradient(circle, #18151c 0 2px, #4a444e 3px 4px);
-		animation: speaker-rattle 160ms steps(2, end) infinite;
-	}
-
-	.printer {
-		position: absolute;
-		right: 2%;
-		bottom: 23%;
-		width: 25%;
-		height: 23%;
-		padding: 10% 4% 2%;
-		border: 5px outset #d8cfb3;
-		background: #aaa186;
-		color: #3c372e;
-		font:
-			700 6px/1.3 'Courier New',
-			monospace;
-	}
-
-	.printer-slot {
-		position: absolute;
-		left: 10%;
-		right: 10%;
-		top: 18%;
-		height: 12%;
-		border: 4px inset #d4ccb2;
-		background: #332e29;
-	}
-
-	.printing-paper {
-		position: absolute;
-		z-index: -1;
-		left: 11%;
-		right: 11%;
-		top: 18%;
-		height: 115%;
-		padding: 12px 6px;
-		border: 1px solid #c5ad79;
-		background: repeating-linear-gradient(#eee4c9 0 10px, #d8cca8 11px);
-		color: #443518;
-		text-align: center;
-		opacity: 0;
-		transform: translateY(-78%);
-	}
-
-	.research-performance[data-phase='printing'] .printing-paper {
-		opacity: 1;
-		animation: print-paper 2s steps(10, end) forwards;
-	}
-
-	.printing-paper i {
-		display: block;
-		height: 4px;
-		margin-bottom: 8px;
-		background: radial-gradient(circle, #e0c62d 0 1px, transparent 1.5px) 0 0 / 7px 4px;
-	}
-
-	.cup-holder {
-		position: absolute;
-		right: -2%;
-		bottom: 30%;
-		display: grid;
-		place-items: center;
-		width: 11%;
-		aspect-ratio: 0.86;
-		border: 4px outset #814675;
-		border-radius: 3px 3px 13px 13px;
-		background: #4c214d;
-		color: #ffd8f6;
-		font:
-			700 5px/1.15 'Courier New',
-			monospace;
-		text-align: center;
-		transform: rotate(7deg);
-	}
-
-	.drive-slot {
-		height: 11%;
-		margin-bottom: 9%;
-		border: 4px inset #d8d1b9;
-		background: #524c40;
-	}
-
-	.drive-slot.small {
-		width: 76%;
-		height: 8%;
-	}
-
-	.tower-light {
-		width: 11px;
-		height: 11px;
-		margin: 25% auto 7%;
-		border-radius: 50%;
-		background: #ffca3b;
-		box-shadow: 0 0 9px #ffca3b;
-		animation: tower-blink 440ms steps(2, end) infinite;
-	}
-
-	.keyboard {
-		position: absolute;
-		left: 5%;
-		bottom: 21%;
-		display: grid;
-		grid-template-columns: repeat(9, 1fr);
-		gap: 3px;
-		width: 62%;
-		height: 18%;
-		padding: 7px;
-		border: 5px outset #ded6ba;
-		background: #a69d82;
-		transform: perspective(220px) rotateX(38deg);
-		transform-origin: bottom;
-	}
-
-	.keyboard i {
-		border: 2px outset #dcd4b9;
-		background: #bcb395;
-	}
-
-	.cart-shelf {
-		position: absolute;
-		left: 2%;
-		right: 0;
-		bottom: 10%;
-		height: 7%;
-		border: 5px outset #92929c;
-		background: #5e5b68;
-	}
-
-	.cart-leg {
-		position: absolute;
-		bottom: -6%;
-		width: 5%;
-		height: 18%;
-		background: #55525d;
-	}
-
-	.cart-leg.left,
-	.cart-wheel.left {
-		left: 10%;
-	}
-
-	.cart-leg.right,
-	.cart-wheel.right {
-		right: 8%;
-	}
-
-	.cart-wheel {
-		position: absolute;
-		bottom: -2%;
-		width: 9%;
-		aspect-ratio: 1;
-		border: 5px solid #36323c;
-		border-radius: 50%;
-		background: radial-gradient(circle, #7e7886 0 18%, #28242d 20% 58%, #5b5562 60%);
-		animation: wheel-spin 420ms steps(4, end) 4;
-	}
-
-	.cart-wheel.right {
-		transform: rotate(17deg);
-	}
-
-	.tangled-cable {
-		position: absolute;
-		right: -8%;
-		bottom: -18%;
-		width: 25%;
-		height: 20%;
-		border: 6px solid #18131d;
-		border-left: 0;
-		border-bottom-color: transparent;
-		border-radius: 50%;
 	}
 
 	.real-research-strip,
@@ -1046,37 +747,54 @@
 		transform: rotate(-2deg);
 	}
 
+	.paper-hidden {
+		visibility: hidden;
+	}
+
 	.paper-handoff {
 		position: fixed;
 		z-index: 20;
 		inset: 0;
 		display: grid;
 		place-items: center;
-		padding: 4vh 5vw;
-		pointer-events: auto;
-		background: radial-gradient(circle at 50% 48%, #28155266, #05030ddd 72%);
-		animation: handoff-arrive 560ms steps(7, end) both;
+		padding: 0;
+		pointer-events: none;
 	}
 
 	.paper-handoff article {
-		position: relative;
+		position: fixed;
 		z-index: 2;
 		display: grid;
 		gap: 13px;
-		width: min(660px, 80vw);
-		max-height: 78vh;
-		overflow: auto;
+		left: 50%;
+		top: max(80px, 14dvh);
+		width: min(1120px, calc(100vw - 112px));
+		height: calc(100dvh - max(80px, 14dvh) - 48px);
+		box-sizing: border-box;
+		pointer-events: auto;
+		overscroll-behavior: contain;
+		overflow: hidden;
 		padding: 38px 44px 34px;
 		border: 2px solid #a99052;
 		background:
-			radial-gradient(circle, #dfc82d 0 1px, transparent 1.3px) 12px 8px / 11px 11px,
-			repeating-linear-gradient(#f3e6bf 0 27px, #dfd0a5 28px);
+			url('/images/props/paper-color.jpg') center / 100% 100%,
+			#f1dfb7;
+		background-attachment: scroll;
+		background-blend-mode: multiply;
 		box-shadow: 16px 18px 0 #030109aa;
 		color: #241b13;
 		font:
-			700 11px/1.45 'Courier New',
+			400 16px/1.65 'Courier New',
 			monospace;
-		transform: rotate(-1deg);
+		transform: translateX(-50%);
+	}
+
+	.paper-content {
+		display: grid;
+		gap: 13px;
+		min-height: 0;
+		overflow: auto;
+		overscroll-behavior: contain;
 	}
 
 	.paper-handoff header {
@@ -1151,31 +869,6 @@
 			monospace;
 		white-space: nowrap;
 	}
-	.anchor-debug .seat {
-		left: var(--seat-x);
-		top: var(--seat-y);
-	}
-	.anchor-debug .head {
-		left: var(--head-x);
-		top: var(--head-y);
-		background: #00d9ff;
-	}
-	.anchor-debug .left-hand {
-		left: var(--left-hand-x);
-		top: var(--left-hand-y);
-		background: #ffe34d;
-	}
-	.anchor-debug .right-hand {
-		left: var(--right-hand-x);
-		top: var(--right-hand-y);
-		background: #ffe34d;
-	}
-	.anchor-debug .keyboard-target {
-		left: var(--keyboard-x);
-		top: var(--keyboard-y);
-		background: #65ff86;
-	}
-
 	.calm-result-actions {
 		display: flex;
 		flex-wrap: wrap;
@@ -1225,92 +918,16 @@
 		justify-self: start;
 	}
 
-	@keyframes workstation-arrival {
-		from {
-			transform: translateX(110vw) rotate(2deg);
-		}
-		72% {
-			transform: translateX(-3%) rotate(-1deg);
-		}
-		to {
-			transform: translateX(0) rotate(0);
-		}
-	}
-
-	@keyframes bad-parking {
-		0% {
-			transform: translateX(0) rotate(0);
-		}
-		35% {
-			transform: translateX(-6%) rotate(-2deg);
-		}
-		58% {
-			transform: translateX(3%) rotate(1.5deg);
-		}
-		78% {
-			transform: translateX(-1%) rotate(-0.5deg);
-		}
-		100% {
-			transform: translateX(0) rotate(0);
-		}
-	}
-
-	@keyframes speaker-rattle {
-		to {
-			transform: scaleY(1.07);
-			filter: brightness(1.25);
-		}
-	}
-	@keyframes print-paper {
-		from {
-			transform: translateY(-78%);
-		}
-		to {
-			transform: translateY(22%);
-		}
-	}
 	@keyframes sleep-drift {
 		50% {
 			transform: translate(8px, -5px);
 		}
 	}
-	@keyframes handoff-arrive {
-		from {
-			opacity: 0;
-			transform: scale(1.3);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1);
-		}
-	}
-
-	@keyframes wheel-spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	@keyframes tower-blink {
-		50% {
-			opacity: 0.25;
-		}
-	}
 
 	@media (max-width: 980px) {
-		.workstation-rig {
-			width: min(58vw, 620px);
-		}
 	}
 
 	@media (max-width: 760px) {
-		.workstation-rig {
-			left: 2vw;
-			top: 5vh;
-			width: 96vw;
-			height: 54vh;
-		}
-
 		.real-research-strip {
 			grid-template-columns: 1fr;
 		}
@@ -1322,8 +939,8 @@
 		}
 
 		.paper-handoff article {
-			width: 90vw;
-			padding: 30px 22px 26px;
+			width: calc(100vw - 72px);
+			padding: 22px 20px;
 		}
 		.paper-counts {
 			grid-template-columns: 1fr;
@@ -1331,9 +948,6 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.workstation-rig,
-		.cart-wheel,
-		.tower-light,
 		.strip-light {
 			animation: none;
 		}

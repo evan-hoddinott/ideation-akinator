@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { heldScroll } from '$lib/held-scroll';
 	import { onDestroy } from 'svelte';
 	import type { OracleEffect } from '$lib/oracle-audio';
 	import type { SageClip } from '$lib/sage-stage';
@@ -21,6 +22,60 @@
 		onPerformanceChange?: (performance: SageClip | null) => void;
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
+	function portal(node: HTMLDivElement) {
+		document.body.appendChild(node);
+		return {
+			destroy() {
+				node.remove();
+			}
+		};
+	}
+	function focusScroll(node: HTMLDivElement) {
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		if (!reduced) heldScroll.set(node);
+		const previous = document.activeElement as HTMLElement | null;
+		const controls = () =>
+			Array.from(
+				node.querySelectorAll<HTMLElement>(
+					'button, a[href], input, textarea, select, summary, [tabindex="0"]'
+				)
+			).filter((el) => !el.matches(':disabled') && el.getClientRects().length > 0);
+		const focusFrame = requestAnimationFrame(() =>
+			node.querySelector<HTMLElement>('.scroll-content')?.focus({ preventScroll: true })
+		);
+		const handleKey = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				event.stopPropagation();
+				onClose();
+			}
+			if (event.key !== 'Tab') return;
+			const items = controls();
+			const first = items[0];
+			const last = items.at(-1);
+			if (!items.includes(document.activeElement as HTMLElement)) {
+				event.preventDefault();
+				(event.shiftKey ? last : first)?.focus();
+				return;
+			}
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last?.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first?.focus();
+			}
+		};
+		node.addEventListener('keydown', handleKey);
+		return {
+			destroy() {
+				cancelAnimationFrame(focusFrame);
+				node.removeEventListener('keydown', handleKey);
+				heldScroll.update((current) => (current === node ? null : current));
+				if (previous?.isConnected) previous.focus({ preventScroll: true });
+			}
+		};
+	}
 	let wasOpen = false;
 	let motionTimer = 0;
 
@@ -29,30 +84,38 @@
 			wasOpen = true;
 			onPerformanceChange('scroll_present');
 			onEffect('scroll-unfurl', 0.34);
-			motionTimer = window.setTimeout(() => onPerformanceChange(null), 1_050);
+			motionTimer = window.setTimeout(() => onPerformanceChange(null), 2_300);
 		} else if (!open && wasOpen) {
 			wasOpen = false;
+			window.clearTimeout(motionTimer);
+			onPerformanceChange(null);
 			onEffect('scroll-rollup', 0.26);
 		}
 	});
 
-	onDestroy(() => window.clearTimeout(motionTimer));
+	onDestroy(() => {
+		window.clearTimeout(motionTimer);
+		if (wasOpen) onPerformanceChange(null);
+	});
 </script>
 
 {#if open}
 	<div
 		class="scroll-veil"
+		use:portal
 		role="presentation"
 		onclick={(event) => event.target === event.currentTarget && onClose()}
 	>
-		<div class="summoned-scroll" role="dialog" aria-modal="true" aria-label={title}>
+		<div class="summoned-scroll" use:focusScroll role="dialog" aria-modal="true" aria-label={title}>
 			<div class="scroll-roller top" aria-hidden="true"></div>
 			<header>
 				<p>{kicker}</p>
 				<h2>{title}</h2>
 				<button type="button" onclick={onClose}>Roll it up</button>
 			</header>
-			<div class="scroll-content">{@render children()}</div>
+			<div class="scroll-content" tabindex="-1" role="region" aria-label="Scroll contents">
+				{@render children()}
+			</div>
 			<div class="scroll-roller bottom" aria-hidden="true"></div>
 		</div>
 	</div>
@@ -60,36 +123,49 @@
 
 <style>
 	.scroll-veil {
+		pointer-events: auto;
 		position: fixed;
-		z-index: 100;
+		z-index: 20;
 		inset: 0;
 		display: grid;
 		place-items: center;
-		padding: 68px 5vw 28px;
-		background: rgb(3 1 13 / 62%);
-		backdrop-filter: blur(2px);
+		padding: 0;
+		pointer-events: none;
 	}
 
 	.summoned-scroll {
-		position: relative;
+		position: fixed;
+		left: 50%;
+		top: max(80px, 14dvh);
+		transform: translateX(-50%);
+		pointer-events: auto;
 		box-sizing: border-box;
-		width: min(920px, 92vw);
-		max-height: calc(100vh - 104px);
+		width: min(1120px, calc(100vw - 112px));
+		height: calc(100dvh - max(80px, 14dvh) - 48px);
 		padding: 32px clamp(22px, 5vw, 64px);
 		color: #241629;
 		background:
-			radial-gradient(circle at 14% 22%, #9f6d4633 0 1px, transparent 2px),
-			repeating-linear-gradient(0deg, transparent 0 27px, #6d3e2910 28px), #e2c68d;
-		background-size:
-			47px 43px,
-			auto,
-			auto;
+			url('/images/props/paper-color.jpg') center / 100% 100%,
+			#e2c68d;
+		background-blend-mode: multiply;
 		border: 4px solid #6f4528;
 		box-shadow:
 			0 18px 60px #000b,
 			inset 0 0 70px #6b351a55;
-		overflow: auto;
-		animation: scroll-unfurl 620ms steps(10, end) both;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		animation: scroll-unfurl 1600ms steps(10, end) both;
+	}
+
+	.summoned-scroll:global([data-model='true']) {
+		animation: none;
+	}
+	.summoned-scroll:global([data-model='true'][data-reading='false']) {
+		visibility: hidden;
+	}
+	.summoned-scroll:global([data-model='true']) .scroll-roller {
+		display: none;
 	}
 
 	.summoned-scroll * {
@@ -108,6 +184,7 @@
 
 	.summoned-scroll header {
 		position: relative;
+		flex-shrink: 0;
 		padding-right: 130px;
 		border-bottom: 3px double #704525;
 	}
@@ -144,6 +221,10 @@
 	}
 
 	.scroll-content {
+		overflow: auto;
+		overscroll-behavior: contain;
+		min-height: 0;
+		flex: 1;
 		padding: 20px 0 10px;
 		font:
 			16px/1.6 Georgia,
@@ -173,12 +254,12 @@
 	@keyframes scroll-unfurl {
 		from {
 			max-height: 28px;
-			transform: scaleX(0.88) translateY(-10vh);
+			transform: translateX(-50%) scaleY(0.05);
 			opacity: 0.45;
 		}
 		to {
 			max-height: calc(100vh - 104px);
-			transform: scaleX(1) translateY(0);
+			transform: translateX(-50%) scaleY(1);
 			opacity: 1;
 		}
 	}
@@ -189,7 +270,7 @@
 		}
 
 		.summoned-scroll {
-			width: 100%;
+			width: calc(100vw - 72px);
 			padding: 26px 18px;
 		}
 

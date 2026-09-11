@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { SvelteSet } from 'svelte/reactivity';
-	import type { AnimationAction } from 'three';
+	import type { AnimationAction, Object3D } from 'three';
+	import type { WorkstationView } from '$lib/workstation-3d';
 	import type { SagePersonality } from '$lib/personality';
 	import type { OracleEffect } from '$lib/oracle-audio';
+	import { SageAnimationDirector } from '$lib/sage-animation';
+	import { pixelViewport, cozyMaterialColors } from '$lib/cozy-render';
+	import { heldScroll } from '$lib/held-scroll';
 	import { AuthoredPoseLayer } from '$lib/authored-pose-layer';
 	import {
 		clipForMood,
@@ -18,6 +21,8 @@
 		personality,
 		altitude,
 		researching = false,
+		workstation = null,
+		paused = false,
 		speaking = false,
 		voicePulse = 0,
 		voiceEnergy = 0.5,
@@ -25,12 +30,15 @@
 		resetSignal = 0,
 		allowPopup = true,
 		onAnchors = () => {},
+		onFallbackChange = () => {},
 		onEffect = () => {},
 		onSecret
 	}: {
 		personality: SagePersonality;
 		altitude: number;
 		researching?: boolean;
+		workstation?: WorkstationView | null;
+		paused?: boolean;
 		speaking?: boolean;
 		voicePulse?: number;
 		voiceEnergy?: number;
@@ -38,6 +46,7 @@
 		resetSignal?: number;
 		allowPopup?: boolean;
 		onAnchors?: (anchors: SageScreenAnchors) => void;
+		onFallbackChange?: (fallback: boolean) => void;
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 		onSecret: () => void;
 	} = $props();
@@ -46,9 +55,11 @@
 	let container = $state<HTMLDivElement>();
 	let stageElement = $state<HTMLDivElement>();
 	let modelReady = $state(false);
+	let activeClip = $state<SageClip>('idle');
 	let modelFailed = $state(false);
 	let motionFallback = $state(false);
 	let useFallback = $derived(personality.calmMode || motionFallback || modelFailed);
+	$effect(() => onFallbackChange(useFallback));
 	let popupVisible = $state(false);
 	let popupSwatting = $state(false);
 	let popupImpact = $state(false);
@@ -96,7 +107,7 @@
 
 	$effect(() => {
 		const nowSpeaking = speaking;
-		if (!playClip || performance || nowSpeaking === lastSpeaking) return;
+		if (!playClip || performance || popupSwatting || nowSpeaking === lastSpeaking) return;
 		lastSpeaking = nowSpeaking;
 		if (nowSpeaking) playClip('talk', false);
 		else playClip('idle', false);
@@ -112,13 +123,16 @@
 	$effect(() => {
 		const calmMode = personality.calmMode;
 		const fallback = motionFallback;
-		if (!mounted || calmMode || fallback || threeStarted) return;
+		if (!mounted || paused || calmMode || fallback || threeStarted) return;
 		void startThree();
 	});
 
 	$effect(() => {
 		if (
 			!allowPopup ||
+			!!$heldScroll ||
+			workstation?.phase === 'lifting' ||
+			workstation?.phase === 'presenting' ||
 			personality.calmMode ||
 			personality.achievements.includes('FORBIDDEN FLOPPY') ||
 			popupVisible
@@ -208,14 +222,23 @@
 	});
 
 	async function startThree() {
-		if (personality.calmMode || motionFallback || threeStarted || !canvas || !container) return;
+		if (paused || personality.calmMode || motionFallback || threeStarted || !canvas || !container)
+			return;
 		threeStarted = true;
 
 		try {
 			const THREE = await import('three');
-			const [{ GLTFLoader }, { OutlineEffect }] = await Promise.all([
+			const { createPaperProp, documentLayout, heldProgress } = await import('$lib/paper-3d');
+			const [
+				{ GLTFLoader },
+				{ OutlineEffect },
+				{ createWorkstation, projectDisplay, reachContact },
+				{ createHandClearance }
+			] = await Promise.all([
 				import('three/examples/jsm/loaders/GLTFLoader.js'),
-				import('three/examples/jsm/effects/OutlineEffect.js')
+				import('three/examples/jsm/effects/OutlineEffect.js'),
+				import('$lib/workstation-3d'),
+				import('$lib/sage-hand-clearance')
 			]);
 			const mountContainer = container;
 			const renderCanvas = canvas;
@@ -226,28 +249,55 @@
 				antialias: false,
 				powerPreference: 'high-performance'
 			});
-			renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+			const lookQuery = new URL(window.location.href).searchParams;
+			const nativeComparison = import.meta.env.DEV && lookQuery.get('sagePixels') === 'native';
+			const pixelTarget = import.meta.env.DEV && lookQuery.get('sagePixels') === '480' ? 480 : 360;
+			renderer.setPixelRatio(nativeComparison ? Math.min(window.devicePixelRatio, 1.5) : 1);
 			renderer.outputColorSpace = THREE.SRGBColorSpace;
 			renderer.toneMapping = THREE.ACESFilmicToneMapping;
-			renderer.toneMappingExposure = 1.15;
+			renderer.toneMappingExposure = 1.0;
 
 			const scene = new THREE.Scene();
 			const camera = new THREE.PerspectiveCamera(31, 1, 0.1, 100);
 
-			scene.add(new THREE.HemisphereLight(0xbfeaff, 0x17062d, 2.4));
-			const key = new THREE.DirectionalLight(0xffd1b6, 4.4);
+			scene.add(new THREE.HemisphereLight(0xfff1d6, 0x8fa28a, 2.1));
+			const key = new THREE.DirectionalLight(0xffe3bd, 2.1);
 			key.position.set(4, 5, 5);
 			scene.add(key);
-			const rim = new THREE.DirectionalLight(0x7a73ff, 4.8);
+			const rim = new THREE.DirectionalLight(0xc7c9e2, 0.7);
 			rim.position.set(-5, 2, -3);
 			scene.add(rim);
 
-			const gltf = await new GLTFLoader().loadAsync('/models/signal-sage.glb?v=0097df12');
+			const gltf = await new GLTFLoader().loadAsync('/models/signal-sage.glb?v=hat-crunch-07');
 			const sage = gltf.scene;
+			sage.traverse((object) => {
+				if (!(object instanceof THREE.Mesh)) return;
+				for (const material of Array.isArray(object.material)
+					? object.material
+					: [object.material]) {
+					if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+					if (cozyMaterialColors[material.name] !== undefined)
+						material.color.setHex(cozyMaterialColors[material.name]);
+					material.metalness = Math.min(material.metalness, 0.08);
+					material.roughness = Math.max(material.roughness, 0.8);
+				}
+			});
 			sage.rotation.y = -0.08;
 			const presentation = new THREE.Group();
 			presentation.add(sage);
-			scene.add(presentation);
+			const researchScene = new THREE.Group();
+			researchScene.add(presentation);
+			scene.add(researchScene);
+			const computer = createWorkstation();
+			researchScene.add(computer.root);
+			computer.root.visible = false;
+			const paperProp = createPaperProp();
+			const carriedPaper = paperProp.root;
+			carriedPaper.visible = false;
+			scene.add(carriedPaper);
+			const pickupPosition = new THREE.Vector3();
+			const pickupRotation = new THREE.Quaternion();
+			const pickupHands = [new THREE.Vector3(), new THREE.Vector3()];
 
 			const mixer = new THREE.AnimationMixer(sage);
 			const actions: Record<string, AnimationAction> = {};
@@ -277,45 +327,13 @@
 			const poseCenter = poseEnvelope.getCenter(new THREE.Vector3());
 			const poseSize = poseEnvelope.getSize(new THREE.Vector3());
 			sage.position.sub(poseCenter);
-			let activeAction: AnimationAction | null = null;
-			let actionName: SageClip = 'idle';
-			let returnTimer = 0;
-			const transitionTimers = new SvelteSet<number>();
-			const loopingClips = new Set<SageClip>([
-				'idle',
-				'talk',
-				'research_typing',
-				'research_one_hand'
-			]);
-
+			computer.root.position.sub(poseCenter);
+			const director = new SageAnimationDirector(mixer, actions, () =>
+				speaking ? 'talk' : 'idle'
+			);
 			playClip = (clip, returnToIdle = false) => {
-				const next = actions[clip];
-				if (!next) return;
-				const previous = activeAction;
-				actionName = clip;
-				if (previous === next && loopingClips.has(clip)) return;
-				next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1);
-				next.enabled = true;
-				next.setLoop(
-					loopingClips.has(clip) ? THREE.LoopRepeat : THREE.LoopOnce,
-					loopingClips.has(clip) ? Infinity : 1
-				);
-				next.clampWhenFinished = !loopingClips.has(clip);
-				next.play();
-				if (previous && previous !== next) {
-					next.crossFadeFrom(previous, 0.16, false);
-					const transitionTimer = window.setTimeout(() => {
-						previous.stop();
-						transitionTimers.delete(transitionTimer);
-					}, 190);
-					transitionTimers.add(transitionTimer);
-				}
-				activeAction = next;
-				window.clearTimeout(returnTimer);
-				if (returnToIdle && clip !== 'idle') {
-					const recoveryDelay = Math.ceil(next.getClip().duration * 1_000) + 80;
-					returnTimer = window.setTimeout(() => playClip?.('idle'), recoveryDelay);
-				}
+				if ((clip === 'idle' || clip === 'talk') && director.reacting) return;
+				director.play(clip, returnToIdle);
 			};
 
 			playClip('idle');
@@ -326,12 +344,13 @@
 			modelReady = true;
 
 			const outline = new OutlineEffect(renderer, {
-				defaultThickness: 0.0045,
-				defaultColor: [0.025, 0.012, 0.07],
+				defaultThickness: 0.0025,
+				defaultColor: [0.15, 0.12, 0.13],
 				defaultAlpha: 0.9,
 				defaultKeepAlive: true
 			});
 			let elapsed = 0;
+			let poseRemainder = 0;
 			let lastFrame = window.performance.now();
 			let frameId = 0;
 			let lastFaceStep = -1;
@@ -340,6 +359,11 @@
 			let smoothedCursorX = 0;
 			let smoothedCursorY = 0;
 			let researchTurn = 0;
+			let lastWorkstationPhase = '';
+			let phaseElapsed = 0;
+			let wasWorkstation = false;
+			const contactPoint = new THREE.Vector3();
+			let gazeWeight = 1;
 			let lastAnchorUpdate = 0;
 			const eyeLeft = sage.getObjectByName('EyeLeft');
 			const eyeRight = sage.getObjectByName('EyeRight');
@@ -353,7 +377,23 @@
 			const leftHandMarker = sage.getObjectByName('HandL');
 			const rightHandMarker = sage.getObjectByName('HandR');
 			const anchorVector = new THREE.Vector3();
+			const leftArm = [sage.getObjectByName('forearmL'), sage.getObjectByName('upper_armL')].filter(
+				(part): part is Object3D => !!part
+			);
+			const rightArm = [
+				sage.getObjectByName('forearmR'),
+				sage.getObjectByName('upper_armR')
+			].filter((part): part is Object3D => !!part);
+			const shoes = ['BootL', 'BootR', 'BootSoleL', 'BootSoleR']
+				.map((name) => sage.getObjectByName(name))
+				.filter((part): part is Object3D => !!part);
+			const clearHands = createHandClearance(sage, computer.root);
 			const proceduralPose = new AuthoredPoseLayer([
+				leftHandMarker,
+				rightHandMarker,
+				...shoes,
+				...leftArm,
+				...rightArm,
 				headBone,
 				spineBone,
 				hatSecondary,
@@ -366,9 +406,9 @@
 			);
 			for (const part of faceParts) {
 				if (!(part instanceof THREE.Mesh)) continue;
-				part.material = Array.isArray(part.material)
-					? part.material.map((material) => material.clone())
-					: part.material.clone();
+				const oldMaterials = Array.isArray(part.material) ? part.material : [part.material];
+				part.material = new THREE.MeshBasicMaterial({ color: 0xffbf63, toneMapped: false });
+				for (const material of oldMaterials) material.dispose();
 			}
 			const baseFace = new Map(
 				faceParts.map((part) => [
@@ -384,7 +424,13 @@
 			const resize = () => {
 				const width = Math.max(mountContainer.clientWidth, 1);
 				const height = Math.max(mountContainer.clientHeight, 1);
-				renderer.setSize(width, height, false);
+				const pixel = pixelViewport(width, height, window.innerHeight, pixelTarget);
+				renderer.setSize(
+					nativeComparison ? width : pixel.width,
+					nativeComparison ? height : pixel.height,
+					false
+				);
+				renderCanvas.dataset.pixelScale = String(nativeComparison ? 1 : pixel.scale);
 				camera.aspect = width / height;
 				const verticalFov = THREE.MathUtils.degToRad(camera.fov);
 				const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
@@ -392,8 +438,18 @@
 				const fitWidth = (poseSize.x * 1.08) / 0.78;
 				const verticalDistance = fitHeight / 2 / Math.tan(verticalFov / 2);
 				const horizontalDistance = fitWidth / 2 / Math.tan(horizontalFov / 2);
-				const distance = (Math.max(verticalDistance, horizontalDistance) + poseSize.z * 0.55) * 0.6;
+				const distance =
+					(Math.max(verticalDistance, horizontalDistance) + poseSize.z * 0.55) *
+					(researching ? 0.6 : 0.65);
 				camera.position.set(0, 0, distance);
+				if (workstation || $heldScroll) {
+					camera.position.set(1, 0.55, Math.max(8.4, 10.5 / camera.aspect));
+					camera.lookAt(1, -0.1, 0);
+					camera.near = 0.1;
+					camera.far = 60;
+					camera.updateProjectionMatrix();
+					return;
+				}
 				camera.near = Math.max(0.01, distance - poseSize.z * 2);
 				camera.far = distance + poseSize.z * 4;
 				camera.lookAt(0, 0, 0);
@@ -404,21 +460,85 @@
 			resize();
 
 			const render = (now = window.performance.now()) => {
-				const delta = Math.min((now - lastFrame) / 1000, 0.05);
+				const holdAnimation =
+					workstation?.phase === 'lifting' ||
+					($heldScroll && $heldScroll.dataset.reading !== 'true');
+				if (holdAnimation && now - lastFrame < 1000 / 12) {
+					frameId = window.requestAnimationFrame(render);
+					return;
+				}
+				const delta = Math.min((now - lastFrame) / 1000, holdAnimation ? 0.15 : 0.05);
 				lastFrame = now;
+				if (paused || document.hidden || personality.calmMode || motionFallback) {
+					frameId = window.requestAnimationFrame(render);
+					return;
+				}
 				elapsed += delta;
 
 				// The mixer owns the authored pose. Remove last frame's procedural offsets
 				// before advancing it, then save a clean base for this rendered frame.
 				proceduralPose.restore();
-				mixer.update(delta);
+				poseRemainder += delta;
+				const poseDelta = Math.floor(poseRemainder * 12) / 12;
+				if (poseDelta > 0) {
+					director.update(poseDelta);
+					poseRemainder -= poseDelta;
+				}
+				const actionName = director.current;
+				if (activeClip !== actionName) activeClip = actionName;
 				proceduralPose.capture();
-				presentation.position.y = Math.sin(elapsed * 1.7) * 0.035;
-				const turnedTowardWorkstation =
-					actionName === 'workstation_turn' || actionName.startsWith('research_');
-				const targetTurn = turnedTowardWorkstation ? Math.PI : 0;
-				researchTurn += (targetTurn - researchTurn) * Math.min(delta * 2.4, 1);
-				presentation.rotation.y = researchTurn + Math.sin(elapsed * 0.7) * 0.018;
+				for (const shoe of shoes) {
+					const offset = shoe.name.endsWith('L') ? 0 : Math.PI;
+					shoe.position.y += Math.sin(elapsed * 2.3 + offset) * 0.025;
+				}
+				const scrollElement = $heldScroll;
+				const phase = workstation?.phase;
+				const phaseKey = scrollElement ? 'unfurling' : (phase ?? '');
+				if (!!(workstation || scrollElement) !== wasWorkstation) {
+					wasWorkstation = !!(workstation || scrollElement);
+					resize();
+				}
+				if (phase === 'lifting' && lastWorkstationPhase !== 'lifting') {
+					scene.updateMatrixWorld(true);
+					computer.paper.getWorldPosition(pickupPosition);
+					computer.paper.getWorldQuaternion(pickupRotation);
+					leftHandMarker?.getWorldPosition(pickupHands[0]);
+					rightHandMarker?.getWorldPosition(pickupHands[1]);
+				}
+				if (scrollElement && phaseKey !== lastWorkstationPhase) {
+					leftHandMarker?.getWorldPosition(pickupHands[0]);
+					rightHandMarker?.getWorldPosition(pickupHands[1]);
+				}
+				if (phaseKey !== lastWorkstationPhase) {
+					lastWorkstationPhase = phaseKey;
+					phaseElapsed = 0;
+				}
+				phaseElapsed += delta;
+				computer.root.visible = !!phase && phase !== 'exit' && phase !== 'presenting';
+				presentation.scale.setScalar(1);
+				presentation.position.x = 0;
+				presentation.position.z = 0;
+				presentation.position.y = workstation ? 0 : Math.sin(elapsed * 1.3) * 0.024;
+				const targetTurn =
+					phase && phase !== 'exit' && phase !== 'presenting' && phase !== 'lifting' ? 1.12 : 0;
+				researchTurn += (targetTurn - researchTurn) * Math.min(delta * 4, 1);
+				presentation.rotation.y =
+					researchTurn + (workstation ? 0 : Math.sin(elapsed * 0.7) * 0.018);
+				researchScene.position.x = 0;
+				researchScene.rotation.z = 0;
+				if (phase === 'exit')
+					researchScene.position.x = Math.pow(Math.min(phaseElapsed / 0.9, 1), 2) * 12;
+				if (phase === 'arrival') {
+					const t = Math.min(phaseElapsed / 1.95, 1);
+					researchScene.position.x = 12 * Math.pow(1 - t, 3);
+				}
+				if (phase === 'parking') {
+					researchScene.position.x =
+						Math.sin(phaseElapsed * 10) * 0.12 * Math.max(0, 1 - phaseElapsed);
+					researchScene.rotation.z =
+						Math.sin(phaseElapsed * 10) * 0.018 * Math.max(0, 1 - phaseElapsed);
+				}
+				if (phase) computer.update(phase, elapsed, phaseElapsed);
 
 				if (voicePulse !== lastVoicePulse) {
 					lastVoicePulse = voicePulse;
@@ -430,7 +550,7 @@
 				smoothedCursorY += (cursorY - smoothedCursorY) * Math.min(delta * 4.8, 1);
 
 				const authoredPerformance = actionName !== 'idle';
-				const gazeWeight = authoredPerformance ? 0.18 : 1;
+				gazeWeight += ((authoredPerformance ? 0.12 : 1) - gazeWeight) * (1 - Math.exp(-delta * 6));
 				if (headBone) {
 					proceduralEuler.set(
 						-smoothedCursorY * 0.075 * gazeWeight,
@@ -473,7 +593,10 @@
 				if (faceStep !== lastFaceStep) {
 					lastFaceStep = faceStep;
 					const profile = faceProfileForMood(personality.mood);
-					const blink = faceStep % 41 === 0 && personality.mood !== 'shocked' ? 0.16 : 1;
+					const blink =
+						(faceStep % 67 === 0 || faceStep % 113 === 0) && personality.mood !== 'shocked'
+							? 0.16
+							: 1;
 					const meter = speechMeter(speaking, elapsed, activeEnergy);
 					for (const part of faceParts) {
 						const materials =
@@ -517,8 +640,166 @@
 					}
 				}
 
+				if (phase && computer.root.visible) {
+					researchScene.updateMatrixWorld(true);
+					const typing = actionName === 'research_typing' || actionName === 'research_one_hand';
+					const pushing = phase === 'arrival' || phase === 'parking' || phase === 'turning';
+					if (
+						leftHandMarker &&
+						(actionName === 'research_typing' || pushing || actionName === 'research_cable')
+					) {
+						const target =
+							actionName === 'research_cable'
+								? computer.targets.cable
+								: pushing
+									? computer.targets.pushLeft
+									: computer.targets.left;
+						target.getWorldPosition(contactPoint);
+						if (typing) contactPoint.y += 0.025 * (1 + Math.sin(elapsed * 17));
+						reachContact(leftArm, leftHandMarker, contactPoint, 1);
+					}
+					if (
+						rightHandMarker &&
+						(typing ||
+							pushing ||
+							actionName === 'research_smack' ||
+							actionName === 'research_complete')
+					) {
+						const target =
+							actionName === 'research_smack'
+								? computer.targets.smack
+								: pushing
+									? computer.targets.pushRight
+									: computer.targets.right;
+						target.getWorldPosition(contactPoint);
+						if (typing) contactPoint.y += 0.025 * (1 + Math.cos(elapsed * 17));
+						reachContact(rightArm, rightHandMarker, contactPoint, 1);
+					}
+				}
+				scene.updateMatrixWorld(true);
+				clearHands();
+				// The same sheet travels from the printer to a camera-facing reading position.
+				// At rest it cuts a depth window to accessible HTML; the model mittens stay in front.
+				const holdingPaper = phase === 'lifting' || phase === 'presenting' || !!scrollElement;
+				carriedPaper.visible = holdingPaper;
+
+				if (holdingPaper) {
+					const rect = renderCanvas.getBoundingClientRect();
+					const { width, height, left, top } = documentLayout(
+						window.innerWidth,
+						window.innerHeight
+					);
+					const atScreen = (x: number, y: number) => {
+						const ray = new THREE.Vector3(
+							((x - rect.left) / rect.width) * 2 - 1,
+							1 - ((y - rect.top) / rect.height) * 2,
+							0.5
+						)
+							.unproject(camera)
+							.sub(camera.position)
+							.normalize();
+						const forward = camera.getWorldDirection(new THREE.Vector3());
+						return camera.position.clone().addScaledVector(ray, 3 / ray.dot(forward));
+					};
+					const end = atScreen(left + width / 2, top + height / 2);
+					const endWidth = atScreen(left, top).distanceTo(atScreen(left + width, top));
+					const endHeight = atScreen(left, top).distanceTo(atScreen(left, top + height));
+					const grip = heldProgress(phaseElapsed, 0.5);
+					const raw =
+						phase === 'presenting'
+							? 1
+							: heldProgress(phaseElapsed - (scrollElement ? 0.3 : 0.5), scrollElement ? 1.8 : 2.1);
+					const travel = raw * raw * (3 - 2 * raw);
+					const opening = scrollElement
+						? Math.max(0.06, heldProgress(phaseElapsed - 0.9, 1, 10))
+						: 1;
+					const reading = scrollElement ? phaseElapsed >= 2.2 : phase === 'presenting';
+					if (scrollElement) {
+						scrollElement.dataset.model = 'true';
+						const justOpened = reading && scrollElement.dataset.reading !== 'true';
+						scrollElement.dataset.reading = String(reading);
+						if (justOpened)
+							scrollElement
+								.querySelector<HTMLElement>('.scroll-content')
+								?.focus({ preventScroll: true });
+						if (!reading) {
+							pickupPosition.set(0, -0.1, 1);
+							pickupRotation.copy(camera.quaternion);
+						}
+					}
+					paperProp.update(reading, !!scrollElement, opening);
+					renderCanvas.dataset.documentOpening = String(opening);
+					renderCanvas.dataset.documentTravel = String(travel);
+					presentation.scale.setScalar(
+						THREE.MathUtils.lerp(1, Math.max(1, camera.position.z / 8.4), travel)
+					);
+					presentation.updateMatrixWorld(true);
+					if (headMarker) {
+						const headPosition = headMarker.getWorldPosition(new THREE.Vector3());
+						const depth = headPosition.clone().project(camera).z;
+						const peek = new THREE.Vector3(
+							((window.innerWidth / 2 - rect.left) / rect.width) * 2 - 1,
+							1 - ((top - 35 - rect.top) / rect.height) * 2,
+							depth
+						).unproject(camera);
+						presentation.position.add(peek.sub(headPosition).multiplyScalar(travel));
+						presentation.updateMatrixWorld(true);
+					}
+					carriedPaper.position.lerpVectors(pickupPosition, end, travel);
+					carriedPaper.position.y += Math.sin(travel * Math.PI) * 0.35;
+					carriedPaper.quaternion.copy(pickupRotation).slerp(camera.quaternion, travel);
+					if (!reading)
+						carriedPaper.rotateZ(
+							Math.sin((Math.floor(phaseElapsed * 12) / 12) * 8) * 0.045 * (1 - travel)
+						);
+					carriedPaper.scale.set(
+						THREE.MathUtils.lerp(0.7, endWidth, travel),
+						THREE.MathUtils.lerp(0.76, endHeight, travel) * opening,
+						1
+					);
+					carriedPaper.updateMatrixWorld(true);
+					[leftHandMarker, rightHandMarker].forEach((hand, index) => {
+						if (!hand?.parent) return;
+						const side = index === 0 ? -1 : 1;
+						const handMesh = hand as import('three').Mesh;
+						handMesh.geometry.computeBoundingSphere();
+						const baseRadius =
+							handMesh.geometry.boundingSphere!.radius * hand.getWorldScale(new THREE.Vector3()).x;
+						const endRadius = atScreen(0, 0).distanceTo(
+							atScreen(window.innerWidth <= 760 ? 20 : 32, 0)
+						);
+						const radius = THREE.MathUtils.lerp(baseRadius, endRadius, travel);
+						hand.scale.multiplyScalar(radius / baseRadius);
+						const target = carriedPaper.localToWorld(
+							new THREE.Vector3(
+								side * 0.505,
+								scrollElement
+									? THREE.MathUtils.lerp(side * 0.5, 0.08, heldProgress(phaseElapsed - 1.9, 0.3))
+									: 0.08,
+								radius + (scrollElement ? 0.08 : 0.04)
+							)
+						);
+						if (phase === 'lifting' && grip < 1)
+							target.lerpVectors(pickupHands[index], target, grip * grip * (3 - 2 * grip));
+						hand.position.copy(hand.parent.worldToLocal(target));
+						// Floating mittens remain attached to their original animated parent nodes.
+						hand.updateMatrixWorld(true);
+					});
+				}
+
+				if (holdingPaper) clearHands();
+				if (workstation) {
+					workstation.screen.style.visibility = computer.root.visible ? 'visible' : 'hidden';
+					projectDisplay(
+						workstation.screen,
+						computer.screen,
+						camera,
+						renderCanvas.getBoundingClientRect()
+					);
+				}
+
 				if (
-					researching &&
+					(researching || workstation) &&
 					now - lastAnchorUpdate >= 80 &&
 					seatMarker &&
 					headMarker &&
@@ -527,9 +808,12 @@
 				) {
 					lastAnchorUpdate = now;
 					presentation.updateMatrixWorld(true);
-					const stageRect = stageElement?.getBoundingClientRect();
-					if (!stageRect) return;
-					const settledResearchShiftX = stageRect.width * 0.38;
+					const stageRect = renderCanvas.getBoundingClientRect();
+					if (!stageRect) {
+						frameId = window.requestAnimationFrame(render);
+						return;
+					}
+					const settledResearchShiftX = 0;
 					const projectMarker = (marker: NonNullable<typeof seatMarker>) => {
 						marker.getWorldPosition(anchorVector).project(camera);
 						return {
@@ -545,6 +829,16 @@
 						head: projectMarker(headMarker),
 						leftHand: projectMarker(leftHandMarker),
 						rightHand: projectMarker(rightHandMarker),
+						keyboardLeft: projectMarker(
+							phase === 'arrival' || phase === 'parking' || phase === 'turning'
+								? computer.targets.pushLeft
+								: computer.targets.left
+						),
+						keyboardRight: projectMarker(
+							phase === 'arrival' || phase === 'parking' || phase === 'turning'
+								? computer.targets.pushRight
+								: computer.targets.right
+						),
 						updatedAt: now
 					});
 				}
@@ -556,8 +850,9 @@
 
 			cleanupThree = () => {
 				window.cancelAnimationFrame(frameId);
-				window.clearTimeout(returnTimer);
-				for (const timer of transitionTimers) window.clearTimeout(timer);
+				director.dispose();
+				computer.dispose();
+				paperProp.dispose();
 				resizeObserver.disconnect();
 				mixer.stopAllAction();
 				sage.traverse((object) => {
@@ -579,12 +874,16 @@
 <div
 	bind:this={stageElement}
 	class="live-sage-stage"
+	class:holding-paper={workstation?.phase === 'lifting' ||
+		workstation?.phase === 'presenting' ||
+		!!$heldScroll}
 	class:fallback={useFallback}
 	class:ready={modelReady}
-	class:researching
+	class:researching={researching || !!workstation}
 	class:resetting
 	data-mood={personality.mood}
 	data-performance={performance ?? 'idle'}
+	data-active-clip={activeClip}
 	style={`--sage-altitude: ${altitude}`}
 >
 	<div class="sage-motion" bind:this={container}>
@@ -606,7 +905,7 @@
 		{/if}
 	</div>
 
-	{#if popupVisible && !personality.calmMode}
+	{#if popupVisible && !personality.calmMode && !$heldScroll && workstation?.phase !== 'lifting' && workstation?.phase !== 'presenting'}
 		<button
 			class="joke-popup"
 			class:swatted={popupSwatting}
@@ -639,24 +938,56 @@
 <style>
 	.live-sage-stage {
 		position: fixed;
-		left: clamp(10px, 2vw, 42px);
-		top: calc(46% - (var(--sage-altitude) * 18vh));
-		width: min(72vw, 1100px);
-		height: min(calc(98vh - (var(--sage-altitude) * 8vh)), 1020px);
+		left: 15%;
+		top: calc(14px - var(--sage-altitude) * 12px);
+		width: 65vw;
+		height: calc(100dvh - var(--dialogue-height) + 18px);
 		z-index: 7;
 		pointer-events: none;
-		transform: translateY(-50%);
+		transform: none;
 		transition: top 720ms cubic-bezier(0.16, 0.9, 0.22, 1);
+	}
+
+	:global(.app-frame[data-stage='concepts']) .live-sage-stage {
+		left: -3%;
+		top: 8vh;
+		width: 44vw;
+		height: min(82vh, 800px);
+	}
+
+	.live-sage-stage:not(.researching)[data-active-clip='ascend'] .sage-motion {
+		animation: chair-lift 1.5s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+	}
+	@keyframes chair-lift {
+		0% {
+			transform: translateY(0);
+		}
+		28% {
+			transform: translateY(-30px);
+		}
+		100% {
+			transform: translateY(0);
+		}
 	}
 
 	/* Dialogue uses the larger hero framing above. Research needs its own authored
 	   camera footprint so the turned chair, hands, keyboard, and cart read as one
 	   performance instead of a giant canvas colliding with the workstation. */
 	.live-sage-stage.researching {
-		left: clamp(6px, 1vw, 18px);
-		top: 48%;
-		width: min(55vw, 840px);
-		height: min(76vh, 800px);
+		left: 0;
+		top: 30px;
+		width: 100vw;
+		height: calc(100dvh - 160px);
+		transform: none;
+	}
+
+	:global(.app-frame) .live-sage-stage.holding-paper {
+		z-index: 21;
+		left: 0;
+		top: 0;
+		width: 100vw;
+		height: 100dvh;
+		transition: none;
 	}
 
 	.sage-motion,
@@ -667,9 +998,14 @@
 
 	.sage-motion canvas {
 		display: block;
+		image-rendering: pixelated;
 		opacity: 0;
-		filter: drop-shadow(0 24px 24px #0009);
+		filter: none;
 		transition: opacity 260ms ease;
+	}
+
+	.researching .sage-motion canvas {
+		filter: none;
 	}
 
 	.ready .sage-motion canvas {
@@ -677,26 +1013,6 @@
 	}
 	.ready .sage-motion canvas.hidden {
 		opacity: 0;
-	}
-
-	.researching[data-performance='workstation_exit'] .sage-motion {
-		animation: sage-leaves-for-computer 900ms steps(8, end) both;
-	}
-
-	.researching[data-performance='workstation_push'] .sage-motion {
-		animation: sage-pushes-computer-in 1.95s steps(14, end) both;
-	}
-
-	.researching[data-performance='workstation_park'] .sage-motion {
-		animation: sage-parks-computer 1.1s steps(8, end) both;
-	}
-
-	.researching[data-performance='workstation_turn'] .sage-motion {
-		animation: sage-turns-at-computer 1.3s steps(10, end) both;
-	}
-
-	.researching[data-performance^='research_'] .sage-motion {
-		transform: translateX(38%);
 	}
 
 	.resetting .sage-motion {
@@ -910,52 +1226,6 @@
 		}
 	}
 
-	@keyframes sage-leaves-for-computer {
-		from {
-			transform: translateX(0) rotate(0);
-		}
-		to {
-			transform: translateX(calc(110vw + 38%)) rotate(4deg);
-		}
-	}
-
-	@keyframes sage-pushes-computer-in {
-		from {
-			transform: translateX(calc(110vw + 38%)) rotate(4deg);
-		}
-		72% {
-			transform: translateX(35%) rotate(-2deg);
-		}
-		to {
-			transform: translateX(38%) rotate(1deg);
-		}
-	}
-
-	@keyframes sage-parks-computer {
-		0%,
-		100% {
-			transform: translateX(38%) rotate(1deg);
-		}
-		35% {
-			transform: translateX(32%) rotate(-3deg);
-		}
-		62% {
-			transform: translateX(41%) rotate(2deg);
-		}
-	}
-
-	@keyframes sage-turns-at-computer {
-		from {
-			transform: translateX(38%) rotate(1deg);
-		}
-		55% {
-			transform: translateX(36%) rotate(-1deg);
-		}
-		to {
-			transform: translateX(38%) rotate(0);
-		}
-	}
-
 	@keyframes sage-reset-fall {
 		0%,
 		10% {
@@ -1012,9 +1282,8 @@
 
 	@media (max-width: 1180px) {
 		.live-sage-stage {
-			left: 0;
-			width: 48vw;
-			height: 70vh;
+			left: 12%;
+			width: 72vw;
 		}
 		.joke-popup {
 			left: 2%;
@@ -1026,15 +1295,16 @@
 	@media (max-width: 760px) {
 		.live-sage-stage {
 			left: 0;
-			top: 25vh;
+			top: 32px;
 			width: 100vw;
-			height: 47vh;
+			height: 46dvh;
 		}
 		.joke-popup {
-			left: auto;
-			right: 3%;
-			top: 10%;
-			transform: scale(0.72) rotate(3deg);
+			left: 0;
+			right: auto;
+			top: 4%;
+			transform: scale(0.55) rotate(3deg);
+			transform-origin: top left;
 		}
 	}
 
@@ -1048,7 +1318,7 @@
 
 		.researching .sage-motion {
 			animation: none;
-			transform: translateX(38%);
+			transform: none;
 		}
 	}
 </style>

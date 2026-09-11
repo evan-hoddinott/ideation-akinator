@@ -51,7 +51,7 @@
 	let signature = '';
 	let lastQueuedLineId = '';
 
-	const portraitSource = $derived(`/images/sage-pixel/${personality.mood}.png`);
+	const portraitSource = $derived(`/images/sage-pixel/${personality.mood}.svg`);
 	const modeGlyphs = {
 		ask: '?',
 		react: '!',
@@ -60,7 +60,9 @@
 	};
 
 	$effect(() => {
-		const nextSignature = `${mode}:${prompt}:${personality.lineId}:${personality.line}`;
+		// Optional reactions wait for the next prompt. They must not destroy an
+		// active form, steal focus, or restart a sentence the player is reading.
+		const nextSignature = `${label}:${mode}:${prompt}`;
 		if (nextSignature === signature) return;
 		signature = nextSignature;
 		choicePage = 0;
@@ -94,6 +96,16 @@
 		if (!responseElement) return;
 		choiceObserver = new MutationObserver(() => refreshChoicePage());
 		choiceObserver.observe(responseElement, { childList: true, subtree: true });
+		const choose = (event: Event) => {
+			const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
+			if (button && !button.disabled) markChoice(button);
+		};
+		responseElement.addEventListener('pointerover', choose);
+		responseElement.addEventListener('focusin', choose);
+		return () => {
+			responseElement?.removeEventListener('pointerover', choose);
+			responseElement?.removeEventListener('focusin', choose);
+		};
 	});
 
 	onDestroy(() => {
@@ -200,11 +212,24 @@
 		).filter((button) => !button.hidden && button.offsetParent !== null);
 	}
 
+	function markChoice(selected: HTMLButtonElement) {
+		for (const button of visibleChoices()) {
+			if (button === selected) button.dataset.currentChoice = 'true';
+			else delete button.dataset.currentChoice;
+		}
+	}
+
 	function refreshChoicePage() {
 		if (!responseElement) return;
 		const list = responseElement.querySelector<HTMLElement>('.game-choice-list');
 		if (!list) {
 			choicePageTotal = 1;
+			if (!responseElement.querySelector('[data-current-choice]')) {
+				const first =
+					responseElement.querySelector<HTMLButtonElement>('.primary:not(:disabled)') ??
+					visibleChoices()[0];
+				if (first) markChoice(first);
+			}
 			return;
 		}
 		const buttons = Array.from(list.children).filter(
@@ -216,6 +241,10 @@
 		buttons.forEach((button, index) => {
 			button.hidden = index < bounds.start || index >= bounds.end;
 		});
+		if (!buttons.some((button) => !button.hidden && button.dataset.currentChoice)) {
+			const first = buttons.find((button) => !button.hidden && !button.disabled);
+			if (first) markChoice(first);
+		}
 	}
 
 	function changeChoicePage(direction: -1 | 1) {
@@ -223,7 +252,12 @@
 	}
 
 	function confirmResponse(event: MouseEvent) {
-		if (!responsesReady || !event.isTrusted || responseLocked) return;
+		if (!responsesReady || !event.isTrusted) return;
+		if (responseLocked) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
 		const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('button');
 		if (!button || button.disabled || button.closest('.choice-pager')) return;
 		event.preventDefault();
@@ -233,8 +267,11 @@
 		responseLocked = true;
 		responseTimer = window.setTimeout(() => {
 			responseTimer = null;
+			responseLocked = false;
+			button.classList.remove('confirmed-answer');
+			button.removeAttribute('aria-pressed');
 			button.click();
-		}, 180);
+		}, 360);
 	}
 </script>
 
@@ -260,6 +297,7 @@
 			<figure class="sage-portrait" aria-hidden="true">
 				<img src={portraitSource} alt="" />
 				<span></span>
+				<figcaption>SIGNAL SAGE</figcaption>
 			</figure>
 
 			<div class="dialogue-column" class:responses-ready={responsesReady}>
@@ -273,6 +311,13 @@
 					{#if typing}<i class="typing-cursor" aria-hidden="true"></i>{/if}
 					{#if !typing && !responsesReady}<i class="continue-cursor" aria-hidden="true">▼</i>{/if}
 				</button>
+				<small class="dialogue-instruction">
+					{responsesReady
+						? 'Choose an answer or complete the fields below.'
+						: typing
+							? 'Click the message or press Enter to show the full line.'
+							: 'Click the message or press Enter to continue.'}
+				</small>
 				<span class="screen-reader-line" aria-live="polite">
 					{typing ? '' : (segments[segmentIndex] ?? '')}
 				</span>
@@ -311,9 +356,9 @@
 		position: fixed;
 		z-index: 13;
 		left: 50%;
-		bottom: clamp(12px, 2.4vh, 28px);
-		width: min(1040px, calc(100vw - 40px));
-		height: clamp(350px, 52vh, 480px);
+		bottom: 20px;
+		width: min(1180px, calc(100vw - 64px));
+		height: var(--dialogue-height);
 		pointer-events: none;
 		transform: translateX(-50%);
 	}
@@ -321,12 +366,12 @@
 	.sage-speech-window {
 		height: 100%;
 		padding: 5px;
-		border: 4px outset #a8a2b4;
-		background: #b9b5c1;
+		border: 2px solid #bc9d65;
+		background: #d8d2e4;
 		box-shadow:
-			8px 10px 0 rgb(2 1 9 / 72%),
-			0 0 0 2px #080611,
-			0 0 30px rgb(108 76 255 / 24%);
+			0 0 0 3px #100b20,
+			0 0 0 4px #65523f,
+			8px 10px 0 #02010999;
 		pointer-events: auto;
 		animation: speech-open 180ms steps(3, end) both;
 	}
@@ -338,8 +383,10 @@
 		gap: 12px;
 		height: 31px;
 		padding: 0 10px;
-		color: #f5f0ff;
-		background: linear-gradient(90deg, #170082, #5b175f 72%, #170082);
+		color: #463960;
+		background: #dbd2e4;
+		border-bottom: 1px solid #796143;
+		letter-spacing: 0.08em;
 		font:
 			12px/1 'Silkscreen',
 			monospace;
@@ -364,50 +411,64 @@
 	}
 
 	.speech-titlebar small {
-		color: #9ffbff;
+		color: #395f60;
 		font-size: 10px;
 		white-space: nowrap;
 	}
 
 	.speech-titlebar b {
 		min-width: 26px;
-		color: #ffd75a;
+		color: #605739;
 		font-size: 14px;
 		text-align: right;
 	}
 
 	.rpg-panel {
 		display: grid;
-		grid-template-columns: 140px minmax(0, 1fr);
-		gap: 22px;
+		grid-template-columns: 144px minmax(0, 1fr);
+		gap: 24px;
 		height: calc(100% - 31px);
-		padding: 18px;
-		border: 4px solid #f5f0df;
-		background:
-			repeating-linear-gradient(0deg, rgb(255 255 255 / 2%) 0 2px, transparent 2px 4px), #08070d;
-		box-shadow: inset 0 0 0 3px #262231;
+		padding: 18px 22px;
+		border: 1px solid #574364;
+		background: #f3e7cc;
+		box-shadow: inset 0 0 0 3px #d8c7a7;
 	}
 
 	.sage-portrait {
 		position: relative;
 		align-self: start;
-		width: 140px;
-		height: 140px;
+		width: 144px;
+		height: 160px;
 		margin: 0;
 		overflow: hidden;
-		border: 3px solid #f5f0df;
-		background: radial-gradient(circle at 50% 35%, #302060, #080611 70%);
-		box-shadow: 4px 4px 0 #46356f;
+		border: 1px solid #8b745a;
+		background: #ccd4b8;
+		box-shadow:
+			inset 0 0 0 3px #c6b898,
+			3px 3px 0 #090611;
 	}
 
 	.sage-portrait img {
 		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
+		top: 7px;
+		left: 7px;
+		width: 128px;
+		height: 128px;
 		object-fit: contain;
 		image-rendering: pixelated;
 		filter: none;
+	}
+
+	.sage-portrait figcaption {
+		position: absolute;
+		bottom: 10px;
+		width: 100%;
+		color: #605239;
+		font:
+			8px/1 Silkscreen,
+			monospace;
+		text-align: center;
+		letter-spacing: 0.05em;
 	}
 
 	.sage-portrait span {
@@ -425,7 +486,7 @@
 	}
 
 	.dialogue-column.responses-ready {
-		grid-template-rows: minmax(102px, auto) minmax(0, 1fr) auto;
+		grid-template-rows: minmax(54px, auto) minmax(0, 1fr) auto;
 	}
 
 	.dialogue-copy {
@@ -436,15 +497,24 @@
 		align-self: center;
 		padding: 6px 34px 10px 0;
 		border: 0;
-		color: #fffbed;
+		color: #605839;
 		background: transparent;
 		font:
-			clamp(20px, 1.65vw, 25px) / 1.55 'Silkscreen',
+			clamp(16px, 1.3vw, 20px) / 1.6 'Silkscreen',
 			monospace;
 		text-align: left;
-		text-shadow: 2px 2px 0 #351963;
+		text-shadow: none;
 		cursor: pointer;
 		transition: transform 160ms steps(3, end);
+	}
+	.dialogue-instruction {
+		display: block;
+		margin: 0 10px 6px;
+		color: #4b4356;
+		font:
+			9px 'Silkscreen',
+			monospace;
+		line-height: 1.35;
 	}
 
 	.responses-ready .dialogue-copy {
@@ -471,7 +541,7 @@
 		position: absolute;
 		right: 3px;
 		bottom: 8px;
-		color: #ffc94a;
+		color: #605539;
 		font-style: normal;
 		animation: continue-bob 500ms steps(2, end) infinite;
 	}
@@ -506,7 +576,7 @@
 		justify-content: flex-end;
 		gap: 9px;
 		padding-top: 5px;
-		color: #aaa0bd;
+		color: #483f5a;
 		font:
 			11px/1 'Silkscreen',
 			monospace;
@@ -517,8 +587,8 @@
 		height: 30px;
 		padding: 0;
 		border: 2px outset #aaa4b1;
-		color: #fff4cb;
-		background: #392653;
+		color: #605839;
+		background: #dad2e4;
 		cursor: pointer;
 	}
 
@@ -554,7 +624,7 @@
 	}
 
 	[data-mode='announce'] .speech-titlebar {
-		background: linear-gradient(90deg, #005c58, #216346 72%, #005c58);
+		background: #d2e4e1;
 	}
 
 	[data-mood='irritated'] .rpg-panel,
@@ -603,7 +673,7 @@
 		.sage-dialogue-stage {
 			bottom: 8px;
 			width: calc(100vw - 16px);
-			height: min(440px, 64vh);
+			height: min(450px, 55dvh);
 		}
 
 		.rpg-panel {
@@ -617,14 +687,14 @@
 			z-index: 3;
 			left: 12px;
 			top: 12px;
-			width: 82px;
-			height: 82px;
+			width: 66px;
+			height: 86px;
 		}
 
 		.dialogue-copy {
 			min-height: 82px;
-			padding-left: 96px;
-			font-size: 16px;
+			padding-left: 80px;
+			font-size: 14px;
 			line-height: 1.55;
 		}
 
@@ -637,7 +707,18 @@
 		}
 
 		.responses-ready .dialogue-copy {
-			font-size: 16px;
+			font-size: 14px;
+		}
+
+		.sage-portrait img {
+			top: 0;
+			left: 0;
+			width: 64px;
+			height: 64px;
+		}
+		.sage-portrait figcaption {
+			font-size: 6px;
+			bottom: 8px;
 		}
 
 		.speech-titlebar small {
@@ -664,5 +745,37 @@
 		[data-mode='wait'] .speech-titlebar i {
 			animation: none;
 		}
+	}
+
+	.sage-speech-window {
+		border: 3px solid #8f7c62;
+		background: #d2bda0;
+		box-shadow: 5px 6px #72634c55;
+	}
+	.speech-titlebar {
+		background: #bdcaa8;
+		color: #4a5944;
+		border-color: #8c997d;
+	}
+	.speech-titlebar small {
+		color: #4f6652;
+	}
+	.speech-titlebar i {
+		background: #739a72;
+		box-shadow: none;
+	}
+	.dialogue-copy {
+		color: #50483f;
+	}
+	.dialogue-instruction,
+	.dialogue-footer {
+		color: #7a6955;
+	}
+	.sage-portrait {
+		border: 2px solid #9f8b70;
+		box-shadow: 3px 3px #9f917466;
+	}
+	.sage-portrait span {
+		display: none;
 	}
 </style>

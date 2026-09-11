@@ -94,62 +94,74 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	welcome: [
 		{
 			id: 'welcome-1',
-			text: 'Ah. A mortal with a problem and unrestricted keyboard access.',
+			text: 'Bring me one stubborn problem. I will research it, question you, and propose four ways to solve it.',
 			mood: 'smug'
 		},
 		{
 			id: 'welcome-2',
-			text: 'I can already see your future product. It is very blurry and possibly on fire.',
+			text: 'I cannot read your mind yet. A specific problem usually fixes that.',
 			mood: 'thinking'
 		},
 		{
 			id: 'welcome-3',
-			text: 'State your grievance. The crystal modem is listening.',
+			text: 'Start with what keeps going wrong. The polished project pitch can wait.',
 			mood: 'neutral'
 		}
 	],
 	'project-started': [
 		{
 			id: 'start-1',
-			text: 'The guessing ritual begins. Please keep all limbs inside the prophecy.',
+			text: 'The project is saved in this browser. First, tell me what keeps going wrong.',
 			mood: 'delighted',
 			sound: 'reveal'
 		},
 		{
 			id: 'start-2',
-			text: 'Excellent. I have opened a fresh folder and several forbidden ports.',
+			text: 'Fresh project opened. Now give me the real problem, not the pitch-deck version.',
 			mood: 'forbidden',
 			sound: 'sparkle'
 		},
 		{
 			id: 'start-3',
-			text: 'Give me the ugly version. Polished problems are usually hiding something.',
+			text: 'Give me the ugly version. Who is affected, what happens, and why does it matter?',
 			mood: 'smug'
 		}
 	],
 	'problem-added': [
 		{
 			id: 'add-1',
-			text: 'Another grievance! My collection grows.',
+			text: 'That problem is saved. Add another only if it belongs to the same situation.',
 			mood: 'delighted',
 			sound: 'blip'
 		},
 		{
 			id: 'add-2',
-			text: 'Related problem detected. The theory becomes needlessly elaborate.',
+			text: 'Another related problem helps. Unrelated problems deserve their own project.',
 			mood: 'thinking'
 		},
-		{ id: 'add-3', text: 'Yes, yes. Keep feeding the complaint machine.', mood: 'smug' }
+		{
+			id: 'add-3',
+			text: 'Clue saved. Continue when this problem set tells the whole story.',
+			mood: 'smug'
+		}
 	],
 	'problem-removed': [
 		{
 			id: 'remove-1',
-			text: 'A clue has been erased. Very dramatic.',
+			text: 'That problem was removed. I will build the theory from what remains.',
 			mood: 'shocked',
 			sound: 'error'
 		},
-		{ id: 'remove-2', text: 'Fine. I never trusted that problem anyway.', mood: 'irritated' },
-		{ id: 'remove-3', text: 'Theory revised. Dignity unchanged.', mood: 'smug' }
+		{
+			id: 'remove-2',
+			text: 'Problem removed. The remaining clues now carry the case.',
+			mood: 'irritated'
+		},
+		{
+			id: 'remove-3',
+			text: 'Theory revised. Check that the remaining problems still describe one topic.',
+			mood: 'smug'
+		}
 	],
 	'clarity-weak': [
 		{
@@ -158,38 +170,51 @@ const LINES: Record<SageEvent, SageLine[]> = {
 			mood: 'thinking',
 			sound: 'error'
 		},
-		{ id: 'weak-2', text: 'I understand several nouns and one powerful vibe.', mood: 'thinking' },
-		{ id: 'weak-3', text: 'My crystal ball has become a loading spinner.', mood: 'irritated' }
+		{
+			id: 'weak-2',
+			text: 'I have the topic, but not the pain. Add a person, a situation, and a consequence.',
+			mood: 'thinking'
+		},
+		{
+			id: 'weak-3',
+			text: 'The signal is still fuzzy. One concrete example would rescue it.',
+			mood: 'irritated'
+		}
 	],
 	'clarity-strong': [
-		{ id: 'strong-1', text: 'Oh no. I understand you now.', mood: 'shocked', sound: 'reveal' },
+		{
+			id: 'strong-1',
+			text: 'Oh no. I understand you now. The problem is specific enough to research.',
+			mood: 'shocked',
+			sound: 'reveal'
+		},
 		{
 			id: 'strong-2',
-			text: 'The future project is beginning to cast a shadow.',
+			text: 'Clear problem detected. I can now compare possible solutions against it.',
 			mood: 'suspicious',
 			sound: 'sparkle'
 		},
 		{
 			id: 'strong-3',
-			text: 'Specific, painful, buildable. Disgustingly useful.',
+			text: 'Specific, painful, and possible to test. Disgustingly useful.',
 			mood: 'delighted'
 		}
 	],
 	'industries-guessed': [
 		{
 			id: 'industry-1',
-			text: 'I have divined the industries. Untick them if my genius alarms you.',
+			text: 'I suggested likely industries. Remove any bad guesses and add anything I missed.',
 			mood: 'smug',
 			sound: 'sparkle'
 		},
 		{
 			id: 'industry-2',
-			text: 'Sector spirits detected. They have been added to the circle.',
+			text: 'Industry guesses added. These will narrow the research and concept generation.',
 			mood: 'forbidden'
 		},
 		{
 			id: 'industry-3',
-			text: 'I tagged the likely realms. You remain legally allowed to disagree.',
+			text: 'I tagged the likely industries. You remain legally allowed to disagree.',
 			mood: 'thinking'
 		}
 	],
@@ -201,10 +226,14 @@ const LINES: Record<SageEvent, SageLine[]> = {
 		},
 		{
 			id: 'prefs-2',
-			text: 'Technology, money, chaos. The traditional three ingredients.',
+			text: 'Now set the technology, originality, budget, and hard constraints for the ideas.',
 			mood: 'delighted'
 		},
-		{ id: 'prefs-3', text: 'Set the edges. I will complain about them artistically.', mood: 'smug' }
+		{
+			id: 'prefs-3',
+			text: 'Set the edges. Good constraints keep me from proposing expensive nonsense.',
+			mood: 'smug'
+		}
 	],
 	'innovation-safe': [
 		{
@@ -246,105 +275,109 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'research-started': [
 		{
 			id: 'research-1',
-			text: 'I am opening the dusty web. Do not click any dancing hamsters.',
+			text: 'Research started. I am checking competitors, prior attempts, evidence, and gaps.',
 			mood: 'forbidden',
 			sound: 'reveal'
 		},
 		{
 			id: 'research-2',
-			text: 'Research ritual active. My fake browser history is none of your concern.',
+			text: 'The search is running. You can watch the nonsense or skip the animation without stopping it.',
 			mood: 'suspicious'
 		},
 		{
 			id: 'research-3',
-			text: 'Consulting sources, competitors, and one unrelated cat.',
+			text: 'I am consulting sources and competitors. The unrelated cat is decorative.',
 			mood: 'thinking'
 		}
 	],
 	'research-progress': [
 		{
 			id: 'progress-1',
-			text: 'Still searching. The modem noises improve accuracy.',
+			text: 'Still searching. I am separating useful evidence from very confident marketing copy.',
 			mood: 'thinking'
 		},
 		{
 			id: 'progress-2',
-			text: 'I found three startups and a website last updated in 2004.',
+			text: 'The research is still running. Old attempts count too, especially the ones that failed.',
 			mood: 'suspicious'
 		},
 		{
 			id: 'progress-3',
-			text: 'Fact-checking. This is ruining several perfectly good rumors.',
+			text: 'Fact-checking now. This is ruining several perfectly good rumors.',
 			mood: 'irritated'
 		}
 	],
 	'research-complete': [
 		{
 			id: 'complete-1',
-			text: 'The foothold is bound. I now know enough to become difficult.',
+			text: 'Research complete. The findings and their sources are ready for you to inspect.',
 			mood: 'smug',
 			sound: 'reveal'
 		},
 		{
 			id: 'complete-2',
-			text: 'Research complete. The cat contributed nothing and wants credit.',
+			text: 'Research complete. Next I will ask only the questions the evidence could not answer.',
 			mood: 'delighted',
 			sound: 'sparkle'
 		},
 		{
 			id: 'complete-3',
-			text: 'Sources acquired. Opinions promoted to evidence only where deserved.',
+			text: 'Sources acquired. Opinions were promoted to evidence only where deserved.',
 			mood: 'forbidden'
 		}
 	],
 	'research-failed': [
 		{
 			id: 'fail-1',
-			text: 'The dusty web coughed directly into my crystal ball.',
+			text: 'The research request failed. Your problem and constraints are still saved.',
 			mood: 'defeated',
 			sound: 'error'
 		},
 		{
 			id: 'fail-2',
-			text: 'Research spell fizzled. Your work is saved; my pride is not.',
+			text: 'Research failed. Your work is saved, so you can check the constraints and try again.',
 			mood: 'irritated',
 			sound: 'error'
 		},
 		{
 			id: 'fail-3',
-			text: 'A server spirit said no. I have written down its name.',
+			text: 'The research service said no. Nothing was erased, including my complaint.',
 			mood: 'shocked'
 		}
 	],
 	'interview-started': [
 		{
 			id: 'interview-1',
-			text: 'Question time. I will be brief and only moderately judgmental.',
+			text: 'Question time. I will ask one useful follow-up at a time and stop when the signal is clear.',
 			mood: 'smug',
 			sound: 'blip'
 		},
 		{
 			id: 'interview-2',
-			text: 'I have questions. You have suspiciously few escape routes.',
+			text: 'I have a few follow-up questions. You may skip one, say you do not know, or end early.',
 			mood: 'suspicious'
 		},
 		{
 			id: 'interview-3',
-			text: 'One question at a time. Even mortals deserve a loading budget.',
+			text: 'One question at a time. Rough answers are enough, and you can revise the previous one.',
 			mood: 'thinking'
 		}
 	],
 	'answer-saved': [
 		{
 			id: 'answer-1',
-			text: 'Aha. That fits the theory almost too conveniently.',
+			text: 'Answer saved. I will use it to narrow the next question and the final concepts.',
 			mood: 'smug',
 			sound: 'blip'
 		},
-		{ id: 'answer-2', text: 'Noted. The future project twitches in the fog.', mood: 'thinking' },
+		{
+			id: 'answer-2',
+			text: 'Noted. That answer narrows the kind of project that will fit.',
+			mood: 'thinking'
+		},
 		{
 			id: 'answer-3',
-			text: 'Useful. I award this answer one enchanted checkmark.',
+			text: 'Useful. One enchanted checkmark, and one fewer assumption for me to make.',
 			mood: 'delighted',
 			sound: 'sparkle'
 		}
@@ -370,18 +403,18 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'answer-skipped': [
 		{
 			id: 'skip-1',
-			text: 'Skipped. A bold strategy for someone asking a wizard for help.',
+			text: 'Skipped. I will leave that uncertainty visible instead of inventing an answer.',
 			mood: 'irritated',
 			sound: 'error'
 		},
 		{
 			id: 'skip-2',
-			text: 'No answer? I will fill the gap with tasteful suspicion.',
+			text: 'No answer recorded. The final concepts may carry a little more uncertainty here.',
 			mood: 'suspicious'
 		},
 		{
 			id: 'skip-3',
-			text: 'Very well. The blank space is now judging both of us.',
+			text: 'Very well. I will keep the blank visible and move to the next useful question.',
 			mood: 'defeated'
 		}
 	],
@@ -419,19 +452,19 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'interview-finished': [
 		{
 			id: 'done-1',
-			text: 'I know enough. Soon I shall reveal what you were going to build all along.',
+			text: 'I know enough. Next I will generate four distinct project concepts for you to compare.',
 			mood: 'smug',
 			sound: 'reveal'
 		},
 		{
 			id: 'done-2',
-			text: 'The questioning ends. Four futures are assembling backstage.',
+			text: 'The interview is complete. Four project concepts are assembling backstage.',
 			mood: 'delighted',
 			sound: 'sparkle'
 		},
 		{
 			id: 'done-3',
-			text: 'Signal locked. My confidence is becoming socially unacceptable.',
+			text: 'Signal locked. Your problem, research, constraints, and answers are ready for concept generation.',
 			mood: 'forbidden'
 		}
 	],
@@ -448,18 +481,18 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'concept-summoning': [
 		{
 			id: 'summoning-1',
-			text: 'Silence. I am downloading four possible futures over dial-up.',
+			text: 'I am generating four different approaches, each tied to your evidence and constraints.',
 			mood: 'thinking',
 			sound: 'sparkle'
 		},
 		{
 			id: 'summoning-2',
-			text: 'The prophecy compiler is running. Do not touch the suspicious fan.',
+			text: 'The concept generator is running. Budgets, timelines, and source links are included.',
 			mood: 'forbidden'
 		},
 		{
 			id: 'summoning-3',
-			text: 'Four guesses enter. My dignity leaves.',
+			text: 'Four guesses enter. You will compare them, edit the features, and choose one.',
 			mood: 'suspicious',
 			sound: 'blip'
 		}
@@ -467,19 +500,19 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'concept-revealed': [
 		{
 			id: 'reveal-concept-1',
-			text: 'Behold. A possible future with a budget spreadsheet attached.',
+			text: 'One concept opened. Read its fit, budget, timeline, features, and evidence before moving on.',
 			mood: 'delighted',
 			sound: 'reveal'
 		},
 		{
 			id: 'reveal-concept-2',
-			text: 'Another guess. I had this one behind my monitor the whole time.',
+			text: 'Another concept opened. The differences matter more than my attachment filenames.',
 			mood: 'smug',
 			sound: 'sparkle'
 		},
 		{
 			id: 'reveal-concept-3',
-			text: 'The future branches. Very inconsiderate of it.',
+			text: 'Another branch revealed. Open all four before choosing which one to configure.',
 			mood: 'shocked',
 			sound: 'blip'
 		}
@@ -487,19 +520,19 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'concepts-complete': [
 		{
 			id: 'portfolio-1',
-			text: 'Four futures revealed. You may now compare my excellent mistakes.',
+			text: 'All four concepts are open. Compare them, then choose one and edit its feature set.',
 			mood: 'smug',
 			sound: 'reveal'
 		},
 		{
 			id: 'portfolio-2',
-			text: 'The forbidden fourth idea escaped its folder. Typical.',
+			text: 'The fourth concept is the stretch option. Compare its risk as carefully as its novelty.',
 			mood: 'forbidden',
 			sound: 'sparkle'
 		},
 		{
 			id: 'portfolio-3',
-			text: 'My guesses are complete. One of them is probably legal.',
+			text: 'My guesses are complete. Open Project Files to choose a concept and the features you want.',
 			mood: 'delighted'
 		}
 	],
@@ -532,18 +565,18 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'feature-changed': [
 		{
 			id: 'feature-change-1',
-			text: 'The prophecy has been edited with a checkbox. Ancient magic bows to HTML.',
+			text: 'Feature set updated. Ancient magic bows to a well-labeled checkbox.',
 			mood: 'delighted',
 			sound: 'blip'
 		},
 		{
 			id: 'feature-change-2',
-			text: 'Scope altered. The old estimates are pretending not to notice.',
+			text: 'Scope updated. I will recalculate the estimates after you confirm the concept.',
 			mood: 'suspicious'
 		},
 		{
 			id: 'feature-change-3',
-			text: 'A feature moves. Somewhere, a backlog screams.',
+			text: 'Feature updated. Keep only what belongs in the version you would actually prototype.',
 			mood: 'smug'
 		}
 	],
@@ -563,13 +596,13 @@ const LINES: Record<SageEvent, SageLine[]> = {
 	'project-selected': [
 		{
 			id: 'project-selected-1',
-			text: 'The future is chosen. I am sealing it with a very official mouse click.',
+			text: 'Concept selected. Next I will research this exact feature set before writing the final plan.',
 			mood: 'delighted',
 			sound: 'reveal'
 		},
 		{
 			id: 'project-selected-2',
-			text: 'One prophecy remains. The other three have been returned to the void.',
+			text: 'One concept is selected. The other three remain available if you go back and change your mind.',
 			mood: 'forbidden',
 			sound: 'sparkle'
 		}
@@ -667,40 +700,40 @@ const LINES: Record<SageEvent, SageLine[]> = {
 
 const GENERIC_EXHAUSTION_LINES: SageLine[] = [
 	{
-		id: 'fallback-static-1',
-		text: 'The signal crackles. I have already used my good line.',
+		id: 'fallback-useful-1',
+		text: 'Noted. Continue with the current step when you are ready.',
 		mood: 'neutral',
 		sound: 'blip'
 	},
 	{
-		id: 'fallback-static-2',
-		text: 'Pretend I said something devastatingly insightful.',
-		mood: 'smug',
-		sound: 'none'
-	},
-	{
-		id: 'fallback-static-3',
-		text: 'I refuse to repeat myself. It cheapens the prophecy.',
-		mood: 'irritated',
-		sound: 'error'
-	},
-	{
-		id: 'fallback-static-4',
-		text: 'A meaningful silence now occurs.',
+		id: 'fallback-useful-2',
+		text: 'The project record is updated. I will use the new information from here on.',
 		mood: 'thinking',
 		sound: 'none'
 	},
 	{
-		id: 'fallback-static-5',
-		text: 'The writers have gone home. Continue.',
-		mood: 'defeated',
+		id: 'fallback-useful-3',
+		text: 'Change recorded. The next prompt tells you what I still need.',
+		mood: 'smug',
+		sound: 'blip'
+	},
+	{
+		id: 'fallback-useful-4',
+		text: 'That is saved. You may continue, revise it, or use the menu to start over.',
+		mood: 'neutral',
 		sound: 'none'
 	},
 	{
-		id: 'fallback-static-6',
-		text: 'I am conserving dialogue for the boss fight.',
+		id: 'fallback-useful-5',
+		text: 'The signal changed. I have adjusted the project without pretending it was destiny.',
 		mood: 'suspicious',
 		sound: 'blip'
+	},
+	{
+		id: 'fallback-useful-6',
+		text: 'Update complete. Keep going and I will explain the next decision.',
+		mood: 'delighted',
+		sound: 'none'
 	}
 ];
 
@@ -709,7 +742,7 @@ export function createSagePersonality(): SagePersonality {
 		playerName: '',
 		projectName: '',
 		mood: 'neutral',
-		line: 'I can guess your future project from its problems. Eventually. Probably.',
+		line: 'Give me a real problem. I will research it and turn it into four project concepts.',
 		lineId: 'initial',
 		confidence: 'static',
 		hypothesis: 'No theory yet. The crystal ball is displaying a screensaver.',

@@ -395,6 +395,7 @@
 		pointer-events: none;
 	}
 	.report-world {
+		pointer-events: auto;
 		position: fixed;
 		inset: 10px;
 		z-index: 120;
