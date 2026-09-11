@@ -50,6 +50,14 @@ npm run deploy:verify:auth
 
 The checks cover DNS, local and public health, the anonymous password screen, anonymous API rejection, the loopback-only port, container health and hardening, the active tunnel container, and retirement of the old system service. The authenticated version also checks the session cookie flags and verifies that the session survives a second page load.
 
+## September 11 internet-history deployment
+
+Application commit `796e001` is deployed at `https://idea.battery.rip` in image `sha256:b38a6be1564244c046edbb3fb7b2a43642323a6f4be18b467982381c26369a77`.
+
+All 143 unit tests passed before publishing. The production container build and the complete non-interactive deployment verifier passed. A fresh authenticated public browser rendered the cat-YouTube scene at 1440×900, survived a page reload, and reported no page errors, console warnings, failed resources, or broken images. Public hashes matched the committed Sage GLB and all eight additions in `INTERNET-HISTORY-SOURCES.json`. Browser verification used a short-lived signed session; a new password-entry login was not part of this deployment check.
+
+The local visual acceptance and complete token-free workflow are recorded in [INTERNET-HISTORY-VERIFICATION.md](INTERNET-HISTORY-VERIFICATION.md). The public screenshot is retained locally at `artifacts/internet-history/live-deployed-youtube.png`. The previous running image is retained as `ideation-akinator:before-internet-history-20260911`.
+
 ## Last acceptance pass
 
 On 2026-09-04, follow-up commit `24942d0` repaired the broad-research staging and
@@ -77,7 +85,7 @@ Do not put the plain password, hash, signing secret, OpenAI key, or tunnel crede
 
 ## Rollback
 
-The September 4 visual pass is deployed in image `sha256:ee9ee5f40a7b9fc3fcc631df1210c7739942fa1f723d79ab164a71aa14ce04a8`. The previous running image is retained as `ideation-akinator:before-design-20260904`. Health and deployment audits passed after recreation; fresh public browser checks and model hash verification are recorded in [DESIGN-PASS.md](DESIGN-PASS.md).
+The September 4 visual pass previously ran in image `sha256:ee9ee5f40a7b9fc3fcc631df1210c7739942fa1f723d79ab164a71aa14ce04a8`. The previous running image is retained as `ideation-akinator:before-design-20260904`. Health and deployment audits passed after recreation; fresh public browser checks and model hash verification are recorded in [DESIGN-PASS.md](DESIGN-PASS.md).
 
 Keep rollback narrow. If a newly built container does not become healthy, inspect its logs and return to the prior image tag or source commit. The old system service can run the Node build directly, but it should remain disabled while Compose owns port 4187. Never run both at once.
 

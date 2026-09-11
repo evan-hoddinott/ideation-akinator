@@ -1,5 +1,7 @@
 # Internet-history verification
 
+> Deployment update: after this local acceptance, the user authorized commit, push, and deployment. Application commit `796e001` is now live; see [the deployment record](DEPLOYMENT.md#september-11-internet-history-deployment). The local-only statements below describe the original acceptance scope.
+
 Local review on September 11, 2026. This is the acceptance record for `INTERNET-HISTORY-DESIGN.md`, not a deployment record. The application runs at `http://127.0.0.1:5173`. Existing unrelated work remains in the checkout.
 
 ## Verified presentation
