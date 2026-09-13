@@ -1,5 +1,6 @@
 import { parseProjectInterview, type ProjectInterview } from '$lib/interview';
 import { parseBroadResearchResult, type BroadResearchResult } from '$lib/research';
+import { exceedsDeadline } from './deadline';
 
 export const COMPARISON_DIMENSIONS = [
 	'problem-fit',
@@ -43,6 +44,16 @@ export interface ConceptComparison {
 	explanation: string;
 }
 
+export interface ConceptFeatureBlueprint {
+	id: string;
+	name: string;
+	description: string;
+	tier: 'core' | 'recommended' | 'optional';
+	dependencies: string[];
+	dependencyOnly: boolean;
+	scopeImpact: string;
+}
+
 export interface ProjectConcept {
 	id: string;
 	name: string;
@@ -52,6 +63,9 @@ export interface ProjectConcept {
 	problemsAddressed: string[];
 	distinctApproach: string;
 	proposedFeatures: string[];
+	requiredTechnologies?: string[];
+	majorComponents?: string[];
+	featureBlueprint?: ConceptFeatureBlueprint[];
 	highLevelRequirements: string[];
 	implementationOutline: string[];
 	prototypeBudget: MoneyRange;
@@ -165,7 +179,11 @@ export function parseConceptGenerationResult(
 	value: unknown,
 	request?: Pick<
 		ConceptGenerationRequest,
-		'prototypeBudgetUsd' | 'includeProductionPlanning' | 'research' | 'rejectedConcepts'
+		| 'prototypeBudgetUsd'
+		| 'includeProductionPlanning'
+		| 'research'
+		| 'rejectedConcepts'
+		| 'constraints'
 	>
 ): ConceptGenerationResult | null {
 	if (!isRecord(value) || !Array.isArray(value.concepts) || value.concepts.length !== 4)
@@ -179,9 +197,38 @@ export function parseConceptGenerationResult(
 	if (parsed.filter((concept) => concept.isRecommended).length !== 1 || !parsed[0].isRecommended)
 		return null;
 	if (parsed.filter((concept) => concept.isStretch).length !== 1) return null;
-	if (parsed[0].isStretch) return null;
+	if (parsed[0].isStretch || !parsed[3].isStretch) return null;
 
 	if (request) {
+		if (
+			parsed.some((concept) =>
+				exceedsDeadline(concept.prototypeTimeline, request.constraints.deadline)
+			)
+		)
+			return null;
+		if (
+			parsed.some(
+				(concept) =>
+					!concept.requiredTechnologies?.length ||
+					!concept.majorComponents?.length ||
+					!concept.featureBlueprint?.length
+			)
+		)
+			return null;
+		const excluded = (request.constraints.excludedTechnologies ?? '')
+			.split(',')
+			.map((tag) => normalize(tag))
+			.filter(Boolean);
+		if (
+			parsed.some((concept) =>
+				concept.requiredTechnologies?.some((technology) =>
+					excluded.some(
+						(tag) => normalize(technology) === tag || normalize(technology).startsWith(`${tag} `)
+					)
+				)
+			)
+		)
+			return null;
 		const sourceIds = new Set(request.research.sources.map((source) => source.id));
 		if (
 			parsed.some((concept) =>
@@ -258,6 +305,20 @@ function parseConcept(value: unknown): ProjectConcept | null {
 	const majorAssumptions = parseStringArray(value.majorAssumptions, 1, 6, 240, 1_000);
 	const majorRisks = parseStringArray(value.majorRisks, 1, 6, 240, 1_000);
 	const evidenceGaps = parseStringArray(value.evidenceGaps, 0, 6, 240, 1_000);
+	const requiredTechnologies =
+		value.requiredTechnologies === undefined
+			? undefined
+			: parseStringArray(value.requiredTechnologies, 1, 12, 120, 1000);
+	const majorComponents =
+		value.majorComponents === undefined
+			? undefined
+			: parseStringArray(value.majorComponents, 1, 12, 180, 1800);
+	const featureBlueprint =
+		value.featureBlueprint === undefined
+			? undefined
+			: parseFeatureBlueprint(value.featureBlueprint);
+	if (requiredTechnologies === null || majorComponents === null || featureBlueprint === null)
+		return null;
 	const prototypeBudget = parseMoneyRange(value.prototypeBudget);
 	const productionBudget =
 		value.productionBudget === null ? null : parseMoneyRange(value.productionBudget);
@@ -294,6 +355,16 @@ function parseConcept(value: unknown): ProjectConcept | null {
 	) {
 		return null;
 	}
+	if (featureBlueprint) {
+		const featureNames = new Set(
+			featureBlueprint.filter((item) => !item.dependencyOnly).map((item) => normalize(item.name))
+		);
+		if (
+			featureNames.size !== proposedFeatures.length ||
+			proposedFeatures.some((name) => !featureNames.has(normalize(name)))
+		)
+			return null;
+	}
 	const competitors = value.competitors.map(parseCompetitor);
 	const comparison = value.comparison.map(parseComparison);
 	if (competitors.some((entry) => !entry) || comparison.some((entry) => !entry)) return null;
@@ -312,6 +383,9 @@ function parseConcept(value: unknown): ProjectConcept | null {
 		problemsAddressed,
 		distinctApproach: value.distinctApproach.trim(),
 		proposedFeatures,
+		...(requiredTechnologies ? { requiredTechnologies } : {}),
+		...(majorComponents ? { majorComponents } : {}),
+		...(featureBlueprint ? { featureBlueprint } : {}),
 		highLevelRequirements,
 		implementationOutline,
 		prototypeBudget,
@@ -331,6 +405,48 @@ function parseConcept(value: unknown): ProjectConcept | null {
 		sageReason: value.sageReason.trim(),
 		comparison: comparison as ConceptComparison[]
 	};
+}
+
+function parseFeatureBlueprint(value: unknown): ConceptFeatureBlueprint[] | null {
+	if (!Array.isArray(value) || value.length < 3 || value.length > 14) return null;
+	const result: ConceptFeatureBlueprint[] = [];
+	for (const item of value) {
+		if (!isRecord(item)) return null;
+		const dependencies = parseStringArray(item.dependencies, 0, 13, 80, 800);
+		if (
+			!isBoundedString(item.id, 1, 80) ||
+			!isBoundedString(item.name, 1, 100) ||
+			!isBoundedString(item.description, 1, 500) ||
+			!['core', 'recommended', 'optional'].includes(item.tier as string) ||
+			typeof item.dependencyOnly !== 'boolean' ||
+			!isBoundedString(item.scopeImpact, 1, 300) ||
+			!dependencies
+		)
+			return null;
+		result.push({
+			id: item.id,
+			name: item.name,
+			description: item.description,
+			tier: item.tier as ConceptFeatureBlueprint['tier'],
+			dependencies,
+			dependencyOnly: item.dependencyOnly,
+			scopeImpact: item.scopeImpact
+		});
+	}
+	const ids = new Set(result.map((item) => item.id));
+	if (
+		ids.size !== result.length ||
+		!result.some((item) => item.tier === 'core' && !item.dependencyOnly) ||
+		result.some((item) => item.dependencies.some((id) => !ids.has(id) || id === item.id))
+	)
+		return null;
+	const visit = (id: string, path: Set<string>): boolean => {
+		if (path.has(id)) return false;
+		return result
+			.find((item) => item.id === id)!
+			.dependencies.every((dependency) => visit(dependency, new Set([...path, id])));
+	};
+	return result.every((item) => visit(item.id, new Set())) ? result : null;
 }
 
 function parseMoneyRange(value: unknown): MoneyRange | null {

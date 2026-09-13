@@ -288,7 +288,7 @@
 			const researchScene = new THREE.Group();
 			researchScene.add(presentation);
 			scene.add(researchScene);
-			const computer = createWorkstation();
+			const computer = createWorkstation(new THREE.TextureLoader().load('/images/purl/oneko.gif'));
 			researchScene.add(computer.root);
 			computer.root.visible = false;
 			const paperProp = createPaperProp();
@@ -298,6 +298,10 @@
 			const pickupPosition = new THREE.Vector3();
 			const pickupRotation = new THREE.Quaternion();
 			const pickupHands = [new THREE.Vector3(), new THREE.Vector3()];
+			const monitorHands = [new THREE.Vector3(), new THREE.Vector3()];
+			const cameraHome = new THREE.Vector3();
+			const cameraLookHome = new THREE.Vector3(1, -0.1, 0);
+			const screenCenter = new THREE.Vector3();
 
 			const mixer = new THREE.AnimationMixer(sage);
 			const actions: Record<string, AnimationAction> = {};
@@ -444,6 +448,7 @@
 				camera.position.set(0, 0, distance);
 				if (workstation || $heldScroll) {
 					camera.position.set(1, 0.55, Math.max(8.4, 10.5 / camera.aspect));
+					cameraHome.copy(camera.position);
 					camera.lookAt(1, -0.1, 0);
 					camera.near = 0.1;
 					camera.far = 60;
@@ -510,15 +515,34 @@
 					rightHandMarker?.getWorldPosition(pickupHands[1]);
 				}
 				if (phaseKey !== lastWorkstationPhase) {
+					if (phase === 'monitor-grip') {
+						leftHandMarker?.getWorldPosition(monitorHands[0]);
+						rightHandMarker?.getWorldPosition(monitorHands[1]);
+					}
 					lastWorkstationPhase = phaseKey;
 					phaseElapsed = 0;
 				}
-				phaseElapsed += delta;
+				phaseElapsed = scrollElement
+					? phaseElapsed + delta
+					: (workstation?.elapsedSeconds ?? phaseElapsed + delta);
 				computer.root.visible = !!phase && phase !== 'exit' && phase !== 'presenting';
 				presentation.scale.setScalar(1);
 				presentation.position.x = 0;
 				presentation.position.z = 0;
 				presentation.position.y = workstation ? 0 : Math.sin(elapsed * 1.3) * 0.024;
+				// The chair rolls a short distance toward the cart as he reaches for its near side.
+				if (phase && ['monitor-grip', 'monitor-turn', 'desktop-zoom'].includes(phase)) {
+					const reach =
+						phase === 'monitor-grip' ? THREE.MathUtils.smoothstep(phaseElapsed, 0, 0.9) : 1;
+					const turn =
+						phase === 'monitor-grip'
+							? 0
+							: phase === 'desktop-zoom'
+								? 1
+								: THREE.MathUtils.smoothstep(phaseElapsed, 0, 2.2);
+					presentation.position.x = reach * THREE.MathUtils.lerp(0.82, 0.58, turn);
+					presentation.position.z = reach * THREE.MathUtils.lerp(-0.6, -0.1, turn);
+				}
 				const targetTurn =
 					phase && phase !== 'exit' && phase !== 'presenting' && phase !== 'lifting' ? 1.12 : 0;
 				researchTurn += (targetTurn - researchTurn) * Math.min(delta * 4, 1);
@@ -539,6 +563,19 @@
 						Math.sin(phaseElapsed * 10) * 0.018 * Math.max(0, 1 - phaseElapsed);
 				}
 				if (phase) computer.update(phase, elapsed, phaseElapsed);
+				if (workstation?.purpose === 'concepts') {
+					const zoom =
+						phase === 'desktop-zoom' ? THREE.MathUtils.smoothstep(phaseElapsed, 0, 1.8) : 0;
+					researchScene.updateMatrixWorld(true);
+					computer.screen.getWorldPosition(screenCenter);
+					const distance =
+						1.32 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.aspect * 0.96);
+					camera.position
+						.copy(cameraHome)
+						.lerp(screenCenter.clone().add(new THREE.Vector3(0, 0, distance)), zoom);
+					camera.lookAt(cameraLookHome.clone().lerp(screenCenter, zoom));
+					camera.updateMatrixWorld(true);
+				}
 
 				if (voicePulse !== lastVoicePulse) {
 					lastVoicePulse = voicePulse;
@@ -560,6 +597,12 @@
 					);
 					proceduralQuaternion.setFromEuler(proceduralEuler);
 					headBone.quaternion.multiply(proceduralQuaternion);
+					if (phase === 'noticed' || phase === 'printing') {
+						const glance = phase === 'printing' ? 1 : Math.min(phaseElapsed / 0.8, 1);
+						proceduralEuler.set(0.3 * glance, 0.12 * glance, 0, 'XYZ');
+						proceduralQuaternion.setFromEuler(proceduralEuler);
+						headBone.quaternion.multiply(proceduralQuaternion);
+					}
 				}
 				if (spineBone && speaking && !authoredPerformance) {
 					proceduralEuler.set(Math.sin(elapsed * 6.5) * 0.012, 0, 0, 'XYZ');
@@ -642,11 +685,48 @@
 
 				if (phase && computer.root.visible) {
 					researchScene.updateMatrixWorld(true);
-					const typing = actionName === 'research_typing' || actionName === 'research_one_hand';
+					const monitorHeld = ['monitor-grip', 'monitor-turn', 'desktop-zoom'].includes(phase);
+					if (monitorHeld) {
+						const errors: number[] = [];
+						[leftHandMarker, rightHandMarker].forEach((hand, i) => {
+							if (!hand) return;
+							computer.monitorGrips[i].getWorldPosition(contactPoint);
+							if (phase === 'monitor-grip')
+								contactPoint.lerpVectors(
+									monitorHands[i],
+									contactPoint,
+									THREE.MathUtils.smoothstep(phaseElapsed, 0, 0.9)
+								);
+							reachContact(i === 0 ? leftArm : rightArm, hand, contactPoint, 1, 16);
+							errors.push(hand.getWorldPosition(new THREE.Vector3()).distanceTo(contactPoint));
+						});
+						renderCanvas.dataset.monitorGripError = errors
+							.map((value) => value.toFixed(3))
+							.join(',');
+						if (import.meta.env.DEV)
+							renderCanvas.dataset.monitorPose = JSON.stringify({
+								hands: [leftHandMarker, rightHandMarker].map((hand) =>
+									hand?.getWorldPosition(new THREE.Vector3()).toArray()
+								),
+								shoulders: [leftArm.at(-1), rightArm.at(-1)].map((joint) =>
+									joint?.getWorldPosition(new THREE.Vector3()).toArray()
+								),
+								targets: computer.monitorGrips.map((target) =>
+									target.getWorldPosition(new THREE.Vector3()).toArray()
+								)
+							});
+					}
+					const typing =
+						!monitorHeld &&
+						(actionName === 'research_typing' || actionName === 'research_one_hand');
 					const pushing = phase === 'arrival' || phase === 'parking' || phase === 'turning';
 					if (
 						leftHandMarker &&
-						(actionName === 'research_typing' || pushing || actionName === 'research_cable')
+						!monitorHeld &&
+						(actionName === 'research_typing' ||
+							pushing ||
+							actionName === 'research_cable' ||
+							actionName === 'research_complete')
 					) {
 						const target =
 							actionName === 'research_cable'
@@ -655,8 +735,12 @@
 									? computer.targets.pushLeft
 									: computer.targets.left;
 						target.getWorldPosition(contactPoint);
-						if (typing) contactPoint.y += 0.025 * (1 + Math.sin(elapsed * 17));
+						if (typing) contactPoint.y += 0.018 * Math.max(0, Math.sin(elapsed * 14));
 						reachContact(leftArm, leftHandMarker, contactPoint, 1);
+						if ((typing || actionName === 'research_complete') && leftHandMarker.parent) {
+							leftHandMarker.position.copy(leftHandMarker.parent.worldToLocal(contactPoint));
+							leftHandMarker.updateMatrixWorld(true);
+						}
 					}
 					if (
 						rightHandMarker &&
@@ -672,16 +756,30 @@
 									? computer.targets.pushRight
 									: computer.targets.right;
 						target.getWorldPosition(contactPoint);
-						if (typing) contactPoint.y += 0.025 * (1 + Math.cos(elapsed * 17));
+						if (typing) contactPoint.y += 0.018 * Math.max(0, Math.sin(elapsed * 14 + Math.PI));
 						reachContact(rightArm, rightHandMarker, contactPoint, 1);
+						if ((typing || actionName === 'research_complete') && rightHandMarker.parent) {
+							rightHandMarker.position.copy(rightHandMarker.parent.worldToLocal(contactPoint));
+							rightHandMarker.updateMatrixWorld(true);
+						}
 					}
 				}
 				scene.updateMatrixWorld(true);
-				clearHands();
+				if (!phase || !['monitor-grip', 'monitor-turn', 'desktop-zoom'].includes(phase))
+					clearHands();
 				// The same sheet travels from the printer to a camera-facing reading position.
 				// At rest it cuts a depth window to accessible HTML; the model mittens stay in front.
 				const holdingPaper = phase === 'lifting' || phase === 'presenting' || !!scrollElement;
-				carriedPaper.visible = holdingPaper;
+				carriedPaper.visible = holdingPaper || phase === 'printing';
+				// Use the same textured sheet during feed and pickup. The printer plane
+				// supplies its physical slot position but never renders a replacement sheet.
+				if (phase === 'printing') {
+					computer.paper.getWorldPosition(carriedPaper.position);
+					computer.paper.getWorldQuaternion(carriedPaper.quaternion);
+					carriedPaper.scale.set(0.7, 0.76 * computer.paper.scale.y, 1);
+					paperProp.update(false, false);
+				}
+				computer.paper.visible = false;
 
 				if (holdingPaper) {
 					const rect = renderCanvas.getBoundingClientRect();
@@ -704,11 +802,11 @@
 					const end = atScreen(left + width / 2, top + height / 2);
 					const endWidth = atScreen(left, top).distanceTo(atScreen(left + width, top));
 					const endHeight = atScreen(left, top).distanceTo(atScreen(left, top + height));
-					const grip = heldProgress(phaseElapsed, 0.5);
+					const grip = heldProgress(phaseElapsed, 0.8);
 					const raw =
 						phase === 'presenting'
 							? 1
-							: heldProgress(phaseElapsed - (scrollElement ? 0.3 : 0.5), scrollElement ? 1.8 : 2.1);
+							: heldProgress(phaseElapsed - (scrollElement ? 0.3 : 0.8), scrollElement ? 1.8 : 2.6);
 					const travel = raw * raw * (3 - 2 * raw);
 					const opening = scrollElement
 						? Math.max(0.06, heldProgress(phaseElapsed - 0.9, 1, 10))
@@ -748,7 +846,7 @@
 					carriedPaper.position.lerpVectors(pickupPosition, end, travel);
 					carriedPaper.position.y += Math.sin(travel * Math.PI) * 0.35;
 					carriedPaper.quaternion.copy(pickupRotation).slerp(camera.quaternion, travel);
-					if (!reading)
+					if (!reading && travel > 0)
 						carriedPaper.rotateZ(
 							Math.sin((Math.floor(phaseElapsed * 12) / 12) * 8) * 0.045 * (1 - travel)
 						);
@@ -864,7 +962,7 @@
 				renderer.dispose();
 			};
 		} catch (error) {
-			console.warn('Signal Sage 3D fell back to the illustrated portrait.', error);
+			console.warn('Signal Sage 3D fell back to the pixel portrait.', error);
 			modelFailed = true;
 			useFallback = true;
 		}
@@ -880,6 +978,7 @@
 	class:fallback={useFallback}
 	class:ready={modelReady}
 	class:researching={researching || !!workstation}
+	class:concept-performance={workstation?.purpose === 'concepts'}
 	class:resetting
 	data-mood={personality.mood}
 	data-performance={performance ?? 'idle'}
@@ -897,9 +996,9 @@
 			<img
 				class="sage-fallback"
 				class:loading={!useFallback && !modelReady}
-				src={`/images/sage/${personality.mood}.webp`}
+				src={`/images/sage-pixel/${personality.mood}.svg`}
 				alt={useFallback
-					? 'The Signal Sage, shown as an illustrated CRT wizard because calm mode or the 3D fallback is active'
+					? 'The Signal Sage, shown as a pixel portrait because calm mode or the 3D fallback is active'
 					: ''}
 			/>
 		{/if}
@@ -975,10 +1074,18 @@
 	   performance instead of a giant canvas colliding with the workstation. */
 	.live-sage-stage.researching {
 		left: 0;
-		top: 30px;
+		top: 0;
 		width: 100vw;
-		height: calc(100dvh - 160px);
+		height: 100dvh;
 		transform: none;
+		transition: none;
+	}
+	:global(.app-frame[data-stage='concepts']) .live-sage-stage.concept-performance {
+		left: 0;
+		top: 0;
+		width: 100vw;
+		height: 100dvh;
+		transition: none;
 	}
 
 	:global(.app-frame) .live-sage-stage.holding-paper {
@@ -1051,16 +1158,22 @@
 		position: absolute;
 		left: 50%;
 		top: 50%;
-		max-width: 72%;
-		max-height: 88%;
+		width: 256px;
+		height: 256px;
 		object-fit: contain;
-		filter: drop-shadow(0 22px 24px #000a);
+		image-rendering: pixelated;
+		box-shadow: 8px 8px #49404f;
 		transform: translate(-50%, -50%);
 	}
 
 	.sage-fallback.loading {
 		opacity: 0.48;
-		filter: grayscale(0.5) drop-shadow(0 22px 24px #000a);
+	}
+	@media (max-width: 760px) {
+		.sage-fallback {
+			width: 128px;
+			height: 128px;
+		}
 	}
 
 	.joke-popup {

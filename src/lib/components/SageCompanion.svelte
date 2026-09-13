@@ -36,7 +36,7 @@
 
 	<div class="companion-body">
 		<div class="companion-portrait">
-			<img src={`/images/sage/${personality.mood}.webp`} alt="" />
+			<img src={`/images/sage-pixel/${personality.mood}.svg`} alt="" />
 			<span class="mood-readout">MOOD: {personality.mood}</span>
 		</div>
 		<div class="companion-dialogue" aria-live="polite">

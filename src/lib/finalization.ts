@@ -28,7 +28,10 @@ export interface SelectedFeatureInput {
 	dependencies: string[];
 }
 
+export type DeferredFeatureInput = Pick<SelectedFeatureInput, 'id' | 'name' | 'description'>;
+
 export interface SelectedConceptInput {
+	isStretch?: boolean;
 	id: string;
 	name: string;
 	pitch: string;
@@ -46,6 +49,7 @@ export interface FocusedResearchRequest {
 	problems: string[];
 	selectedConcept: SelectedConceptInput;
 	includedFeatures: SelectedFeatureInput[];
+	deferredFeatures?: DeferredFeatureInput[];
 	constraints: Record<string, string>;
 	prototypeBudgetUsd: number;
 	includeProductionPlanning: boolean;
@@ -94,7 +98,15 @@ export interface FocusedResearchGap {
 	reason: string;
 }
 
+export interface MaterialConflict {
+	id: string;
+	kind: 'budget' | 'technology' | 'deadline' | 'scope' | 'other';
+	description: string;
+	sourceIds: string[];
+}
+
 export interface FocusedResearchResult {
+	materialConflicts?: MaterialConflict[];
 	summary: string;
 	verdict: FocusedVerdict;
 	verdictRationale: string;
@@ -177,6 +189,7 @@ export interface FinalProjectPlan {
 	oneLineSummary: string;
 	executiveSummary: string;
 	confirmedFeatures: SelectedFeatureInput[];
+	deferredFeatures?: DeferredFeatureInput[];
 	prototypeBudget: MoneyRange;
 	productionBudget: MoneyRange | null;
 	prototypeTimeline: string;
@@ -200,6 +213,8 @@ export interface FinalRecalculationRequest extends FocusedResearchRequest {
 }
 
 export interface ProjectFinalization {
+	planStatus?: 'idle' | 'running' | 'failed' | 'ready';
+	printPresented?: boolean;
 	configurationFingerprint: string | null;
 	research: {
 		jobId: string | null;
@@ -211,6 +226,8 @@ export interface ProjectFinalization {
 
 export function createProjectFinalization(): ProjectFinalization {
 	return {
+		planStatus: 'idle',
+		printPresented: false,
 		configurationFingerprint: null,
 		research: { jobId: null, status: 'idle', result: null },
 		plan: null
@@ -221,10 +238,14 @@ export function finalizationFingerprint(
 	conceptId: string,
 	features: Array<
 		Pick<SelectedFeatureInput, 'id' | 'name' | 'description' | 'tier' | 'dependencies'>
-	>
+	>,
+	deferredFeatures: DeferredFeatureInput[] = []
 ): string {
 	return JSON.stringify({
 		conceptId,
+		...(deferredFeatures.length
+			? { deferredFeatures: [...deferredFeatures].sort((a, b) => a.id.localeCompare(b.id)) }
+			: {}),
 		features: features
 			.map((feature) => ({
 				id: feature.id,
@@ -242,6 +263,12 @@ export function parseFocusedResearchRequest(value: unknown): FocusedResearchRequ
 	const problems = parseStringArray(value.problems, 1, 50, 2_000, 12_000);
 	const selectedConcept = parseSelectedConcept(value.selectedConcept);
 	const includedFeatures = parseSelectedFeatures(value.includedFeatures);
+	const deferredFeatures = parseDeferredFeatures(value.deferredFeatures ?? []);
+	if (
+		!deferredFeatures ||
+		deferredFeatures.some((feature) => includedFeatures?.some((item) => item.id === feature.id))
+	)
+		return null;
 	const constraints = parseConstraints(value.constraints);
 	const broadResearch = parseBroadResearchResult(value.broadResearch);
 	if (
@@ -265,6 +292,7 @@ export function parseFocusedResearchRequest(value: unknown): FocusedResearchRequ
 		problems,
 		selectedConcept,
 		includedFeatures,
+		...(value.deferredFeatures !== undefined ? { deferredFeatures } : {}),
 		constraints,
 		prototypeBudgetUsd: value.prototypeBudgetUsd,
 		includeProductionPlanning: value.includeProductionPlanning,
@@ -278,6 +306,31 @@ export function parseFocusedResearchResult(
 	request?: Pick<FocusedResearchRequest, 'includedFeatures'>
 ): FocusedResearchResult | null {
 	if (!isRecord(value)) return null;
+	const materialConflicts = parseArray<MaterialConflict>(
+		value.materialConflicts ?? [],
+		0,
+		10,
+		(item) => {
+			if (!isRecord(item)) return null;
+			const sourceIds = parseStringArray(item.sourceIds, 1, 5, 100, 500);
+			return isBoundedString(item.id, 1, 100) &&
+				['budget', 'technology', 'deadline', 'scope', 'other'].includes(String(item.kind)) &&
+				isBoundedString(item.description, 1, 800) &&
+				sourceIds
+				? {
+						id: item.id,
+						kind: item.kind as MaterialConflict['kind'],
+						description: item.description.trim(),
+						sourceIds
+					}
+				: null;
+		}
+	);
+	if (
+		!materialConflicts ||
+		new Set(materialConflicts.map((item) => item.id)).size !== materialConflicts.length
+	)
+		return null;
 	const findings = parseArray(value.findings, 1, 30, parseFocusedFinding);
 	const featureOverlap = parseArray(value.featureOverlap, 1, 40, parseFeatureOverlap);
 	const competitorMatrix = parseArray(value.competitorMatrix, 1, 12, parseCompetitorRow);
@@ -304,6 +357,7 @@ export function parseFocusedResearchResult(
 	const sourceIds = new Set(sources.map((source) => source.id));
 	if (sourceIds.size !== sources.length) return null;
 	const referenced = [
+		...materialConflicts.flatMap((conflict) => conflict.sourceIds),
 		...findings.flatMap((finding) => finding.sourceIds),
 		...featureOverlap.flatMap((overlap) => overlap.sourceIds),
 		...competitorMatrix.flatMap((competitor) => competitor.sourceIds)
@@ -320,6 +374,7 @@ export function parseFocusedResearchResult(
 	}
 
 	return {
+		...(value.materialConflicts !== undefined ? { materialConflicts } : {}),
 		summary: value.summary.trim(),
 		verdict: value.verdict,
 		verdictRationale: value.verdictRationale.trim(),
@@ -377,11 +432,26 @@ export function parseFinalProjectPlan(
 	value: unknown,
 	request?: Pick<
 		FinalRecalculationRequest,
-		'selectedConcept' | 'includedFeatures' | 'includeProductionPlanning' | 'focusedResearch'
+		| 'selectedConcept'
+		| 'includedFeatures'
+		| 'deferredFeatures'
+		| 'includeProductionPlanning'
+		| 'focusedResearch'
 	>
 ): FinalProjectPlan | null {
 	if (!isRecord(value)) return null;
 	const confirmedFeatures = parseSelectedFeatures(value.confirmedFeatures);
+	const deferredFeatures = parseDeferredFeatures(value.deferredFeatures ?? []);
+	if (
+		!deferredFeatures ||
+		deferredFeatures.some((feature) => confirmedFeatures?.some((item) => item.id === feature.id))
+	)
+		return null;
+	if (
+		request &&
+		JSON.stringify(deferredFeatures) !== JSON.stringify(request.deferredFeatures ?? [])
+	)
+		return null;
 	const prototypeBudget = parseMoneyRange(value.prototypeBudget);
 	const productionBudget =
 		value.productionBudget === null ? null : parseMoneyRange(value.productionBudget);
@@ -486,6 +556,7 @@ export function parseFinalProjectPlan(
 		oneLineSummary: value.oneLineSummary.trim(),
 		executiveSummary: value.executiveSummary.trim(),
 		confirmedFeatures,
+		...(value.deferredFeatures !== undefined ? { deferredFeatures } : {}),
 		prototypeBudget,
 		productionBudget,
 		prototypeTimeline: value.prototypeTimeline.trim(),
@@ -515,6 +586,9 @@ export function parseProjectFinalization(value: unknown): ProjectFinalization | 
 		(value.configurationFingerprint !== null &&
 			typeof value.configurationFingerprint !== 'string') ||
 		(value.research.jobId !== null && typeof value.research.jobId !== 'string') ||
+		(value.planStatus !== undefined &&
+			!['idle', 'running', 'failed', 'ready'].includes(String(value.planStatus))) ||
+		(value.printPresented !== undefined && typeof value.printPresented !== 'boolean') ||
 		(status !== 'idle' && !isResearchStatus(status)) ||
 		(value.research.result !== null && !result) ||
 		(value.plan !== null && !plan) ||
@@ -522,6 +596,10 @@ export function parseProjectFinalization(value: unknown): ProjectFinalization | 
 	)
 		return null;
 	return {
+		...(value.planStatus !== undefined
+			? { planStatus: value.planStatus as ProjectFinalization['planStatus'] }
+			: {}),
+		...(value.printPresented !== undefined ? { printPresented: value.printPresented } : {}),
 		configurationFingerprint: value.configurationFingerprint,
 		research: { jobId: value.research.jobId, status, result },
 		plan
@@ -535,6 +613,7 @@ function parseSelectedConcept(value: unknown): SelectedConceptInput | null {
 		value.productionBudget === null ? null : parseMoneyRange(value.productionBudget);
 	return isBoundedString(value.id, 1, 100) &&
 		isBoundedString(value.name, 2, 100) &&
+		(value.isStretch === undefined || typeof value.isStretch === 'boolean') &&
 		isBoundedString(value.pitch, 8, 240) &&
 		isBoundedString(value.description, 20, 1_200) &&
 		isBoundedString(value.targetUser, 3, 300) &&
@@ -545,6 +624,7 @@ function parseSelectedConcept(value: unknown): SelectedConceptInput | null {
 		? {
 				id: value.id.trim(),
 				name: value.name.trim(),
+				...(value.isStretch !== undefined ? { isStretch: value.isStretch } : {}),
 				pitch: value.pitch.trim(),
 				description: value.description.trim(),
 				targetUser: value.targetUser.trim(),
@@ -554,6 +634,18 @@ function parseSelectedConcept(value: unknown): SelectedConceptInput | null {
 				prototypeTimeline: value.prototypeTimeline.trim()
 			}
 		: null;
+}
+
+function parseDeferredFeatures(value: unknown): DeferredFeatureInput[] | null {
+	const parsed = parseArray<DeferredFeatureInput>(value, 0, 40, (item) =>
+		isRecord(item) &&
+		isBoundedString(item.id, 1, 100) &&
+		isBoundedString(item.name, 1, 120) &&
+		isBoundedString(item.description, 1, 500)
+			? { id: item.id.trim(), name: item.name.trim(), description: item.description.trim() }
+			: null
+	);
+	return parsed && new Set(parsed.map((item) => item.id)).size === parsed.length ? parsed : null;
 }
 
 function parseSelectedFeatures(value: unknown): SelectedFeatureInput[] | null {

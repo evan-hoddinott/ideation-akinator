@@ -88,9 +88,22 @@ export function createPaperProp() {
 		root.add(roller);
 		return roller;
 	});
+	// Printed marks stay on the travelling sheet until its readable HTML opens.
+	const ink = new THREE.Group();
+	const inkMaterial = new THREE.MeshBasicMaterial({ color: 0x343946, side: THREE.DoubleSide });
+	const inkGeometry = new THREE.PlaneGeometry(1, 1);
+	for (let row = 0; row < 11; row++) {
+		const mark = new THREE.Mesh(inkGeometry, inkMaterial);
+		mark.scale.set(row === 0 ? 0.46 : row % 4 === 0 ? 0.42 : 0.74, row === 0 ? 0.027 : 0.008, 1);
+		mark.position.set(row === 0 ? -0.14 : row % 4 === 0 ? -0.16 : 0, 0.36 - row * 0.061, 0.035);
+		ink.add(mark);
+	}
+	root.add(ink);
 	return {
 		root,
 		update(reading: boolean, scroll: boolean, opening = 1) {
+			material.color.setHex(scroll ? 0xf1dfb7 : 0xffffff);
+			ink.visible = !reading && !scroll;
 			sheet.visible = !reading;
 			rim.visible = reading;
 			window.visible = reading;
@@ -117,6 +130,8 @@ export function createPaperProp() {
 			material.dispose();
 			windowMaterial.dispose();
 			rollerMaterial.dispose();
+			inkMaterial.dispose();
+			inkGeometry.dispose();
 		}
 	};
 }

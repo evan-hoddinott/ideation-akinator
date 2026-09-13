@@ -1,29 +1,22 @@
 <script lang="ts">
-	import type { WorkstationView } from '$lib/workstation-3d';
-	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
-	import ProjectReportViewer from '$lib/components/ProjectReport.svelte';
-	import ScoreRoom from '$lib/components/ScoreRoom.svelte';
-	import SageDialogue from '$lib/components/SageDialogue.svelte';
-	import SummonedScroll from '$lib/components/SummonedScroll.svelte';
-	import type {
-		ProjectFinalization,
-		SelectedConceptInput,
-		SelectedFeatureInput
-	} from '$lib/finalization';
+	import ResearchWorkstation from './ResearchWorkstation.svelte';
+	import ProjectReportViewer from './ProjectReport.svelte';
+	import ScoreRoom from './ScoreRoom.svelte';
+	import { finalizationConflicts } from '$lib/finalization-flow';
+	import type { FocusedResearchRequest, ProjectFinalization } from '$lib/finalization';
 	import type { SagePersonality } from '$lib/personality';
 	import type { ProjectReport } from '$lib/report';
-	import type { SageVoiceProfile } from '$lib/rpg-dialogue';
 	import type { ProjectSession } from '$lib/project-state';
 	import type { OracleEffect } from '$lib/oracle-audio';
 	import type { SageClip, SageScreenAnchors } from '$lib/sage-stage';
+	import type { WorkstationView } from '$lib/workstation-3d';
 
 	let {
 		project,
-		concept,
-		features,
+		paused = false,
+		input,
 		finalization,
 		personality,
-		altitude,
 		researchBusy,
 		planBusy,
 		report,
@@ -34,10 +27,12 @@
 		onCancelResearch,
 		onSkipResearch,
 		onGeneratePlan,
+		onCancelPlan,
 		onDownloadPdf,
 		onBack,
-		onSpeakCharacter,
-		onSpeakingChange,
+		onEditLimits,
+		onPrintComplete,
+		onNewRun,
 		anchors = null,
 		onPerformanceChange = () => {},
 		onWorkstationChange = () => {},
@@ -45,11 +40,10 @@
 		onEffect = () => {}
 	}: {
 		project: ProjectSession;
-		concept: SelectedConceptInput;
-		features: SelectedFeatureInput[];
+		paused?: boolean;
+		input: FocusedResearchRequest;
 		finalization: ProjectFinalization;
 		personality: SagePersonality;
-		altitude: number;
 		researchBusy: boolean;
 		planBusy: boolean;
 		report: ProjectReport | null;
@@ -60,603 +54,571 @@
 		onCancelResearch: () => void;
 		onSkipResearch: () => void;
 		onGeneratePlan: () => void;
+		onCancelPlan: () => void;
 		onDownloadPdf: () => void;
 		onBack: () => void;
-		onSpeakCharacter: (profile: SageVoiceProfile) => void;
-		onSpeakingChange: (speaking: boolean) => void;
+		onEditLimits: () => void;
+		onPrintComplete: () => void;
+		onNewRun: () => void;
 		anchors?: SageScreenAnchors | null;
 		onPerformanceChange?: (performance: SageClip | null) => void;
 		onWorkstationChange?: (view: WorkstationView | null) => void;
 		workstationFallback?: boolean;
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
-	const projectId = $derived(project.id);
-
-	let researchOpen = $state(false);
-	let researchPerformanceOpen = $state(false);
-	let researchPerformanceSkipped = $state(false);
-	let researchWasActive = false;
-	let planOpen = $state(false);
 	let reportOpen = $state(false);
-	const active = $derived(
-		finalization.research.status === 'queued' || finalization.research.status === 'running'
-	);
 	const result = $derived(finalization.research.result);
 	const plan = $derived(finalization.plan);
-	const verdictLabels = {
-		supported: 'THE SIGNAL HOLDS',
-		caution: 'PROCEED, BUT WEAR A HELMET',
-		weakened: 'THE PROPHECY HAS A CRACK'
-	} as const;
+	const conflicts = $derived(finalizationConflicts(input, finalization));
+	const active = $derived(
+		researchBusy || ['queued', 'running'].includes(finalization.research.status)
+	);
+	const busy = $derived(active || planBusy);
+	const ready = $derived(!!plan && !!report && conflicts.length === 0);
+	const source = (id: string) => result?.sources.find((item) => item.id === id);
 	const money = (value: number) =>
 		new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
 			maximumFractionDigits: 0
 		}).format(value);
-	const source = (id: string) => result?.sources.find((entry) => entry.id === id);
-
-	$effect(() => {
-		if (active && !researchWasActive) {
-			researchPerformanceOpen = true;
-			researchPerformanceSkipped = false;
-		}
-		researchWasActive = active;
-	});
-
-	function beginResearch() {
-		researchPerformanceOpen = true;
-		researchPerformanceSkipped = false;
-		onStartResearch();
-	}
-
-	function skipResearchPerformance() {
-		researchPerformanceOpen = false;
-		researchPerformanceSkipped = true;
-		onSkipResearch();
-	}
+	const heading = $derived(
+		conflicts.length
+			? 'This build needs a decision'
+			: finalization.planStatus === 'failed'
+				? 'The final plan paused'
+				: planBusy
+					? 'Updating the plan and estimates'
+					: result
+						? 'Evidence checked. Preparing your plan.'
+						: 'Checking your chosen build'
+	);
 </script>
 
-{#if finalization.research.status === 'idle'}
-	<SageDialogue
-		{altitude}
-		{personality}
-		label="FOCUSED RESEARCH"
-		meta={`${features.length} confirmed features`}
-		prompt={`Ready to test the exact ${concept.name} feature set before I write the final plan?`}
-		{onSpeakCharacter}
-		{onSpeakingChange}
-	>
-		<div class="finalization-dialogue">
-			<p>
-				This second, paid research pass checks your selected concept and features against
-				competitors, constraints, contrary evidence, and cost assumptions. Afterward, I will
-				recalculate the plan and produce the final report.
-			</p>
-			<div class="sealed-config">
-				<b>{concept.name}</b>{#each features as feature (feature.id)}<span>{feature.name}</span
-					>{/each}
-			</div>
-			{#if message}<p class="room-warning" role="alert">{message}</p>{/if}
-			<div class="room-actions">
-				<button type="button" class="secondary" onclick={onBack}>Return to workshop</button><button
-					type="button"
-					class="primary"
-					disabled={researchBusy}
-					onclick={beginResearch}
-					>{researchBusy ? 'Preparing focused research...' : 'Start focused research'}</button
-				>
-			</div>
-		</div>
-	</SageDialogue>
-{:else if active || (result && researchPerformanceOpen)}
-	<ResearchWorkstation
-		active={true}
-		calm={personality.calmMode || researchPerformanceSkipped || workstationFallback}
-		{projectId}
-		task="focused"
-		{message}
-		sourceCount={result?.sources.length ?? 0}
-		complete={!!result}
-		summary={result?.summary ?? ''}
-		findings={result?.findings ?? []}
-		gaps={result?.gaps ?? []}
-		findingCount={result?.findings.length ?? 0}
-		gapCount={result?.gaps.length ?? 0}
-		verdict={result?.verdict ?? ''}
-		onCancel={onCancelResearch}
-		onInspect={() => {
-			researchPerformanceOpen = false;
-			researchOpen = true;
-		}}
-		onContinue={() => (researchPerformanceOpen = false)}
-		onSkip={skipResearchPerformance}
-		{anchors}
-		{onWorkstationChange}
-		{onPerformanceChange}
+{#if ready && finalization.printPresented}
+	<ScoreRoom
+		{project}
+		{paused}
+		downloading={pdfBusy}
+		message={pdfMessage}
+		onInspect={() => (reportOpen = true)}
+		onDownload={onDownloadPdf}
+		{onNewRun}
 		{onEffect}
 	/>
-{:else if result}
-	{#if plan && report}
-		<ScoreRoom
-			{project}
-			downloading={pdfBusy}
-			message={pdfMessage}
-			onInspect={() => (reportOpen = true)}
-			onDownload={onDownloadPdf}
-			{onEffect}
-		/>
-	{:else}
-		<SageDialogue
-			{altitude}
-			{personality}
-			mode="announce"
-			label={verdictLabels[result.verdict]}
-			meta={`${result.sources.length} focused sources`}
-			prompt={result.verdict === 'weakened'
-				? 'The evidence weakened this configuration. Review why before generating the final plan.'
-				: 'The focused check is complete. Review the evidence, then generate the final plan.'}
-			{onSpeakCharacter}
-			{onSpeakingChange}
-		>
-			<div class="finalization-dialogue">
-				<p>{result.summary}</p>
-				<div class={`verdict verdict-${result.verdict}`}>
-					<b>{result.verdict}</b><span>{result.verdictRationale}</span>
-				</div>
-				{#if message}<p class="room-warning" role="alert">{message}</p>{/if}
-				<div class="room-actions">
-					<button type="button" class="secondary" onclick={() => (researchOpen = true)}
-						>Inspect focused research</button
-					>
-					{#if plan}
-						<button type="button" class="secondary" onclick={() => (planOpen = true)}
-							>Inspect recalculation</button
-						>{#if report}<button type="button" class="primary" onclick={() => (reportOpen = true)}
-								>Open finished prophecy</button
-							>{/if}
-					{:else}
-						<button type="button" class="primary" disabled={planBusy} onclick={onGeneratePlan}
-							>{planBusy ? 'Building the final plan...' : 'Generate the final project plan'}</button
-						>
-					{/if}
-				</div>
-			</div>
-		</SageDialogue>
-
-		<SummonedScroll
-			open={researchOpen}
-			title="The configured-project investigation"
-			kicker={`${result.sources.length} FOCUSED SOURCES BOUND`}
-			onClose={() => (researchOpen = false)}
-			{onPerformanceChange}
-			{onEffect}
-		>
-			<div class="research-scroll">
-				<div class={`scroll-verdict verdict-${result.verdict}`}>
-					<span>{result.verdict}</span>
-					<p>{result.verdictRationale}</p>
-				</div>
-				<h3>Feature overlap</h3>
-				{#each result.featureOverlap as overlap (overlap.featureId)}
-					{@const feature = features.find((entry) => entry.id === overlap.featureId)}
-					<article>
-						<header><b>{feature?.name ?? overlap.featureId}</b><i>{overlap.status}</i></header>
-						<p>{overlap.explanation}</p>
-						<div>
-							{#each overlap.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
-										href={item.url}
-										target="_blank"
-										rel="external noreferrer">{item.title}</a
-									>{/if}{/each}
-						</div>
-					</article>
-				{/each}
-				<h3>Competitor matrix</h3>
-				{#each result.competitorMatrix as competitor (competitor.name)}<article>
-						<header><b>{competitor.name}</b><i>{competitor.type}</i></header>
-						<p>{competitor.comparison}</p>
-						<small>Overlaps: {competitor.overlappingFeatures.join(', ') || 'none found'}</small
-						><small>Missing: {competitor.missingFeatures.join(', ') || 'none found'}</small>
-						<div>
-							{#each competitor.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
-										href={item.url}
-										target="_blank"
-										rel="external noreferrer">{item.title}</a
-									>{/if}{/each}
-						</div>
-					</article>{/each}
-				<h3>Evidence</h3>
-				{#each result.findings as finding (finding.id)}<article>
-						<header><b>{finding.title}</b><i>{finding.category}</i></header>
-						<p>{finding.claim}</p>
-						{#if finding.interpretation}<p>
-								<strong>What it changes:</strong>
-								{finding.interpretation}
-							</p>{/if}
-						<div>
-							{#each finding.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
-										href={item.url}
-										target="_blank"
-										rel="external noreferrer">{item.title}</a
-									>{/if}{/each}
-						</div>
-					</article>{/each}
-				<h3>Recommendations, not silent edits</h3>
-				<ul>
-					{#each result.recommendations as recommendation (recommendation)}<li>
-							{recommendation}
-						</li>{/each}
-				</ul>
-				{#if result.gaps.length}<h3>Named gaps</h3>
-					<ul>
-						{#each result.gaps as gap (`${gap.category}-${gap.reason}`)}<li>
-								<b>{gap.category}:</b>
-								{gap.reason}
-							</li>{/each}
-					</ul>{/if}
-				<details>
-					<summary>Focused source ledger ({result.sources.length})</summary>
-					<ol>
-						{#each result.sources as item (item.id)}<li>
-								<a href={item.url} target="_blank" rel="external noreferrer">{item.title}</a><small
-									>{item.publisher} · {item.publicationDate ?? 'date unknown'}</small
-								>
-								<p>{item.evidenceSummary}</p>
-							</li>{/each}
-					</ol>
-				</details>
-				<p>{result.disclaimer}</p>
-			</div>
-		</SummonedScroll>
-
-		{#if plan}
-			<SummonedScroll
-				open={planOpen}
-				title={`${plan.productName}: recalculated project file`}
-				kicker="FINAL NUMBERS BEFORE THE PDF FORGE"
-				onClose={() => (planOpen = false)}
-				{onPerformanceChange}
-				{onEffect}
-			>
-				<div class="plan-scroll">
-					{#if plan.materialWarning}<div class="material-warning">
-							<b>Material warning</b>
-							<p>{plan.materialWarning}</p>
-						</div>{/if}
-					<p class="plan-lede">{plan.oneLineSummary}</p>
-					<p>{plan.executiveSummary}</p>
-					<div class="plan-numbers">
-						<div>
-							<span>Prototype</span><b
-								>{money(plan.prototypeBudget.minimumUsd)} to {money(
-									plan.prototypeBudget.maximumUsd
-								)}</b
-							>
-						</div>
-						<div><span>Timeline</span><b>{plan.prototypeTimeline}</b></div>
-						<div><span>Difficulty</span><b>{plan.technicalDifficulty}</b></div>
-					</div>
-					<h3>Confirmed features</h3>
-					<ul>
-						{#each plan.confirmedFeatures as feature (feature.id)}<li>
-								<b>{feature.name}</b>
-								{feature.description}
-							</li>{/each}
-					</ul>
-					<h3>Functional requirements</h3>
-					{#each plan.functionalRequirements as requirement (requirement.id)}<article>
-							<b>{requirement.id} · {requirement.name}</b>
-							<p>{requirement.description}</p>
-							<ul>
-								{#each requirement.acceptanceCriteria as criterion (criterion)}<li>
-										{criterion}
-									</li>{/each}
-							</ul>
-						</article>{/each}
-					<h3>Nonfunctional requirements</h3>
-					{#each plan.nonfunctionalRequirements as requirement (`${requirement.category}-${requirement.measure}`)}<article
-						>
-							<b>{requirement.category}</b>
-							<p>{requirement.requirement}</p>
-							<small>Measure: {requirement.measure}</small>
-						</article>{/each}
-					<h3>Technology and hardware</h3>
-					{#each plan.technologyRecommendations as item (item.area)}<article>
-							<b>{item.area}: {item.choice}</b>
-							<p>{item.rationale}</p>
-						</article>{/each}{#if plan.hardwareManufacturingRequirements.length}<ul>
-							{#each plan.hardwareManufacturingRequirements as item (item)}<li>{item}</li>{/each}
-						</ul>{:else}<p>
-							No dedicated hardware or manufacturing work is required for this configuration.
-						</p>{/if}
-					<h3>Risks</h3>
-					{#each plan.risks as risk (risk.risk)}<article>
-							<b>{risk.risk}</b>
-							<p>{risk.mitigation}</p>
-						</article>{/each}
-					<h3>Validation plan</h3>
-					{#each plan.validationSteps as step (step.hypothesis)}<article>
-							<b>{step.hypothesis}</b>
-							<p>{step.method}</p>
-							<small>Success: {step.successSignal}</small>
-						</article>{/each}
-					<h3>Development phases</h3>
-					<ol>
-						{#each plan.developmentPhases as phase (phase.name)}<li>
-								<b>{phase.name}</b>
-								<p>{phase.goal}</p>
-								<ul>
-									{#each phase.deliverables as item (item)}<li>{item}</li>{/each}
-								</ul>
-							</li>{/each}
-					</ol>
-					{#if report}<div class="pdf-future ready">
-							<b>THE PDF FORGE IS HOT</b><span
-								>The finished browser report and cited PDF use this exact recalculated file.</span
-							><button type="button" onclick={() => (reportOpen = true)}
-								>Open finished report</button
-							>
-						</div>{/if}
-				</div>
-			</SummonedScroll>
-		{/if}
-	{/if}
-	{#if report}
-		<ProjectReportViewer
-			open={reportOpen}
-			{report}
-			allowDownload={false}
-			downloading={pdfBusy}
-			message={pdfMessage}
-			onClose={() => (reportOpen = false)}
-			onDownload={onDownloadPdf}
-		/>
-	{/if}
+{:else if ready && plan}
+	<ResearchWorkstation
+		active={true}
+		{paused}
+		calm={personality.calmMode || workstationFallback}
+		projectId={project.id}
+		task="focused"
+		finalDocument={true}
+		complete={true}
+		message="Your final plan is saved. Printing the finished document."
+		summary={`${plan.productName}: ${plan.oneLineSummary}`}
+		sourceCount={result?.sources.length ?? 0}
+		onCancel={onPrintComplete}
+		onContinue={onPrintComplete}
+		onSkip={onPrintComplete}
+		{anchors}
+		{onPerformanceChange}
+		{onWorkstationChange}
+		{onEffect}
+	/>
 {:else}
-	<SageDialogue
-		{altitude}
-		{personality}
-		mode="announce"
-		label="THE SECOND SIGNAL BROKE"
-		prompt={message || 'The large computer has betrayed the chosen prophecy.'}
-		{onSpeakCharacter}
-		{onSpeakingChange}
-	>
-		<div class="finalization-dialogue">
-			<p>Your selected concept and confirmed features are still saved.</p>
-			<div class="room-actions">
-				<button type="button" class="secondary" onclick={onBack}>Return to workshop</button><button
-					type="button"
-					class="primary"
-					onclick={onStartResearch}>Try a fresh pass</button
-				>
+	<section class="final-desktop" aria-label="Purl OS project workspace">
+		<div class="desktop-label" aria-hidden="true">PURL OS · PROJECT WORKSPACE</div>
+		<section class="project-window" aria-labelledby="finalization-heading">
+			<header class="window-title">
+				<span>▣ {input.selectedConcept.name} / Finalize</span><span aria-hidden="true">▱</span>
+			</header>
+			<div class="workspace-body">
+				<aside>
+					<small>CONFIRMED FIRST VERSION</small>
+					<h2>{input.selectedConcept.name}</h2>
+					<ul>
+						{#each input.includedFeatures as feature (feature.id)}<li>{feature.name}</li>{/each}
+					</ul>
+					{#if input.deferredFeatures?.length}<details>
+							<summary>Later roadmap ({input.deferredFeatures.length})</summary>
+							<ul>
+								{#each input.deferredFeatures as feature (feature.id)}<li>{feature.name}</li>{/each}
+							</ul>
+							<p>Excluded from prototype estimates.</p>
+						</details>{/if}
+					<div class="limit">
+						<small>PROTOTYPE LIMIT</small><b>{money(input.prototypeBudgetUsd)}</b>
+					</div>
+					{#if input.selectedConcept.isStretch}<p class="stretch">
+							Chosen stretch concept. Disclosed estimate: {money(
+								input.selectedConcept.prototypeBudget.minimumUsd
+							)}–{money(input.selectedConcept.prototypeBudget.maximumUsd)}.
+						</p>{/if}
+					<p class="saved">Your configuration and completed research are saved in this browser.</p>
+				</aside>
+				<main>
+					<ol class="steps" aria-label="Finalization progress">
+						<li class:done={!!result} class:current={!result}>
+							<b>{result ? '✓' : '1'}</b><span>Check evidence</span>
+						</li>
+						<li class:done={!!plan} class:current={!!result && !plan}>
+							<b>{plan ? '✓' : '2'}</b><span>Update plan & estimates</span>
+						</li>
+						<li><b>3</b><span>Print final plan</span></li>
+					</ol>
+					<h1 id="finalization-heading">{heading}</h1>
+					{#if conflicts.length}
+						<div class="conflicts" role="alert">
+							<p>
+								The evidence conflicts with the chosen build. Your features have stayed as you
+								selected them.
+							</p>
+							{#each conflicts as conflict (conflict.id)}<article>
+									<b>{conflict.kind}</b>
+									<p>{conflict.description}</p>
+									{#each conflict.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
+												href={item.url}
+												target="_blank"
+												rel="external noreferrer">{item.title}</a
+											>{/if}{/each}
+								</article>{/each}
+							<p>
+								Revise the first version, choose another concept, or explicitly edit your limits.
+								Updated choices will need a new check.
+							</p>
+						</div>
+					{:else if busy}
+						<p role="status">
+							{message ||
+								'The Sage is checking your chosen features and the assumptions behind them.'}
+						</p>
+						<div class="work-indicator" aria-hidden="true">
+							<i></i><span
+								>{planBusy
+									? 'Writing requirements, costs, risks and validation steps…'
+									: 'Checking sources, dependencies and constraints…'}</span
+							>
+						</div>
+					{:else if finalization.planStatus === 'failed'}
+						<p class="error" role="alert">
+							{message ||
+								'The final plan was interrupted. Your completed research is saved. Retry only the plan.'}
+						</p>
+					{:else if ['failed', 'cancelled'].includes(finalization.research.status)}
+						<p class="error" role="alert">
+							{message ||
+								'The research did not finish. Your concept and feature choices are saved.'}
+						</p>
+					{:else}<p role="status">{message || 'Starting the final check…'}</p>{/if}
+					{#if result}
+						<details class="evidence">
+							<summary>Evidence and open questions · {result.sources.length} sources</summary>
+							<p>{result.summary}</p>
+							<p><b>{result.verdict}:</b> {result.verdictRationale}</p>
+							{#each result.findings as finding (finding.id)}<article>
+									<h3>{finding.title}</h3>
+									<p>{finding.claim}</p>
+									{#if finding.interpretation}<p>
+											<b>What it changes:</b>
+											{finding.interpretation}
+										</p>{/if}{#each finding.sourceIds as id (id)}{@const item =
+											source(id)}{#if item}<a
+												href={item.url}
+												target="_blank"
+												rel="external noreferrer">{item.title}</a
+											>{/if}{/each}
+								</article>{/each}
+							<h3>Configured feature check</h3>
+							{#each result.featureOverlap as item (item.featureId)}<p>
+									<b
+										>{input.includedFeatures.find((feature) => feature.id === item.featureId)
+											?.name}</b
+									>
+									· {item.status}<br />{item.explanation}
+								</p>{/each}
+							<h3>Competitors and substitutes</h3>
+							{#each result.competitorMatrix as item (item.name)}<p>
+									<b>{item.name}</b> · {item.type}<br />{item.comparison}
+								</p>{/each}
+							<h3>Recommendations</h3>
+							<ul>
+								{#each result.recommendations as item (item)}<li>{item}</li>{/each}
+							</ul>
+							{#if result.gaps.length}<h3>Still uncertain</h3>
+								<ul>
+									{#each result.gaps as gap (`${gap.category}-${gap.reason}`)}<li>
+											<b>{gap.category}:</b>
+											{gap.reason}
+										</li>{/each}
+								</ul>{/if}
+							<h3>Source ledger</h3>
+							<ol>
+								{#each result.sources as item (item.id)}<li>
+										<a href={item.url} target="_blank" rel="external noreferrer">{item.title}</a>
+										<p>{item.evidenceSummary}</p>
+										<small>{item.publisher} · {item.publicationDate ?? 'Date unknown'}</small>
+									</li>{/each}
+							</ol>
+							<p>{result.disclaimer}</p>
+						</details>
+					{/if}
+				</main>
 			</div>
+			<footer>
+				<button type="button" disabled={busy} onclick={onBack}
+					>{conflicts.length
+						? 'Revise scope / choose another concept'
+						: 'Back to configuration'}</button
+				>
+				{#if conflicts.length}<button type="button" onclick={onEditLimits}>Edit limits</button>
+				{:else if active}<button type="button" onclick={onCancelResearch} disabled={researchBusy}
+						>Cancel research</button
+					>{#if project.id.startsWith('demo-')}<button type="button" onclick={onSkipResearch}
+							>Finish demo check</button
+						>{/if}
+				{:else if planBusy}<button type="button" onclick={onCancelPlan}
+						>Cancel plan generation</button
+					>
+				{:else if result && finalization.planStatus === 'failed'}<button
+						class="primary"
+						type="button"
+						onclick={onGeneratePlan}>Retry final plan · reuse research</button
+					>
+				{:else if !result && ['failed', 'cancelled'].includes(finalization.research.status)}<button
+						class="primary"
+						type="button"
+						onclick={onStartResearch}>Retry research</button
+					>{/if}
+			</footer>
+		</section>
+		<div class="taskbar" aria-hidden="true">
+			<b>✦ Purl</b><span>▣ {input.selectedConcept.name}</span><span>Saved locally</span>
 		</div>
-	</SageDialogue>
+	</section>
 {/if}
+{#if report && ready}<ProjectReportViewer
+		open={reportOpen}
+		{report}
+		allowDownload={true}
+		downloading={pdfBusy}
+		message={pdfMessage}
+		onClose={() => (reportOpen = false)}
+		onDownload={onDownloadPdf}
+	/>{/if}
 
 <style>
-	.finalization-dialogue {
-		display: grid;
-		gap: 14px;
+	.final-desktop {
+		position: fixed;
+		inset: 0;
+		z-index: 13;
+		padding: 78px 28px 58px;
+		background: var(--game-desktop);
+		color: #322b40;
+		font: 24px/1.25 var(--game-font);
+		pointer-events: auto;
 	}
-	.finalization-dialogue > p {
-		margin: 0;
-		color: #513960;
-		line-height: 1.55;
+	.desktop-label {
+		position: absolute;
+		top: 36px;
+		color: #ebddef;
+		font:
+			bold 12px 'Courier New',
+			monospace;
+		letter-spacing: 2px;
 	}
-	.sealed-config {
+	.project-window {
+		height: 100%;
 		display: flex;
-		flex-wrap: wrap;
-		gap: 7px;
-		padding: 12px;
-		border: 2px inset #77678a;
-		background: #d6d2e4;
+		flex-direction: column;
+		border: 8px solid transparent;
+		border-image: var(--game-window-border);
+		box-shadow: 8px 8px var(--game-shadow);
+		background: #eee8f0;
+		overflow: hidden;
 	}
-	.sealed-config b {
-		width: 100%;
-		color: #605639;
-	}
-	.sealed-config span {
-		padding: 4px 7px;
-		border: 1px solid #657183;
-		color: #39604f;
-		font:
-			10px 'Courier New',
-			monospace;
-	}
-	.room-actions {
-		position: sticky;
-		bottom: 0;
-		z-index: 2;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		min-height: 0;
-		margin-top: 0;
-		padding: 8px 0 2px;
-		background: #d6d2e4;
-	}
-	.room-actions button {
-		padding: 10px 14px;
-		border: 3px outset #82758e;
-		color: #514a42;
-		cursor: pointer;
-		font:
-			700 11px 'Courier New',
-			monospace;
-		text-transform: uppercase;
-	}
-	.room-actions button:disabled {
-		opacity: 0.6;
-		cursor: wait;
-	}
-	.room-actions .primary {
-		background: #d2e4e0;
-		border-color: #396051;
-	}
-	.room-actions .secondary {
-		background: #d9d2e4;
-	}
-	.room-warning {
-		padding: 9px;
-		border: 1px solid #ff8abb;
-		background: #e4d2de;
-		color: #60394c;
-	}
-	.verdict {
-		display: grid;
-		gap: 5px;
-		padding: 10px;
-		border: 2px solid #d4b46d;
-		background: #d8d2e4;
-	}
-	.verdict b {
-		color: #605539;
-		font:
-			800 12px 'Courier New',
-			monospace;
-		text-transform: uppercase;
-	}
-	.verdict span {
-		color: #4e3e5b;
-		font-size: 12px;
-	}
-	.verdict-weakened {
-		border-color: #603947;
-		background: #e4d2db;
-	}
-	.verdict-supported {
-		border-color: #39604e;
-	}
-	.research-scroll,
-	.plan-scroll {
-		display: grid;
-		gap: 14px;
-	}
-	.research-scroll h3,
-	.plan-scroll h3 {
-		margin: 14px 0 0;
-		color: #64264d;
-		font:
-			800 17px Georgia,
-			serif;
-	}
-	.research-scroll article,
-	.plan-scroll article {
-		padding: 11px;
-		border: 1px solid #967b61;
-		background: #fff6df80;
-	}
-	.research-scroll article header {
+	.window-title {
 		display: flex;
 		justify-content: space-between;
-		gap: 12px;
+		gap: 15px;
+		padding: 9px 14px;
+		background: #665c79;
+		color: #fff6ff;
+		font-weight: bold;
 	}
-	.research-scroll article i {
-		color: #71305b;
+	.workspace-body {
+		flex: 1;
+		min-height: 0;
+		display: grid;
+		grid-template-columns: 270px 1fr;
+	}
+	aside {
+		padding: 24px;
+		background: #e0d8e8;
+		border-right: 2px solid #b7a9c7;
+		overflow-y: auto;
+	}
+	aside small {
 		font:
-			10px 'Courier New',
+			bold 11px/1.5 'Courier New',
 			monospace;
-		text-transform: uppercase;
+		letter-spacing: 1px;
 	}
-	.research-scroll article p,
-	.plan-scroll article p {
-		margin: 6px 0;
+	aside h2 {
+		font-size: 19px;
+		line-height: 1.4;
+		margin: 10px 0 18px;
 	}
-	.research-scroll article small,
-	.plan-scroll article small {
-		display: block;
+	ul,
+	ol {
+		padding-left: 21px;
 	}
-	.research-scroll article div {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
+	li {
+		margin: 8px 0;
 	}
-	.research-scroll a {
-		color: #542a7a;
+	.limit {
+		display: grid;
+		gap: 4px;
+		border-top: 2px solid #c2b5ce;
+		margin-top: 22px;
+		padding-top: 16px;
 	}
-	.scroll-verdict {
-		padding: 12px;
-		border: 2px solid #654c73;
+	.limit b {
+		font-size: 25px;
 	}
-	.scroll-verdict span {
-		font:
-			800 12px 'Courier New',
-			monospace;
-		text-transform: uppercase;
+	.stretch {
+		padding: 10px;
+		background: #f0d4de;
+		border-left: 3px solid #a74e74;
 	}
-	.plan-lede {
-		color: #542347;
-		font:
-			700 20px/1.35 Georgia,
-			serif;
+	.saved {
+		color: #64586e;
+		font-size: 12px;
 	}
-	.plan-numbers {
+	main {
+		min-width: 0;
+		overflow-y: auto;
+		padding: 28px 32px;
+	}
+	h1 {
+		font-size: 36px;
+		line-height: 1.3;
+		margin: 28px 0 18px;
+	}
+	.steps {
+		list-style: none;
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 8px;
+		padding: 0;
+		gap: 12px;
+		margin: 0;
 	}
-	.plan-numbers div {
-		padding: 10px;
-		border: 2px ridge #94775c;
-		background: #fff5d7;
+	.steps li {
+		display: flex;
+		gap: 10px;
+		align-items: center;
+		color: #71667a;
+		line-height: 1.4;
+		font-size: 12px;
 	}
-	.plan-numbers span,
-	.plan-numbers b {
-		display: block;
-	}
-	.plan-numbers span {
-		font:
-			9px 'Courier New',
-			monospace;
-		text-transform: uppercase;
-	}
-	.plan-numbers b {
-		margin-top: 4px;
-		color: #542347;
-	}
-	.material-warning {
-		padding: 12px;
-		border: 3px double #9d294e;
-		background: #ffd4c9;
-	}
-	.pdf-future {
+	.steps b {
 		display: grid;
-		gap: 5px;
-		padding: 13px;
-		border: 3px dashed #664e75;
-		background: #eee3ca;
-		text-align: center;
+		place-items: center;
+		width: 30px;
+		height: 30px;
+		flex: 0 0 30px;
+		border: 2px solid #aa9bb9;
 	}
-	.pdf-future b {
-		color: #6c2955;
-		font:
-			800 12px 'Courier New',
-			monospace;
+	.steps .current {
+		color: #4c3767;
+		font-weight: bold;
 	}
-	.pdf-future.ready {
-		border-style: double;
-		border-color: #30745c;
-		background: #dbead8;
+	.steps .current b {
+		border-color: #74529b;
+		background: #dcd0ec;
 	}
-	.pdf-future button {
-		justify-self: center;
-		margin-top: 6px;
-		padding: 8px 12px;
-		border: 3px outset #80758a;
-		background: #d2e4df;
-		color: #514a42;
+	.steps .done b {
+		background: #d0e3d4;
+		border-color: #55765c;
+		color: #31563a;
+	}
+	.work-indicator {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 18px;
+		margin: 24px 0;
+		border: 2px inset #b6a9c4;
+		background: #e2d9e9;
+	}
+	.work-indicator i {
+		width: 18px;
+		height: 18px;
+		flex: 0 0 18px;
+		border: 4px solid #b4a2c8;
+		border-top-color: #674b83;
+		animation: working 1s steps(8) infinite;
+	}
+	@keyframes working {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.conflicts,
+	.error {
+		background: #f7e0df;
+		border: 2px solid #a86669;
+		padding: 18px;
+	}
+	.conflicts article + article {
+		border-top: 1px solid #c4999c;
+	}
+	.conflicts article {
+		padding: 12px 0;
+	}
+	.conflicts article > b {
+		text-transform: capitalize;
+	}
+	details {
+		margin-top: 18px;
+	}
+	summary {
 		cursor: pointer;
-		font:
-			700 10px 'Courier New',
-			monospace;
-		text-transform: uppercase;
+		font-weight: bold;
+		padding: 10px 0;
 	}
-	@media (max-width: 700px) {
-		.plan-numbers {
-			grid-template-columns: 1fr;
+	.evidence {
+		border-top: 2px solid #c5b9cf;
+	}
+	.evidence article {
+		padding: 10px 0 20px;
+		border-bottom: 1px solid #c5b9cf;
+	}
+	h3 {
+		font-size: 16px;
+		margin: 18px 0 8px;
+	}
+	a {
+		color: #593d7d;
+		display: inline-block;
+		margin-right: 12px;
+		overflow-wrap: anywhere;
+	}
+	footer {
+		display: flex;
+		justify-content: flex-end;
+		flex-wrap: wrap;
+		gap: 10px;
+		padding: 14px 20px;
+		border-top: 2px ridge #c6b9d2;
+		background: #e2d9e9;
+	}
+	button {
+		padding: 11px 16px;
+		border: 3px outset #b7a8c7;
+		background: #ece5f0;
+		color: #3c304c;
+		font: 24px/1.25 var(--game-font);
+	}
+	button:hover:not(:disabled) {
+		background: #fff8e7;
+	}
+	button:active:not(:disabled) {
+		border-style: inset;
+		transform: translateY(1px);
+	}
+	button:disabled {
+		opacity: 0.5;
+	}
+	button.primary {
+		background: #d8e8d7;
+		border-color: #93af98;
+	}
+	button:focus-visible,
+	summary:focus-visible,
+	a:focus-visible {
+		outline: 3px solid #8056a6;
+		outline-offset: 3px;
+	}
+	.taskbar {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 38px;
+		display: flex;
+		align-items: center;
+		gap: 20px;
+		padding: 0 18px;
+		background: #c8bdcf;
+		border-top: 3px ridge #e4dce9;
+		font-size: 12px;
+	}
+	.taskbar span:last-child {
+		margin-left: auto;
+	}
+	@media (max-width: 1100px) {
+		.workspace-body {
+			grid-template-columns: 230px 1fr;
+		}
+		aside {
+			padding: 18px;
+		}
+		main {
+			padding: 20px;
+		}
+	}
+	@media (max-width: 650px) {
+		.final-desktop {
+			padding: 62px 8px 44px;
+		}
+		.desktop-label {
+			top: 37px;
+			font-size: 10px;
+		}
+		.workspace-body {
+			display: block;
+			overflow-y: auto;
+		}
+		aside {
+			border-right: 0;
+			border-bottom: 2px solid #b7a9c7;
+		}
+		aside > ul,
+		aside .saved {
+			display: none;
+		}
+		.limit {
+			margin-top: 10px;
+			padding-top: 8px;
+		}
+		main {
+			overflow: visible;
+			padding: 18px;
+		}
+		.steps {
+			gap: 6px;
+		}
+		.steps li {
+			display: block;
+			font-size: 10px;
+		}
+		.steps b {
+			margin-bottom: 6px;
+		}
+		footer {
+			padding: 10px;
+		}
+		footer button {
+			flex: 1;
+		}
+		.taskbar {
+			gap: 8px;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.work-indicator i {
+			animation: none;
 		}
 	}
 </style>

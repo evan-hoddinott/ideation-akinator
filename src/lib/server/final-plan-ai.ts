@@ -218,6 +218,7 @@ export async function generateFinalProjectPlan(
 					selectedConceptId: request.selectedConcept.id,
 					productName: request.selectedConcept.name,
 					confirmedFeatures: request.includedFeatures,
+					...(request.deferredFeatures ? { deferredFeatures: request.deferredFeatures } : {}),
 					generatedAt: now.toISOString()
 				},
 				request
@@ -254,6 +255,8 @@ export function buildFinalPlanParameters(
 
 const FINAL_PLAN_INSTRUCTIONS = `You recalculate one user-selected product after a cited focused research pass. Return only the required JSON.
 Keep the selected concept and every confirmed feature. Never silently rename, remove, add, or replace them. Recalculate the prototype and optional production cost ranges, prototype timeline, functional and measurable nonfunctional requirements, technology or hardware recommendations, dependencies, technical difficulty, competitor positioning, risks, validation steps, and ordered development phases.
+Keep prototypeTimeline to a short complete estimate, such as "4–6 weeks". Put the phase breakdown in developmentPhases; never cut a sentence or word to meet a field limit.
+Only includedFeatures belong in the prototype scope, estimates, requirements and development phases. Their descriptions are the user's confirmed scope, including any edits that supersede the original concept blueprint. deferredFeatures are a later roadmap, excluded from prototype costs and timeline. Never pull a deferred feature into the initial build. The application preserves that roadmap separately.
 Use cost ranges with concrete assumptions. Keep the prototype range honest even when it exceeds the user's budget. If production planning is disabled, productionBudget must be null. If it is enabled, productionBudget must be present.
 Output exactly one featureDependencies row for every supplied feature ID, even when its dependency list is empty. Use only supplied feature IDs. Competitor and risk source IDs must come from the focused research source ledger.
 If the focused verdict is weakened, materialWarning must explain the contradiction plainly. Recommendations may describe choices, but the configured project stays intact. Hardware or manufacturing requirements may be an empty list for a software-only product.

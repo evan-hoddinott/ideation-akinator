@@ -12,9 +12,9 @@ export function conceptMailEnvelope(concept: ProjectConcept, index: number): Con
 	if (concept.isStretch) {
 		return {
 			id: `mail:${concept.id}`,
-			from: 'HRH Prince Faisal bin Synergy <urgent_oil_idea@royal-mail.biz>',
-			subject: `CONFIDENTIAL INVESTMENT: ${concept.name}`,
-			preview: 'Dear Esteemed Product Visionary, I possess one unusually viable attachment.',
+			from: 'Purl.exe <budget-overflow@localhost>',
+			subject: `CORRUPTED ATTACHMENT: ${concept.name}`,
+			preview: 'Purl found the budget limit and walked directly over it.',
 			classification: 'stretch'
 		};
 	}
@@ -28,9 +28,14 @@ export function conceptMailEnvelope(concept: ProjectConcept, index: number): Con
 	};
 }
 
-export function nextMailIndex(total: number, downloadedIds: readonly string[]): number {
-	if (total <= 0) return 0;
-	return Math.min(downloadedIds.length, total - 1);
+export function nextUnreadMailIndex(
+	conceptIds: readonly string[],
+	readIds: readonly string[]
+): number {
+	return Math.max(
+		0,
+		conceptIds.findIndex((id) => !readIds.includes(id))
+	);
 }
 
 export function allConceptMailDownloaded(total: number, downloadedIds: readonly string[]): boolean {

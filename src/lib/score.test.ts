@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calculateScore, parseScoreInput, type ScoreInput } from '$lib/score';
+import { buildScoreInput, calculateScore, parseScoreInput, type ScoreInput } from '$lib/score';
+import { createDemoResultsProject } from '$lib/demo';
 
 const input: ScoreInput = {
 	projectId: 'project-1',
@@ -29,6 +30,18 @@ const input: ScoreInput = {
 };
 
 describe('run score', () => {
+	it('scores a completed run even when its optional clarity reading is missing', () => {
+		const project = createDemoResultsProject();
+		project.problemInput.clarityLabel = null;
+		const scoreInput = buildScoreInput(project, 0);
+		expect(scoreInput).not.toBeNull();
+		expect(parseScoreInput(scoreInput)).toEqual(scoreInput);
+		expect(calculateScore(scoreInput!).factors[0]).toMatchObject({
+			points: 0,
+			label: 'Problem clarity · not assessed'
+		});
+		expect(parseScoreInput({ ...scoreInput, clarityLabel: 'invented reading' })).toBeNull();
+	});
 	it('calculates a bounded base before capped achievement modifiers', () => {
 		const score = calculateScore(input);
 		expect(score.baseScore).toBeLessThanOrEqual(100);

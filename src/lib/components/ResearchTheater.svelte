@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PurlSprite from './PurlSprite.svelte';
 	let { calm = false }: { calm?: boolean } = $props();
 </script>
 
@@ -13,8 +14,8 @@
 		<div class="fake-window cat-window">
 			<header><span>cat_facts_2001.html</span><i>_ □ ×</i></header>
 			<div>
-				<img src="/images/retro/kitka-cat.gif" alt="A tiny running pixel cat" />
-				<p>IMPORTANT RESEARCH: cat going extremely fast</p>
+				<PurlSprite action="groom" {calm} label="Purl grooms during research" />
+				<p>IMPORTANT RESEARCH: coat maintenance</p>
 			</div>
 		</div>
 		<div class="fake-window wizard-window">

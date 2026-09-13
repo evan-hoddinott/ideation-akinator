@@ -82,6 +82,17 @@ function concept(index: number): ProjectConcept {
 			'predictive simulation'
 		][index],
 		proposedFeatures: ['Targeted alerts', 'Route status', 'Saved stops'],
+		requiredTechnologies: ['Web browser', 'Database'],
+		majorComponents: ['Publishing service', 'Rider interface'],
+		featureBlueprint: ['Targeted alerts', 'Route status', 'Saved stops'].map((name, i) => ({
+			id: `f${i}`,
+			name,
+			description: `Provide ${name.toLowerCase()} to riders.`,
+			tier: i === 0 ? 'core' : 'optional',
+			dependencies: i ? ['f0'] : [],
+			dependencyOnly: false,
+			scopeImpact: 'Adds publishing and testing work.'
+		})),
 		highLevelRequirements: ['Import service updates', 'Deliver readable status notices'],
 		implementationOutline: ['Validate the update feed', 'Build and test the prototype'],
 		prototypeBudget: {
@@ -132,6 +143,26 @@ function result(): ConceptGenerationResult {
 }
 
 describe('concept portfolio contract', () => {
+	it('rejects a stretch deadline exception and asks the model to repair it', async () => {
+		const input = request();
+		input.constraints.deadline = 'Working prototype within 6 weeks';
+		const invalid = result();
+		expect(parseConceptGenerationResult(invalid, input)).toBeNull();
+		const repaired = result();
+		repaired.concepts[3].prototypeTimeline = '4–6 weeks';
+		const seen: string[] = [];
+		const client = {
+			create: vi.fn(async (parameters: Record<string, unknown>) => {
+				seen.push(String(parameters.input));
+				return {
+					status: 'completed',
+					output_text: JSON.stringify(seen.length === 1 ? invalid : repaired)
+				};
+			})
+		};
+		expect(await generateConceptPortfolio(client, 'test-model', input)).toEqual(repaired);
+		expect(seen[1]).toContain('deadline_exceeded');
+	});
 	it('accepts a complete generation request and exactly four distinct concepts', () => {
 		const input = request();
 		expect(parseConceptGenerationRequest(input)).toEqual(input);
@@ -198,5 +229,75 @@ describe('concept portfolio contract', () => {
 			InvalidConceptResponseError
 		);
 		expect(client.create).toHaveBeenCalledTimes(2);
+	});
+
+	it('retries an incomplete response with a concise repair instruction and one shared deadline', async () => {
+		const inputs: string[] = [];
+		const signals: (AbortSignal | undefined)[] = [];
+		const output = result();
+		const parsed = await generateConceptPortfolio(
+			{
+				create: async (parameters, options) => {
+					inputs.push(String(parameters.input));
+					signals.push(options?.signal);
+					return {
+						output_text: JSON.stringify(output),
+						status: inputs.length === 1 ? 'incomplete' : 'completed',
+						incomplete_details: { reason: 'max_output_tokens' }
+					};
+				}
+			},
+			'test-model',
+			request()
+		);
+		expect(parsed).toEqual(output);
+		expect(inputs).toHaveLength(2);
+		expect(inputs[1]).toContain('incomplete_max_output_tokens');
+		expect(inputs[1]).toContain('4–6 short feature entries');
+		expect(signals[0]).toBeInstanceOf(AbortSignal);
+		expect(signals[1]).toBe(signals[0]);
+	});
+
+	it('reports incomplete output distinctly and does not call the provider after cancellation', async () => {
+		const incomplete = {
+			create: vi.fn().mockResolvedValue({
+				output_text: '{',
+				status: 'incomplete',
+				incomplete_details: { reason: 'max_output_tokens' }
+			})
+		};
+		await expect(
+			generateConceptPortfolio(incomplete, 'test-model', request())
+		).rejects.toMatchObject({ reason: 'incomplete_max_output_tokens' });
+		expect(incomplete.create).toHaveBeenCalledTimes(2);
+		const cancelled = { create: vi.fn() };
+		await expect(
+			generateConceptPortfolio(cancelled, 'test-model', request(), AbortSignal.abort())
+		).rejects.toMatchObject({ name: 'AbortError' });
+		expect(cancelled.create).not.toHaveBeenCalled();
+	});
+});
+
+describe('rough design contract', () => {
+	it('requires all nine fields in new output while retaining legacy saved concepts', () => {
+		const old = result();
+		delete old.concepts[0].requiredTechnologies;
+		expect(parseConceptGenerationResult(old, request())).toBeNull();
+		expect(parseConceptGenerationResult(old)).not.toBeNull();
+	});
+	it('rejects forbidden required technology even on the fourth idea', () => {
+		const input = request();
+		input.constraints.excludedTechnologies = 'Arduino';
+		const output = result();
+		output.concepts[3].requiredTechnologies = ['Arduino Uno'];
+		expect(parseConceptGenerationResult(output, input)).toBeNull();
+	});
+	it('rejects circular or inconsistent feature blueprints', () => {
+		const output = result();
+		output.concepts[0].featureBlueprint![0].dependencies = ['f1'];
+		expect(parseConceptGenerationResult(output, request())).toBeNull();
+		const mismatch = result();
+		mismatch.concepts[0].featureBlueprint![0].name = 'Different feature';
+		expect(parseConceptGenerationResult(mismatch, request())).toBeNull();
 	});
 });

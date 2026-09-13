@@ -442,13 +442,13 @@
 			padding: 10px;
 		}
 		.menu-title-card {
-			grid-template-columns: 85px 1fr;
+			grid-template-columns: 64px 1fr;
 			gap: 10px;
 			padding: 6px 6px 12px;
 		}
 		.menu-title-card img {
-			width: 85px;
-			height: 100px;
+			width: 64px;
+			height: 64px;
 		}
 		.menu-title-card h1 {
 			font-size: 27px;

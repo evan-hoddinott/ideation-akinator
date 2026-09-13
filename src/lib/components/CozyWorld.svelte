@@ -108,6 +108,8 @@
 				let frame = 0,
 					previous = 0,
 					lastEra = -1;
+				let sceneTime = 0;
+				let pausedFrame = '';
 				const renderEra = (
 					index: number,
 					drift: number,
@@ -146,10 +148,7 @@
 						journey.next = Math.floor(safe(preview.get('webTo'), 13));
 						journey.mix = safe(preview.get('webMix'), 1);
 					}
-					world.animate(now / 1000, calm || reduced.matches);
-					skies[journey.current].animate(now / 1000, calm || reduced.matches);
-					if (journey.next !== journey.current)
-						skies[journey.next].animate(now / 1000, calm || reduced.matches);
+					if (!paused) sceneTime += delta;
 					const era = journey.mix < 0.5 ? journey.current : journey.next;
 					if (era !== lastEra) {
 						onEraChange(era);
@@ -158,6 +157,18 @@
 					canvas.dataset.era = String(era);
 					canvas.dataset.merge = journey.mix.toFixed(6);
 					canvas.dataset.revealed = String(revealedPixelCount(journey.mix, a.width * a.height));
+					// Native media pages own their player and measured 3D bezel.
+					// Keep the journey clock, but do not render an opaque world behind them.
+					const nativeMedia = [8, 10, 11].includes(era) && journey.current === journey.next;
+					canvas.style.visibility = nativeMedia ? 'hidden' : 'visible';
+					if (nativeMedia) return;
+					const frameKey = `${innerWidth}:${innerHeight}:${journey.current}:${journey.next}:${journey.mix}`;
+					if (paused && pausedFrame === frameKey) return;
+					pausedFrame = paused ? frameKey : '';
+					world.animate(sceneTime, calm || reduced.matches);
+					skies[journey.current].animate(sceneTime, calm || reduced.matches);
+					if (journey.next !== journey.current)
+						skies[journey.next].animate(sceneTime, calm || reduced.matches);
 					const direction = Math.sign(journey.next - journey.current);
 					renderEra(journey.current, journey.mix * 2.8 * direction, a);
 					if (journey.next !== journey.current)

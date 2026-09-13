@@ -10,6 +10,7 @@ Replace the repeating islands, trees, and museum-style icon signs. A scene shoul
 Keep the approved cute, crunchy, low-poly Sage, his hat, floating hands and feet, chair, paper/scroll presentation, and readable dialogue. Maintain the whimsical Mario 64 / old Rayman / Animal Crossing direction. Avoid creepy PSX or uncanny styling.
 
 APPROVED ERAS AND 3D ASSETS
+
 1. Dial-up / BBS
    Inside a terminal connection with green/amber text and a command prompt.
    Assets: blinking cursor, ASCII doorway, modem with lights, telephone cable.
@@ -100,6 +101,7 @@ Find suitable online 3D assets where available; create custom low-poly geometry 
 Store assets locally and record sources, creators where known, rights status, retrieval dates, and hashes. Distinguish downloaded assets from original work and unused collection files. Preserve still alternatives for animated assets.
 
 EXECUTION AND REVIEW
+
 1. Inspect the existing implementation and record this approved direction in a dedicated design document.
 2. Build a representative slice first: dial-up, GeoCities, and cat YouTube, plus the pixel-gradient crossing.
 3. Inspect that slice with the user-local agent-browser CLI. Correct deviations before extending the remaining eras.
@@ -109,6 +111,7 @@ EXECUTION AND REVIEW
 7. Continue through the approved scope without repeatedly asking permission. Ask only when a necessary decision would materially change this direction.
 
 ACCEPTANCE
+
 - Every era reads as a webpage/software environment with depth.
 - The three representative scenes are visibly different in composition, not merely palette or labels.
 - The pixel transition matches the reference’s sparse-to-dense randomized gradient.

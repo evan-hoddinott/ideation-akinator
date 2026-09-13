@@ -1,0 +1,378 @@
+/* Shared controls for the quest journal and its later desktop windows. */
+.sage-dialogue-stage .compact-field > span {
+	color: #4f4437;
+	font: 24px/1.25 var(--game-font);
+	letter-spacing: 0;
+}
+.sage-dialogue-stage .compact-field small {
+	color: #776650;
+	font-size: 12px;
+}
+.sage-dialogue-stage input:not([type='checkbox']):not([type='range']),
+.sage-dialogue-stage textarea {
+	background: #fff8e7;
+	color: #39352e;
+	border: 2px solid #9d8867;
+	padding: 10px 12px;
+	font: 24px/1.25 var(--game-font);
+	box-shadow: inset 3px 3px #d6c6a7;
+}
+.sage-dialogue-stage input:focus-visible,
+.sage-dialogue-stage textarea:focus-visible {
+	outline: 3px solid #6c7950;
+	outline-offset: 2px;
+}
+.sage-dialogue-stage .dialogue-form {
+	gap: 14px;
+}
+.sage-dialogue-stage .dialogue-form > p,
+.sage-dialogue-stage .why-whisper {
+	color: #554835;
+	font: 24px/1.25 var(--game-font);
+}
+.sage-dialogue-stage .answer-button,
+.sage-dialogue-stage .game-choice-list button {
+	min-height: 44px;
+	padding: 10px 14px;
+	font: 24px/1.25 var(--game-font);
+	color: #3c362e;
+	border: 2px solid #8a775b;
+	background: #eadcbe;
+	box-shadow:
+		inset 2px 2px #fff4d9,
+		4px 4px #99876a;
+}
+.sage-dialogue-stage .answer-button.primary {
+	background: #bdcea3;
+	border-color: #667951;
+	color: #2b3b25;
+}
+.sage-dialogue-stage .game-choice-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+.sage-dialogue-stage .game-choice-list button {
+	width: 100%;
+	height: auto;
+}
+.sage-dialogue-stage .game-choice-list button.chosen,
+.sage-dialogue-stage button[aria-pressed='true'] {
+	background: #c4d4a9;
+	color: #2d4125;
+	border-color: #657a4a;
+}
+.sage-dialogue-stage button:not(:disabled):hover {
+	filter: brightness(1.06);
+}
+.sage-dialogue-stage button:not(:disabled):active {
+	transform: translateY(2px);
+	box-shadow: none;
+}
+.sage-dialogue-stage button:focus-visible {
+	outline: 3px solid #6c7950;
+	outline-offset: 3px;
+}
+.sage-dialogue-stage button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+.sage-dialogue-stage .minor-answer-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 10px;
+}
+.sage-dialogue-stage .minor-answer-actions button,
+.sage-dialogue-stage .quiet-game-action {
+	color: #534831;
+	min-height: 36px;
+	padding: 6px 10px;
+	font: 24px/1.25 var(--game-font);
+}
+.problem-journal {
+	display: grid;
+	grid-template-columns: minmax(180px, 0.65fr) minmax(0, 1.6fr);
+	gap: 24px;
+}
+.journal-notes {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+}
+.journal-notes h2 {
+	margin: 0;
+	color: #5a4832;
+	font:
+		12px/1.5 Silkscreen,
+		monospace;
+}
+.journal-note {
+	border: 2px solid #9c8b6d;
+	box-shadow: 4px 4px #c6b795;
+	background: #e9d9b9;
+}
+.journal-note.active {
+	border-color: #6d8055;
+	background: #dce3bf;
+	box-shadow:
+		inset 4px 0 #6d8055,
+		4px 4px #b5bf98;
+}
+.journal-note .note-select {
+	display: grid;
+	gap: 6px;
+	width: 100%;
+	padding: 10px;
+	border: 0;
+	background: transparent;
+	text-align: left;
+	color: #4b432f;
+}
+.note-select b {
+	font:
+		10px/1.4 Silkscreen,
+		monospace;
+}
+.note-select span {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+	font: 24px/1.25 var(--game-font);
+}
+.note-tools {
+	display: flex;
+	gap: 6px;
+	padding: 0 8px 8px;
+}
+.note-tools button {
+	min-height: 28px;
+	padding: 3px 8px;
+	border: 1px solid #ac9876;
+	color: #4e493a;
+	background: #f5e8cb;
+	font: 24px/1.25 var(--game-font);
+}
+.journal-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+.journal-editor textarea {
+	min-height: 140px;
+}
+.journal-reading {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 12px;
+	padding: 10px 12px;
+	border-left: 4px solid #83975e;
+	background: #e2e4c4;
+	color: #4e563b;
+	font: 12px/1.5 var(--game-font);
+}
+.journal-editor > .primary {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+}
+@media (max-width: 760px) {
+	.problem-journal {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
+	}
+	.journal-notes {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+	.journal-notes h2 {
+		width: 100%;
+	}
+	.journal-note {
+		width: min(180px, 100%);
+	}
+	.sage-dialogue-stage .game-choice-list {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+html,
+body {
+	cursor:
+		url('/images/workflow/wand-cursor.svg') 5 5,
+		default;
+}
+button,
+a,
+summary,
+[role='button'],
+input[type='range'],
+input[type='checkbox'],
+select {
+	cursor:
+		url('/images/workflow/hat-cursor.svg') 8 2,
+		pointer !important;
+}
+button *,
+a *,
+summary * {
+	cursor: inherit;
+}
+input:not([type='range']):not([type='checkbox']),
+textarea,
+[contenteditable='true'] {
+	cursor: text !important;
+}
+button:disabled,
+input:disabled {
+	cursor: not-allowed !important;
+}
+.technology-exclusions {
+	padding: 12px;
+	border: 2px solid #c1aa89;
+	background: #ead9be;
+	color: #534631;
+	font: 24px/1.25 var(--game-font);
+}
+.technology-exclusions summary {
+	font-weight: 600;
+}
+.sage-dialogue-stage .dialogue-primary-actions {
+	position: sticky;
+	bottom: -1px;
+	z-index: 2;
+	background: #f4e8cc;
+	padding: 12px 0;
+	border-top: 1px solid #baa480;
+}
+.preferences-columns,
+.budget-workbench {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 20px;
+}
+.preferences-columns > section,
+.production-budget {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+.production-budget > p {
+	color: #6a5942;
+	font: 24px/1.25 var(--game-font);
+}
+.production-check {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: #4e432f;
+	font: 24px/1.25 var(--game-font);
+}
+.production-check input {
+	appearance: none;
+	width: 24px;
+	height: 24px;
+	flex: none;
+	border: 3px solid #8b7756;
+	background: #fff5dc;
+}
+.production-check input:checked {
+	background: #75934e;
+	box-shadow: inset 0 0 0 4px #f2eacc;
+}
+.production-check input:focus-visible {
+	outline: 3px solid #746190;
+	outline-offset: 3px;
+}
+.extra-limits {
+	color: #54452f;
+	font: 24px/1.25 var(--game-font);
+	padding: 12px;
+	border: 2px solid #b7a282;
+}
+.extra-limits summary {
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+.sage-dialogue-stage .innovation-meter {
+	background: #e4dabd;
+	color: #53482f;
+	border: 2px solid #af9977;
+	padding: 12px 16px;
+}
+.sage-dialogue-stage .innovation-meter header {
+	color: #4c4432;
+}
+.sage-dialogue-stage .innovation-meter header b {
+	color: #40562c;
+	background: #c8d9a7;
+	font-size: 20px;
+}
+.innovation-meter input[type='range'] {
+	appearance: none;
+	width: 100%;
+	height: 12px;
+	background: repeating-linear-gradient(
+		90deg,
+		#829461 0 calc(20% - 4px),
+		#e9dec0 calc(20% - 4px) 20%
+	);
+	border: 2px solid #7e7455;
+}
+.innovation-meter input[type='range']::-webkit-slider-thumb {
+	appearance: none;
+	width: 22px;
+	height: 24px;
+	border: 3px solid #69573e;
+	background: #f6dfa0;
+	box-shadow: inset 0 0 0 2px #fff4cb;
+}
+.innovation-meter input[type='range']::-moz-range-thumb {
+	border-radius: 0;
+	width: 18px;
+	height: 20px;
+	border: 3px solid #69573e;
+	background: #f6dfa0;
+}
+@media (max-width: 760px) {
+	.preferences-columns,
+	.budget-workbench {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+.originality-labels {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	font: 24px/1.25 var(--game-font);
+}
+
+/* Ambient windows remain interactive around, but never on top of, the current task. */
+.vertical-game.dialogue-layout .workspace:has(.sage-dialogue-stage) {
+	z-index: 13;
+}
+.practical-constraints {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+.practical-constraints label {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+}
+.practical-constraints .wide {
+	grid-column: 1 / -1;
+}
+.practical-constraints input {
+	width: 100%;
+	min-width: 0;
+}
+@media (max-width: 600px) {
+	.practical-constraints {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

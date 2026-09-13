@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { CAT_CLIPS } from './cat-media';
 import { INTERNET_ERAS } from './internet-era';
 import { ERA_HEIGHT } from './era-journey';
 
@@ -81,26 +82,19 @@ export function createWebpageWorld() {
 		materials.push(m);
 		return mesh(g, new THREE.PlaneGeometry(w, h), m, x, y, z, label);
 	};
-	// The first atlas cell supplies still artwork on dimensional page controls.
-	// Animated versions remain in the surrounding page, with the same calm fallback.
-	const catTexture = new THREE.TextureLoader().load(
-		'/images/internet/cat-frames.png',
-		(texture) => {
-			if (disposed) texture.dispose();
-		}
-	);
-	catTexture.colorSpace = THREE.SRGBColorSpace;
-	catTexture.magFilter = THREE.NearestFilter;
-	catTexture.minFilter = THREE.NearestFilter;
-	catTexture.repeat.set(1 / 8, 1 / 2);
-	catTexture.offset.set(0, 1 / 2);
-	textures.push(catTexture);
-	const catMaterial = new THREE.MeshBasicMaterial({
-		map: catTexture,
-		transparent: true,
-		alphaTest: 0.1
+	let pictureIndex = 0;
+	const catMaterials = CAT_CLIPS.map((clip) => {
+		const texture = new THREE.TextureLoader().load(clip.thumbnail, (loaded) => {
+			if (disposed) loaded.dispose();
+		});
+		texture.colorSpace = THREE.SRGBColorSpace;
+		texture.magFilter = THREE.NearestFilter;
+		texture.minFilter = THREE.LinearFilter;
+		textures.push(texture);
+		const material = new THREE.MeshBasicMaterial({ map: texture });
+		materials.push(material);
+		return material;
 	});
-	materials.push(catMaterial);
 	const catPicture = (
 		parent: THREE.Object3D,
 		x: number,
@@ -112,7 +106,7 @@ export function createWebpageWorld() {
 		mesh(
 			parent,
 			new THREE.PlaneGeometry(width, height),
-			catMaterial,
+			catMaterials[pictureIndex++ % catMaterials.length],
 			x,
 			y,
 			z,
@@ -206,64 +200,6 @@ export function createWebpageWorld() {
 			text(g, 'EMAIL', -10, 2.2, 1.2, 2, 0.55);
 			box(g, -10, -1.35, 0.5, 4.3, 0.75, 1.3, purple, 'ENTER button');
 			text(g, 'ENTER', -10, -1.35, 1.17, 3.8, 0.5, '#f5e7b7', '#706089');
-		}
-		if (index === 8) {
-			// The Sage is inside the large player; related videos sit outside its right border.
-			box(g, -15.1, 2.6, -1, 0.22, 5.7, 0.8, cream, 'Video player left edge');
-			box(g, 5.95, 2.6, -1, 0.22, 5.7, 0.8, cream, 'Video player right edge');
-			box(g, -4.5, -0.8, 0, 21, 0.65, 1, cream, 'Player control bar');
-			box(g, -2, -0.7, 0.6, 10, 0.09, 0.12, ink, 'Scrubber rail');
-			const playhead = box(g, -6, -0.7, 0.75, 0.3, 0.6, 0.3, red, 'Video playhead');
-			animated.push({ object: playhead, kind: 'scrub', base: -6 });
-			const tri = mesh(
-				g,
-				new THREE.CylinderGeometry(0.37, 0.37, 0.2, 3),
-				ink,
-				-12.3,
-				-0.7,
-				0.8,
-				'Play button'
-			);
-			tri.rotation.x = Math.PI / 2;
-			tri.rotation.z = -Math.PI / 2;
-			for (const x of [-11.3, -10.9]) box(g, x, -0.7, 0.8, 0.15, 0.5, 0.2, ink, 'Pause button');
-			for (let i = 0; i < 5; i++) {
-				const shape = new THREE.Shape();
-				for (let p = 0; p < 10; p++) {
-					const a = (p * Math.PI) / 5,
-						r = p % 2 ? 0.2 : 0.45;
-					const x = Math.sin(a) * r,
-						y = Math.cos(a) * r;
-					if (p === 0) shape.moveTo(x, y);
-					else shape.lineTo(x, y);
-				}
-				shape.closePath();
-				mesh(
-					g,
-					new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: false }),
-					gold,
-					-12 + i * 1.15,
-					-1.55,
-					0.5,
-					'Rating star'
-				);
-			}
-			const lens = mesh(
-				g,
-				new THREE.CylinderGeometry(0.55, 0.65, 0.6, 8),
-				ink,
-				-11.3,
-				4.6,
-				0.5,
-				'Webcam lens'
-			);
-			lens.rotation.x = Math.PI / 2;
-			box(g, -11.3, 4.2, 0.2, 1.8, 1.5, 0.75, cream, 'Webcam');
-			box(g, 11, 1.2, 0.5, 3, 1.8, 2, mat(0xb69670), 'Purl cardboard box');
-			for (const side of [-1, 1]) {
-				const flap = box(g, 11 + side * 1.2, 2.15, 0.5, 1.2, 0.12, 2, cream, 'Cardboard flap');
-				flap.rotation.z = side * 0.6;
-			}
 		}
 		if (index === 1) {
 			for (let i = 0; i < 3; i++) {
@@ -474,96 +410,6 @@ export function createWebpageWorld() {
 				'Padlock shackle'
 			);
 		}
-		if (index === 10) {
-			for (const x of [-5.2, 5.2]) box(g, x, 3, -1, 0.3, 9, 0.6, ink, 'Phone doorway side');
-			box(g, 0, 7.5, -1, 10.7, 0.3, 0.6, ink, 'Phone doorway top');
-			box(g, -10.5, 3.4, 0.2, 5.2, 1.4, 0.8, cream, 'Notification drawer');
-			text(g, 'NEW PHOTO', -10.5, 3.4, 0.65, 4.5, 0.7);
-			for (let i = 0; i < 6; i++)
-				box(
-					g,
-					-12 + (i % 3) * 1.5,
-					1.4 - Math.floor(i / 3) * 1.5,
-					0.5,
-					1.15,
-					1.15,
-					0.55,
-					[purple, green, gold][i % 3],
-					'App icon tile'
-				);
-			for (let i = 0; i < 3; i++) {
-				const card = box(
-					g,
-					8.4 + i * 1.3,
-					2.7 + i * 0.2,
-					0.4,
-					2.1,
-					2.8,
-					0.25,
-					[purple, green, gold][i],
-					'Photo filter carousel card'
-				);
-				card.rotation.y = (i - 1) * 0.3;
-				catPicture(card, 0, 0, 0.14, 1.95, 1.95);
-			}
-			const lens = mesh(
-				g,
-				new THREE.CylinderGeometry(0.85, 1, 0.5, 10),
-				ink,
-				10,
-				0,
-				1,
-				'Camera lens'
-			);
-			lens.rotation.x = Math.PI / 2;
-		}
-		if (index === 11) {
-			for (const side of [-1, 1]) {
-				box(g, side * 10.3, 2, 0.1, 4.8, 6.3, 0.45, ink, 'Video card conveyor');
-				for (let i = 0; i < 3; i++) {
-					const card = box(
-						g,
-						side * 10.3,
-						4 - i * 1.8,
-						0.6,
-						4.3,
-						1.5,
-						0.55,
-						i % 2 ? purple : green,
-						'Recommended video card'
-					);
-					catPicture(card, 0, 0, 0.29, 2.1, 1.4);
-					animated.push({ object: card, kind: 'feed', base: 4 - i * 1.8 });
-				}
-			}
-			const ring = mesh(
-				g,
-				new THREE.TorusGeometry(0.7, 0.14, 5, 10, Math.PI * 1.6),
-				cream,
-				10.3,
-				-0.5,
-				1.2,
-				'Looping loading ring'
-			);
-			animated.push({ object: ring, kind: 'coin', base: 0 });
-			text(g, '99+', -8.5, 5, 0.7, 1.8, 0.8, '#f9eacb', '#b96d76');
-			box(g, -8.5, 5, 0.4, 2, 1, 0.5, red, 'Notification counter');
-			for (const x of [-12.8, 12.8]) box(g, x, 1.5, 1, 1.1, 1.4, 0.7, gold, 'Reaction button');
-			for (const side of [-1, 1]) {
-				const rail = box(
-					g,
-					side * 7,
-					5.4,
-					-0.4,
-					0.12,
-					3,
-					0.12,
-					purple,
-					'Branching recommendation track'
-				);
-				rail.rotation.z = side * 0.8;
-			}
-		}
 		if (index === 12) {
 			box(g, 0, -0.9, 0.1, 10, 1, 1.5, cream, 'Prompt box platform');
 			text(g, 'MESSAGE THE INTERNET...', 0, -0.9, 0.87, 8.9, 0.6);
@@ -734,7 +580,6 @@ export function createWebpageWorld() {
 				console.warn('Environmental model retained its original geometry fallback:', file, error)
 		);
 	};
-	addModel(8, 'cardboardBoxOpen', 11, 1.2, 0.5, 3.3, ['Purl cardboard box', 'Cardboard flap']);
 	addModel(7, 'speaker', -12.6, 2.7, 0.3, 2.4, []);
 	addModel(7, 'speaker', -7.4, 2.7, 0.3, 2.4, ['Speaker cabinet', 'Speaker cone']);
 	addModel(13, 'satelliteDish', 10, 3, 0.3, 3.8, ['Satellite dish']);

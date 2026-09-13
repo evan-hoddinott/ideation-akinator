@@ -13,6 +13,7 @@ export interface IntakeInsightsRequest {
 }
 
 export interface IntakeInsights {
+	suggestedTechnologyTags?: string[];
 	clarityLabel: ClarityLabel;
 	clarityReasons: string[];
 	topicCoherenceWarning: string | null;
@@ -72,14 +73,24 @@ export function parseClarityResult(
 
 export function parseIndustryResult(
 	value: unknown
-): Pick<IntakeInsights, 'suggestedIndustryTags'> | null {
+): Pick<IntakeInsights, 'suggestedIndustryTags' | 'suggestedTechnologyTags'> | null {
 	if (!value || typeof value !== 'object') return null;
 	const candidate = value as Partial<IntakeInsights>;
+	if (
+		candidate.suggestedTechnologyTags !== undefined &&
+		!isShortStringArray(candidate.suggestedTechnologyTags, 0, 5, 48)
+	)
+		return null;
 	if (!isShortStringArray(candidate.suggestedIndustryTags, 0, 5, 48)) return null;
 
 	const suggestedIndustryTags = dedupeTags(candidate.suggestedIndustryTags);
 	if (suggestedIndustryTags.some((tag) => !/^[\p{L}\p{N}& /+'-]+$/u.test(tag))) return null;
-	return { suggestedIndustryTags };
+	return {
+		suggestedIndustryTags,
+		...(candidate.suggestedTechnologyTags
+			? { suggestedTechnologyTags: dedupeTags(candidate.suggestedTechnologyTags) }
+			: {})
+	};
 }
 
 export function parseIntakeInsights(value: unknown): IntakeInsights | null {

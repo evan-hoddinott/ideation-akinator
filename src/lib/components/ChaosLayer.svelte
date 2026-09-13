@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PurlSprite from './PurlSprite.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { eraExhibits } from '$lib/era-journey';
 	import { eraArtAssets } from '$lib/era-art-assets';
@@ -303,10 +304,23 @@
 				onclick={shooPurl}
 				aria-label="Shoo Purl the pixel cat"
 			>
-				<span class="purl-bubble">{purl.message}</span><img
-					src="/images/retro/kitka-cat.gif"
-					alt="Purl, a pixel cat"
-				/><i>{purlShooed ? 'YEET' : purl.useful ? '...helpful?' : 'SHOO PURL'}</i>
+				<span class="purl-bubble">{purl.message}</span><span class="purl-character"
+					><PurlSprite
+						{calm}
+						action={purl.id === 'router-nap'
+							? 'sleep'
+							: purl.id === 'research-cat'
+								? 'paw'
+								: purl.id === 'cable-help'
+									? 'groom'
+									: purl.id === 'admin-cat'
+										? 'sit'
+										: purl.id === 'popup-cleaner'
+											? 'paw'
+											: 'walk'}
+						label={purl.id === 'router-nap' ? 'Purl naps on the router' : 'Purl the cat'}
+					/></span
+				><i>{purlShooed ? 'YEET' : purl.useful ? '...helpful?' : 'SHOO PURL'}</i>
 			</button>
 		{/if}
 	</div>
@@ -405,11 +419,6 @@
 		--popup-edge: #bdb0c6;
 	}
 
-	@font-face {
-		font-family: 'Tomo';
-		src: url('/fonts/Tomo.woff2') format('woff2');
-		font-display: swap;
-	}
 	.chaos-layer {
 		position: fixed;
 		z-index: 12;
@@ -538,7 +547,7 @@
 		top: 17%;
 		animation: purl-admin 4.8s steps(12, end) both;
 	}
-	.purl-event img {
+	.purl-character {
 		display: block;
 		width: 120px;
 		margin: 0 auto;

@@ -5,7 +5,13 @@ import {
 	createDemoProject,
 	createDemoResearchResult
 } from '$lib/demo';
-import type { FinalRecalculationRequest, FocusedResearchRequest } from '$lib/finalization';
+import {
+	finalizationFingerprint,
+	parseFocusedResearchRequest,
+	parseFinalProjectPlan,
+	type FinalRecalculationRequest,
+	type FocusedResearchRequest
+} from '$lib/finalization';
 import { createFeatureWorkshop } from '$lib/feature-workshop';
 import { describe, expect, it } from 'vitest';
 import {
@@ -108,3 +114,37 @@ function request(): FinalRecalculationRequest {
 	};
 	return { ...base, focusedResearch: createDemoFocusedResearchResult(base) };
 }
+
+describe('deferred roadmap contract', () => {
+	it('preserves the chosen roadmap independently of model output and prototype scope', async () => {
+		const input = request();
+		input.deferredFeatures = [
+			{
+				id: 'later-display',
+				name: 'Station display',
+				description: 'Add a public display after the initial pilot.'
+			}
+		];
+		const plan = createDemoFinalPlan(input);
+		const result = await generateFinalProjectPlan(
+			{ create: async () => ({ output_text: JSON.stringify({ ...plan, deferredFeatures: [] }) }) },
+			'test-model',
+			input
+		);
+		expect(result.deferredFeatures).toEqual(input.deferredFeatures);
+		expect(result.confirmedFeatures.some((f) => f.id === 'later-display')).toBe(false);
+		expect(result.prototypeBudget).toEqual(plan.prototypeBudget);
+		expect(parseFinalProjectPlan({ ...result, deferredFeatures: [] }, input)).toBeNull();
+	});
+	it('invalidates finalization when the roadmap changes without changing the prototype', () => {
+		const input = request();
+		const old = finalizationFingerprint(input.selectedConcept.id, input.includedFeatures);
+		const changed = finalizationFingerprint(input.selectedConcept.id, input.includedFeatures, [
+			{ id: 'later', name: 'History', description: 'Save completed journeys.' }
+		]);
+		expect(changed).not.toBe(old);
+		expect(
+			parseFocusedResearchRequest({ ...input, deferredFeatures: [input.includedFeatures[0]] })
+		).toBeNull();
+	});
+});

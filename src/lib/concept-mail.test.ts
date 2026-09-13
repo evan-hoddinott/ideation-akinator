@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { allConceptMailDownloaded, conceptMailEnvelope, nextMailIndex } from '$lib/concept-mail';
+import {
+	allConceptMailDownloaded,
+	conceptMailEnvelope,
+	nextUnreadMailIndex
+} from '$lib/concept-mail';
 import { createDemoPortfolio } from '$lib/demo';
 
 describe('cursed concept mail', () => {
@@ -14,13 +18,13 @@ describe('cursed concept mail', () => {
 		).toBe(true);
 		const stretch = conceptMailEnvelope(concepts[3], 3);
 		expect(stretch.classification).toBe('stretch');
-		expect(stretch.from).toContain('Prince');
+		expect(stretch.from).toContain('Purl.exe');
 	});
 
-	it('unlocks messages one at a time and completes exactly at the portfolio size', () => {
-		expect(nextMailIndex(4, [])).toBe(0);
-		expect(nextMailIndex(4, ['one', 'two'])).toBe(2);
-		expect(nextMailIndex(4, ['one', 'two', 'three', 'four'])).toBe(3);
+	it('finds the next unread message regardless of reading order', () => {
+		expect(nextUnreadMailIndex(['one', 'two', 'three', 'four'], [])).toBe(0);
+		expect(nextUnreadMailIndex(['one', 'two', 'three', 'four'], ['one', 'two'])).toBe(2);
+		expect(nextUnreadMailIndex(['one', 'two', 'three', 'four'], ['four'])).toBe(0);
 		expect(allConceptMailDownloaded(4, ['one', 'two', 'three'])).toBe(false);
 		expect(allConceptMailDownloaded(4, ['one', 'two', 'three', 'four'])).toBe(true);
 	});

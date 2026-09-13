@@ -1,696 +1,586 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { ConceptPortfolio } from '$lib/concepts';
 	import {
 		addCustomFeature,
+		editFeatureDescription,
 		confirmWorkshopConcept,
+		createFeatureWorkshop,
+		featurePlacement,
+		placeWorkshopFeature,
 		removeCustomFeature,
-		toggleWorkshopFeature,
+		restoreSuggestedBuild,
 		type FeatureWorkshopState,
-		type WorkshopFeature
+		type WorkshopFeature,
+		type FeaturePlacement
 	} from '$lib/feature-workshop';
-
 	let {
 		portfolio,
 		workshop,
+		initialConceptId = '',
 		onChange,
-		onContinue
+		onContinue,
+		onBack = () => {},
+		onConceptChange = () => {}
 	}: {
 		portfolio: ConceptPortfolio;
 		workshop: FeatureWorkshopState;
+		initialConceptId?: string;
 		onChange: (state: FeatureWorkshopState, event: 'changed' | 'blocked' | 'confirmed') => void;
 		onContinue: () => void;
+		onBack?: () => void;
+		onConceptChange?: (id: string) => void;
 	} = $props();
-
-	const pageSize = 4;
-	let activeConceptId = $state('');
-	let page = $state(0);
-	let cursor = $state(0);
-	let pendingFeature = $state<WorkshopFeature | null>(null);
-	let pendingDependencies = $state<WorkshopFeature[]>([]);
-	let customOpen = $state(false);
+	let activeId = $state('');
+	let message = $state(
+		'Start with the suggested build, then decide what belongs in your first version.'
+	);
+	let pending = $state<{ feature: WorkshopFeature; dependencies: WorkshopFeature[] } | null>(null);
+	let restorePending = $state(false);
 	let customName = $state('');
 	let customDescription = $state('');
 	let customDependencies = $state<string[]>([]);
-	let filedFeature = $state('');
-	let message = $state(
-		'Choose one concept, turn its features on or off, then seal that configuration.'
+	let editingId = $state('');
+	let editedDescription = $state('');
+	const placements: { value: FeaturePlacement; label: string }[] = [
+		{ value: 'now', label: 'Build now' },
+		{ value: 'later', label: 'Later' },
+		{ value: 'out', label: 'Leave out' }
+	];
+	const concept = $derived(
+		portfolio.concepts.find((item) => item.id === activeId) ?? portfolio.concepts[0]
 	);
-
-	const activeConcept = $derived(
-		portfolio.concepts.find((concept) => concept.id === activeConceptId) ?? portfolio.concepts[0]
+	const configuration = $derived(
+		workshop.configurations.find((item) => item.conceptId === concept.id)!
 	);
-	const activeConfiguration = $derived(
-		workshop.configurations.find((item) => item.conceptId === activeConcept?.id) ?? null
+	const suggested = $derived(
+		createFeatureWorkshop(portfolio).configurations.find((item) => item.conceptId === concept.id)!
 	);
-	const pageCount = $derived(
-		Math.max(1, Math.ceil((activeConfiguration?.features.length ?? 0) / pageSize))
+	const changed = $derived(
+		JSON.stringify(
+			configuration.features.map((f) => [f.id, featurePlacement(f), f.name, f.description])
+		) !==
+			JSON.stringify(
+				suggested.features.map((f) => [f.id, featurePlacement(f), f.name, f.description])
+			)
 	);
-	const visibleFeatures = $derived(
-		activeConfiguration?.features.slice(page * pageSize, page * pageSize + pageSize) ?? []
+	const nowFeatures = $derived(
+		configuration.features.filter((item) => featurePlacement(item) === 'now')
 	);
-
+	const laterFeatures = $derived(
+		configuration.features.filter((item) => featurePlacement(item) === 'later')
+	);
+	const money = (amount: number) =>
+		new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: 'USD',
+			maximumFractionDigits: 0
+		}).format(amount);
 	$effect(() => {
-		if (!activeConceptId || !portfolio.concepts.some((concept) => concept.id === activeConceptId)) {
-			activeConceptId = workshop.selectedConceptId ?? portfolio.concepts[0]?.id ?? '';
-		}
+		if (!activeId)
+			activeId = initialConceptId || workshop.selectedConceptId || portfolio.concepts[0].id;
 	});
-
-	onMount(() => {
-		const onKeydown = (event: KeyboardEvent) => {
-			const target = event.target as HTMLElement | null;
-			if (target?.matches('input,textarea,select') || target?.closest('dialog,[data-custom-form]'))
-				return;
-			if (event.key === 'ArrowLeft') {
-				event.preventDefault();
-				setPage(page - 1);
-			} else if (event.key === 'ArrowRight') {
-				event.preventDefault();
-				setPage(page + 1);
-			} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-				event.preventDefault();
-				cursor = Math.max(
-					0,
-					Math.min(visibleFeatures.length - 1, cursor + (event.key === 'ArrowDown' ? 1 : -1))
-				);
-			} else if (event.key === ' ' && visibleFeatures[cursor]) {
-				event.preventDefault();
-				const feature = visibleFeatures[cursor];
-				changeFeature(feature, !feature.included);
-			} else if (/^[1-4]$/.test(event.key)) {
-				const concept = portfolio.concepts[Number(event.key) - 1];
-				if (concept) selectConcept(concept.id);
-			}
-		};
-		window.addEventListener('keydown', onKeydown);
-		return () => window.removeEventListener('keydown', onKeydown);
-	});
-
-	function selectConcept(id: string) {
-		activeConceptId = id;
-		page = 0;
-		cursor = 0;
-		pendingFeature = null;
-		message = `Now configuring ${portfolio.concepts.find((concept) => concept.id === id)?.name ?? 'this concept'}. Choose the features you want to keep.`;
+	function choose(id: string) {
+		editingId = '';
+		activeId = id;
+		onConceptChange(id);
+		pending = null;
+		restorePending = false;
+		message = 'Your configuration for each concept is saved as you edit.';
 	}
-
-	function setPage(next: number) {
-		page = Math.max(0, Math.min(pageCount - 1, next));
-		cursor = 0;
-	}
-
-	function changeFeature(feature: WorkshopFeature, included: boolean) {
-		if (!activeConcept) return;
-		const result = toggleWorkshopFeature(workshop, activeConcept.id, feature.id, included);
+	function place(feature: WorkshopFeature, placement: FeaturePlacement, confirmed = false) {
+		const result = placeWorkshopFeature(workshop, concept.id, feature.id, placement, confirmed);
 		if (result.blockedBy.length) {
-			message = `Blocked: ${result.blockedBy.map((item) => item.name).join(' and ')} still needs ${feature.name}.`;
+			message = `Move ${result.blockedBy.map((item) => item.name).join(', ')} out of Build now first. Those features still need ${feature.name}.`;
 			onChange(workshop, 'blocked');
 			return;
 		}
 		if (result.requiresConfirmation.length) {
-			pendingFeature = feature;
-			pendingDependencies = result.requiresConfirmation;
+			pending = { feature, dependencies: result.requiresConfirmation };
 			return;
 		}
-		filedFeature = included ? feature.id : '';
-		window.setTimeout(() => (filedFeature = ''), 700);
-		message = included
-			? `${feature.name} is included in this concept.`
-			: `${feature.name} is excluded from this concept.`;
+		pending = null;
+		message = `${feature.name}: ${placements.find((item) => item.value === placement)!.label}. The final estimate will use your chosen build.`;
 		onChange(result.state, 'changed');
 	}
-
-	function confirmDependencies() {
-		if (!activeConcept || !pendingFeature) return;
-		const result = toggleWorkshopFeature(workshop, activeConcept.id, pendingFeature.id, true, true);
-		filedFeature = pendingFeature.id;
-		message = `${pendingFeature.name} and its required features are now included.`;
-		pendingFeature = null;
-		pendingDependencies = [];
-		onChange(result.state, 'changed');
-	}
-
-	function deleteCustom(feature: WorkshopFeature) {
-		if (!activeConcept) return;
-		const result = removeCustomFeature(workshop, activeConcept.id, feature.id);
-		if (result.blockedBy.length) {
-			message = `${result.blockedBy.map((item) => item.name).join(' and ')} prevents deletion.`;
-			onChange(workshop, 'blocked');
-			return;
-		}
-		message = `${feature.name} was removed from this concept.`;
-		onChange(result.state, 'changed');
-	}
-
-	function addCustom(event: SubmitEvent) {
+	function custom(event: SubmitEvent) {
 		event.preventDefault();
-		if (!activeConcept || !customName.trim() || !customDescription.trim()) {
-			message = 'Give the custom feature a name and a short description first.';
-			return;
-		}
-		const next = addCustomFeature(workshop, activeConcept.id, {
-			id: `${activeConcept.id}:custom:${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`,
+		const next = addCustomFeature(workshop, concept.id, {
+			id: `${concept.id}:custom:${crypto.randomUUID().slice(0, 8)}`,
 			name: customName,
 			description: customDescription,
 			dependencies: customDependencies
 		});
 		if (next === workshop) {
-			message = 'That feature already exists, or one of its dependencies is unavailable.';
+			message = 'Use a unique feature name and describe what it should do.';
 			return;
 		}
-		message = `${customName.trim()} was added to this concept.`;
+		onChange(next, 'changed');
+		message = `Added ${customName} to Build now. Its feasibility and cost will be checked during finalization.`;
 		customName = '';
 		customDescription = '';
 		customDependencies = [];
-		customOpen = false;
-		onChange(next, 'changed');
 	}
-
-	function confirmSelection() {
-		if (!activeConcept) return;
-		const next = confirmWorkshopConcept(workshop, activeConcept.id);
-		if (next === workshop) {
-			message = 'Keep at least one feature before choosing this concept.';
+	function saveDescription(event: SubmitEvent) {
+		event.preventDefault();
+		if (!editedDescription.trim()) return;
+		onChange(editFeatureDescription(workshop, concept.id, editingId, editedDescription), 'changed');
+		editingId = '';
+		message = 'Saved feature details. Finalization will check this revised description.';
+	}
+	function remove(feature: WorkshopFeature) {
+		const result = removeCustomFeature(workshop, concept.id, feature.id);
+		if (result.blockedBy.length) {
+			message = `Remove the dependency from ${result.blockedBy.map((item) => item.name).join(', ')} first.`;
 			return;
 		}
-		message = `${activeConcept.name} is selected. Continue to test this exact feature set against current evidence.`;
+		onChange(result.state, 'changed');
+		message = `Removed ${feature.name}.`;
+	}
+	function restore() {
+		onChange(restoreSuggestedBuild(workshop, concept), 'changed');
+		restorePending = false;
+		message = 'Restored the suggested first version for this concept.';
+	}
+	function finalize() {
+		if (configuration.features.some((item) => item.tier === 'core' && !item.included)) {
+			message =
+				'Keep the core capabilities in Build now so the first version still solves the problem.';
+			return;
+		}
+		const next = confirmWorkshopConcept(workshop, concept.id);
+		if (next === workshop) {
+			message = 'Include a usable feature set and its dependencies before finalizing.';
+			return;
+		}
 		onChange(next, 'confirmed');
+		onContinue();
 	}
 </script>
 
-<section class="rpg-workshop" aria-labelledby="rpg-workshop-title">
-	<header class="folder-bar">
+<section class="rpg-workshop" aria-labelledby="workshop-title">
+	<header>
 		<div>
-			<span>C:\PROPHECIES\PROJECT_FILES</span>
-			<h2 id="rpg-workshop-title">CHOOSE A CONCEPT AND FEATURES</h2>
+			<small>PURL OS / PROJECT WORKSPACE</small>
+			<h2 id="workshop-title">What belongs in the first version?</h2>
 		</div>
-		<div class="folder-icon" class:filing={!!filedFeature} aria-hidden="true">📁<i>FILE</i></div>
+		<button type="button" onclick={onBack}>Back to comparison</button>
 	</header>
-
-	<nav class="project-tabs" aria-label="Projects to configure">
-		{#each portfolio.concepts as concept, index (concept.id)}
-			<button
+	<nav aria-label="Concept drafts">
+		{#each portfolio.concepts as item (item.id)}<button
 				type="button"
-				class:active={concept.id === activeConcept?.id}
-				class:selected={concept.id === workshop.selectedConceptId}
-				onclick={() => selectConcept(concept.id)}
-			>
-				<kbd>{index + 1}</kbd><span>{concept.name}</span
-				>{#if concept.id === workshop.selectedConceptId}<b>SEALED</b>{/if}
-			</button>
-		{/each}
+				aria-pressed={item.id === concept.id}
+				onclick={() => choose(item.id)}>{item.name}</button
+			>{/each}
 	</nav>
-
-	{#if activeConcept && activeConfiguration}
-		<div class="feature-screen">
-			<aside>
-				<span>{activeConcept.isStretch ? 'QUARANTINED BUILD' : 'ACTIVE PROJECT'}</span>
-				<h3>{activeConcept.name}</h3>
-				<p>{activeConcept.pitch}</p>
-				<b
-					>{activeConfiguration.features.filter((feature) => feature.included).length} FEATURES INCLUDED</b
-				>
-			</aside>
-			<div class="rpg-list" role="listbox" aria-label="Feature files">
-				{#each visibleFeatures as feature, index (feature.id)}
-					<div
-						class="feature-choice"
-						class:included={feature.included}
-						class:cursor={cursor === index}
-						class:filing={filedFeature === feature.id}
-						role="option"
-						aria-selected={feature.included}
+	<div class="workshop-body">
+		<aside>
+			<small>{concept.isStretch ? 'OVER-BUDGET EXPERIMENT' : 'SELECTED DIRECTION'}</small>
+			<h3>{concept.name}</h3>
+			<p>{concept.pitch}</p>
+			<dl>
+				<div>
+					<dt>Suggested build estimate</dt>
+					<dd>
+						{money(concept.prototypeBudget.minimumUsd)}–{money(concept.prototypeBudget.maximumUsd)}
+					</dd>
+				</div>
+				<div>
+					<dt>Initial timeline</dt>
+					<dd>{concept.prototypeTimeline}</dd>
+				</div>
+			</dl>
+			<p class="estimate-status">
+				{changed
+					? 'Scope changed. Cost and timeline await recalculation.'
+					: 'Provisional estimate for the suggested build.'}
+			</p>
+			<p><b>{nowFeatures.length}</b> Build now · <b>{laterFeatures.length}</b> Later</p>
+			<p>
+				Later becomes the roadmap and is excluded from the prototype estimate. Leave out removes a
+				feature from the final plan.
+			</p>
+			<button type="button" disabled={!changed} onclick={() => (restorePending = true)}
+				>Restore suggested build</button
+			>
+			{#if restorePending}<div class="decision" role="alert">
+					<p>This restores this concept's defaults and removes its custom features.</p>
+					<button type="button" onclick={restore}>Restore this draft</button><button
+						type="button"
+						onclick={() => (restorePending = false)}>Keep my changes</button
 					>
-						<button type="button" onclick={() => changeFeature(feature, !feature.included)}>
-							<i aria-hidden="true">{cursor === index ? '♥' : ' '}</i>
-							<span
-								><strong>{feature.included ? '[X]' : '[ ]'} {feature.name}</strong><small
-									>{feature.description}</small
-								>{#if feature.dependencies.length}<em
-										>NEEDS {feature.dependencies.length} OTHER FILE(S)</em
-									>{/if}</span
+				</div>{/if}
+		</aside>
+		<div class="feature-editor">
+			{#if pending}<div class="decision" role="alert">
+					<h3>These features belong together</h3>
+					<p>
+						{pending.feature.name} also needs {pending.dependencies
+							.map((item) => item.name)
+							.join(', ')} in Build now.
+					</p>
+					<button type="button" onclick={() => place(pending!.feature, 'now', true)}
+						>Include required features</button
+					><button type="button" onclick={() => (pending = null)}>Cancel</button>
+				</div>{/if}
+			{#each configuration.features as feature (feature.id)}
+				<article class="feature-card" data-placement={featurePlacement(feature)}>
+					<div class="feature-heading">
+						<h3>{feature.name}</h3>
+						<small
+							>{feature.dependencyOnly ? 'SUPPORTING COMPONENT' : feature.tier.toUpperCase()}</small
+						>
+					</div>
+					<p>{feature.description}</p>
+					{#if editingId === feature.id}
+						<form onsubmit={saveDescription}>
+							<label
+								>What should {feature.name} do?<textarea
+									required
+									maxlength="500"
+									rows="4"
+									bind:value={editedDescription}></textarea></label
 							>
-						</button>
-						{#if feature.isCustom}<button
-								class="delete-file"
+							<div>
+								<button type="submit">Save details</button>
+								<button type="button" onclick={() => (editingId = '')}>Cancel edit</button>
+							</div>
+						</form>
+					{:else}
+						<button
+							type="button"
+							aria-label={`Edit details for ${feature.name}`}
+							onclick={() => {
+								editingId = feature.id;
+								editedDescription = feature.description;
+							}}>Edit details</button
+						>
+					{/if}
+					{#if feature.scopeImpact}<p class="scope-impact">{feature.scopeImpact}</p>{/if}
+					{#if feature.dependencies.length}<p class="dependencies">
+							Needs: {feature.dependencies
+								.map(
+									(id) =>
+										configuration.features.find((item) => item.id === id)?.name ??
+										'Unavailable dependency'
+								)
+								.join(', ')}
+						</p>{/if}
+					<div class="placements" role="group" aria-label={`Schedule ${feature.name}`}>
+						{#each placements as placement (placement.value)}<button
 								type="button"
-								onclick={() => deleteCustom(feature)}>DEL</button
+								aria-pressed={featurePlacement(feature) === placement.value}
+								onclick={() => place(feature, placement.value)}>{placement.label}</button
+							>{/each}
+						{#if feature.isCustom}<button
+								class="delete-feature"
+								type="button"
+								aria-label={`Delete ${feature.name}`}
+								onclick={() => remove(feature)}>Delete</button
 							>{/if}
 					</div>
-				{/each}
-			</div>
-		</div>
-
-		<div class="page-controls">
-			<button type="button" disabled={page === 0} onclick={() => setPage(page - 1)}>◀ PREV</button>
-			<span>PAGE {page + 1} / {pageCount}</span>
-			<button type="button" disabled={page >= pageCount - 1} onclick={() => setPage(page + 1)}
-				>NEXT ▶</button
-			>
-		</div>
-
-		<p class="workshop-message" role="status">{message}</p>
-		<footer>
-			<button type="button" onclick={() => (customOpen = !customOpen)}>+ ADD CUSTOM FEATURE</button>
-			<button class="seal" type="button" onclick={confirmSelection}>
-				{workshop.status === 'confirmed' && workshop.selectedConceptId === activeConcept.id
-					? '✓ CONCEPT SELECTED'
-					: 'SELECT THIS CONCEPT'}
-			</button>
-			{#if workshop.status === 'confirmed'}<button
-					class="reality"
-					type="button"
-					onclick={onContinue}>CONTINUE TO FOCUSED RESEARCH →</button
-				>{/if}
-		</footer>
-
-		{#if customOpen}
-			<form class="custom-dialog" data-custom-form onsubmit={addCustom}>
-				<header>
-					NEW_FEATURE.WIZ <button type="button" onclick={() => (customOpen = false)}>×</button>
-				</header>
-				<label>FILE NAME <input bind:value={customName} maxlength="100" /></label>
-				<label
-					>WHAT IT DOES <textarea bind:value={customDescription} maxlength="280" rows="2"
-					></textarea></label
-				>
-				<div class="dependency-list">
-					<span>OPTIONAL DEPENDENCIES</span>
-					{#each activeConfiguration.features as feature (feature.id)}<label
-							><input
-								type="checkbox"
-								checked={customDependencies.includes(feature.id)}
-								onchange={(event) =>
-									(customDependencies = event.currentTarget.checked
-										? [...customDependencies, feature.id]
-										: customDependencies.filter((id) => id !== feature.id))}
-							/>{feature.name}</label
-						>{/each}
-				</div>
-				<button type="submit">INSTALL SUSPICIOUSLY</button>
-			</form>
-		{/if}
-
-		{#if pendingFeature}
-			<div
-				class="dependency-dialog"
-				role="alertdialog"
-				aria-label="Feature dependencies"
-				tabindex="-1"
-			>
-				<span>DEPENDENCY GOBLIN</span>
-				<p>
-					<b>{pendingFeature.name}</b> also needs {pendingDependencies
-						.map((item) => item.name)
-						.join(' + ')}.
-				</p>
-				<div>
-					<button type="button" onclick={() => (pendingFeature = null)}>FLEE</button><button
-						type="button"
-						onclick={confirmDependencies}>ADD REQUIRED FILES</button
+				</article>
+			{/each}
+			<details class="custom-feature">
+				<summary>Add a feature of your own</summary>
+				<form onsubmit={custom}>
+					<label>Feature name<input required maxlength="100" bind:value={customName} /></label
+					><label
+						>What should it do, and for whom?<textarea
+							required
+							maxlength="500"
+							rows="3"
+							bind:value={customDescription}></textarea></label
 					>
-				</div>
-			</div>
-		{/if}
-	{/if}
+					<fieldset>
+						<legend>Does it need an existing capability?</legend>
+						<p>
+							Choose any it relies on. Unsure is fine; finalization will check the dependencies.
+						</p>
+						{#each configuration.features as feature (feature.id)}<label class="dependency-check"
+								><input
+									type="checkbox"
+									value={feature.id}
+									bind:group={customDependencies}
+								/>{feature.name}</label
+							>{/each}
+					</fieldset>
+					<button type="submit">Add to Build now</button>
+				</form>
+			</details>
+		</div>
+	</div>
+	<footer>
+		<div>
+			<p role="status">{message}</p>
+			<small
+				>Finalization checks the evidence, recalculates this scope, and prepares your final plan.</small
+			>
+		</div>
+		<button
+			class="finalize"
+			type="button"
+			disabled={!nowFeatures.length || !!pending || !!editingId}
+			onclick={finalize}>Finalize this project</button
+		>
+	</footer>
 </section>
 
 <style>
 	.rpg-workshop {
 		position: absolute;
-		top: 50%;
-		right: 26px;
-		width: min(920px, calc(100vw - 330px));
-		height: min(660px, calc(100vh - 110px));
-		margin: 0;
-		border: 5px ridge #bcc4d4;
-		background: #d4d2e4;
-		color: #4c4c4c;
-		font-family: 'Silkscreen', 'Courier New', monospace;
-		box-shadow: 5px 6px #85776166;
-		overflow: hidden;
-		transform: translateY(-50%);
-	}
-	.folder-bar {
-		height: 64px;
-		box-sizing: border-box;
+		inset: 82px 28px 28px;
 		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		border: 8px solid transparent;
+		border-image: var(--game-window-border);
+		background: #ede6d5;
+		color: #403e35;
+		box-shadow: 8px 8px var(--game-shadow);
+		font: 24px/1.25 var(--game-font);
+	}
+	header {
+		display: flex;
+		align-items: center;
 		justify-content: space-between;
-		align-items: center;
-		padding: 10px 18px;
-		background: #bdcaa8;
-		border-bottom: 3px outset #ccd;
+		gap: 20px;
+		padding: 14px 18px;
+		background: #bbcba9;
+		border-bottom: 2px solid #889878;
 	}
-	.folder-bar span {
-		font-size: 11px;
-		color: #394c60;
-	}
-	.folder-bar h2 {
-		margin: 4px 0 0;
-		font-size: 22px;
-	}
-	.folder-icon {
-		position: relative;
-		font-size: 38px;
-	}
-	.folder-icon i {
-		position: absolute;
-		right: 34px;
-		top: 10px;
-		font-size: 8px;
-		color: #4c4c4c;
-		opacity: 0;
-	}
-	.folder-icon.filing i {
-		animation: file-flight 0.65s steps(7);
-	}
-	@keyframes file-flight {
-		0% {
-			opacity: 1;
-			transform: translate(-520px, 180px) rotate(-20deg);
-		}
-		100% {
-			opacity: 1;
-			transform: translate(0, 0);
-		}
-	}
-	.project-tabs {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		height: 58px;
-		background: #c0c0c0;
-		padding: 6px;
-		gap: 5px;
-		box-sizing: border-box;
-	}
-	.project-tabs button {
-		min-width: 0;
-		border: 3px outset #eee;
-		background: #c0c0c0;
-		color: #111;
-		font:
-			11px 'Silkscreen',
-			monospace;
-		text-align: left;
-		cursor: pointer;
-	}
-	.project-tabs button.active {
-		border-style: inset;
-		background: #d2d2e4;
-		color: #4c4c4c;
-	}
-	.project-tabs span {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.project-tabs kbd {
-		float: left;
-		margin-right: 5px;
-	}
-	.project-tabs b {
-		color: #22e486;
-		font-size: 9px;
-	}
-	.feature-screen {
-		display: grid;
-		grid-template-columns: 255px 1fr;
-		height: calc(100% - 244px);
-	}
-	.feature-screen aside {
-		padding: 20px;
-		border-right: 3px double #756c93;
-		background: #d6d2e4;
-	}
-	.feature-screen aside span {
-		font-size: 11px;
-		color: #395c60;
-	}
-	.feature-screen aside h3 {
-		margin: 10px 0;
-		color: #605739;
-		font-size: 21px;
-	}
-	.feature-screen aside p {
-		font:
-			14px/1.5 Georgia,
-			serif;
-		color: #4d3a5f;
-	}
-	.feature-screen aside b {
-		display: block;
-		margin-top: 22px;
-		color: #39604b;
-		font-size: 12px;
-	}
-	.rpg-list {
-		padding: 10px;
-		overflow: hidden;
-		background: #f4e8ce;
-	}
-	.feature-choice {
-		height: 76px;
-		margin-bottom: 7px;
-		border: 2px solid #4c4263;
-		background: #d6d2e4;
-		display: flex;
-		transition: none;
-	}
-	.feature-choice.cursor {
-		border-color: #605839;
-		background: #dad2e4;
-	}
-	.feature-choice.included {
-		box-shadow: inset 5px 0 #4be59c;
-	}
-	.feature-choice.filing {
-		animation: choice-file 0.55s steps(6);
-	}
-	@keyframes choice-file {
-		50% {
-			transform: translateX(24px);
-			opacity: 0.35;
-		}
-	}
-	.feature-choice > button:first-child {
-		display: grid;
-		grid-template-columns: 24px 1fr;
-		align-items: center;
-		flex: 1;
-		border: 0;
-		background: transparent;
-		color: #4c4c4c;
-		text-align: left;
-		cursor: pointer;
-	}
-	.feature-choice i {
-		color: #60394b;
-		font-style: normal;
-		font-size: 18px;
-	}
-	.feature-choice strong,
-	.feature-choice small,
-	.feature-choice em {
-		display: block;
-	}
-	.feature-choice strong {
-		color: #605539;
-		font-size: 13px;
-	}
-	.feature-choice small {
-		margin-top: 5px;
-		color: #4c3d5c;
-		font:
-			12px/1.35 Georgia,
-			serif;
-	}
-	.feature-choice em {
-		margin-top: 4px;
-		color: #395b60;
-		font-size: 9px;
-	}
-	.delete-file {
-		align-self: center;
-		margin-right: 8px;
-		border: 2px outset #faa;
-		background: #e4d2d7;
-		color: #4c4c4c;
-		min-height: 34px;
-		font: 10px 'Silkscreen';
-		cursor: pointer;
-	}
-	.page-controls {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		gap: 18px;
-		height: 34px;
-		background: #d6d2e4;
-	}
-	.page-controls button,
-	.rpg-workshop footer button {
-		border: 2px outset #ddd;
-		background: #c0c0c0;
-		color: #111;
-		min-height: 34px;
-		font: 11px 'Silkscreen';
-		cursor: pointer;
-	}
-	.page-controls button:disabled {
-		opacity: 0.4;
-	}
-	.page-controls span {
-		font-size: 11px;
-		color: #395a60;
-	}
-	.workshop-message {
-		height: 30px;
-		margin: 0;
-		padding: 9px 16px;
-		box-sizing: border-box;
-		border-top: 1px solid #423955;
-		color: #605639;
-		font-size: 10px;
-		overflow: hidden;
-	}
-	.rpg-workshop > footer {
-		height: 58px;
-		display: flex;
-		justify-content: flex-end;
-		align-items: center;
-		gap: 10px;
-		padding: 10px 15px;
-		box-sizing: border-box;
-		background: #d9d2e4;
-		border-top: 3px ridge #655879;
-	}
-	.rpg-workshop footer button {
-		padding: 9px;
-	}
-	.rpg-workshop footer .seal {
-		background: #e4d2df;
-		color: #4c4c4c;
-		border-color: #603954;
-	}
-	.rpg-workshop footer .reality {
-		background: #d2e4de;
-		color: #4c4c4c;
-		border-color: #39604e;
-	}
-	.custom-dialog,
-	.dependency-dialog {
-		position: absolute;
-		z-index: 4;
-		left: 50%;
-		top: 52%;
-		transform: translate(-50%, -50%);
-		width: min(540px, 90%);
-		box-sizing: border-box;
-		padding: 14px;
-		border: 5px ridge #d390e5;
-		background: #dcd2e4;
-		color: #4c4c4c;
-		box-shadow: 0 0 0 100vmax #020106bb;
-	}
-	.custom-dialog header {
-		display: flex;
-		justify-content: space-between;
-		color: #603953;
-	}
-	.custom-dialog label {
-		display: block;
-		margin-top: 10px;
-		font-size: 11px;
-	}
-	.custom-dialog input,
-	.custom-dialog textarea {
-		box-sizing: border-box;
-		width: 100%;
-		margin-top: 4px;
-		border: 2px inset #aaa;
-		padding: 7px;
-		background: #dbd2e4;
-		color: #4c4c4c;
-		font-size: 14px;
-	}
-	.dependency-list {
-		max-height: 120px;
-		overflow: auto;
-		margin: 10px 0;
-		padding: 8px;
-		border: 1px solid #56445d;
-	}
-	.dependency-list label {
+	h2 {
+		font: 24px/1.25 var(--game-font);
 		margin: 4px 0;
 	}
-	.custom-dialog button,
-	.dependency-dialog button {
-		border: 2px outset #ddd;
-		padding: 7px;
-		background: #c0c0c0;
-		min-height: 38px;
-		font: 11px 'Silkscreen';
-		cursor: pointer;
+	small {
+		font-size: 11px;
 	}
-	.dependency-dialog span {
-		color: #605539;
-		font-size: 10px;
+	h3 {
+		font: 24px/1.25 var(--game-font);
+		margin: 0;
 	}
-	.dependency-dialog p {
-		font:
-			14px/1.45 Georgia,
-			serif;
+	p {
+		margin: 8px 0 12px;
 	}
-	.dependency-dialog div {
+	nav {
 		display: flex;
-		justify-content: flex-end;
+		flex-wrap: wrap;
+		padding: 8px;
+		gap: 8px;
+		background: #d5d0bd;
+		border-bottom: 2px solid #a29b88;
+	}
+	button {
+		min-height: 38px;
+		padding: 7px 12px;
+		border: 2px solid #8c8068;
+		box-shadow:
+			inset 2px 2px #fff4d9,
+			2px 2px #b3a387;
+		background: #f2edda;
+		color: #403e35;
+		font: 24px/1.25 var(--game-font);
+	}
+	button:hover:not(:disabled) {
+		background: #e7edce;
+	}
+	button:active:not(:disabled) {
+		border-style: inset;
+		transform: translateY(2px);
+		box-shadow: inset 2px 2px #a99b80;
+	}
+	button[aria-pressed='true'] {
+		background: #bdcf9f;
+		border-style: inset;
+		font-weight: 600;
+	}
+	button:disabled {
+		opacity: 0.5;
+	}
+	:is(button, input, textarea, summary):focus-visible {
+		outline: 3px solid #74608e;
+		outline-offset: 3px;
+	}
+	.workshop-body {
+		display: grid;
+		grid-template-columns: 280px minmax(0, 1fr);
+		flex: 1;
+		min-height: 0;
+		overflow: hidden;
+	}
+	aside {
+		padding: 20px;
+		background: #e0ddcb;
+		border-right: 2px solid #b2ab97;
+		overflow: auto;
+	}
+	aside h3 {
+		margin: 6px 0 12px;
+	}
+	dl div {
+		margin: 14px 0;
+	}
+	dt {
+		font-size: 12px;
+		color: #68604f;
+	}
+	dd {
+		margin: 4px 0;
+		font-weight: 600;
+	}
+	.estimate-status {
+		border-left: 4px solid #ad8952;
+		padding-left: 10px;
+		font-size: 12px;
+	}
+	.feature-editor {
+		padding: 16px;
+		overflow: auto;
+		min-width: 0;
+	}
+	.feature-card {
+		padding: 16px;
+		margin-bottom: 12px;
+		background: #fff9e9;
+		border: 2px solid #a99b80;
+		box-shadow: 4px 4px #c8bba1;
+		border-left: 6px solid #839965;
+	}
+	.feature-card[data-placement='later'] {
+		border-left-color: #ba944c;
+	}
+	.feature-card[data-placement='out'] {
+		border-left-color: #8b8690;
+		background: #e7e3dc;
+	}
+	.feature-heading {
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.scope-impact,
+	.dependencies {
+		font-size: 12px;
+		color: #70634e;
+	}
+	.placements {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.delete-feature {
+		margin-left: auto;
+	}
+	.decision {
+		padding: 14px;
+		background: #f3e3bb;
+		border: 2px solid #a58d5e;
+		margin-bottom: 16px;
+	}
+	.decision button {
+		margin: 4px;
+	}
+	.custom-feature {
+		border: 2px dashed #a29981;
+		padding: 14px;
+	}
+	summary {
+		font-weight: 600;
+	}
+	form {
+		display: grid;
+		gap: 12px;
+		margin-top: 16px;
+	}
+	form label {
+		display: grid;
+		gap: 6px;
+	}
+	input,
+	textarea {
+		width: 100%;
+		min-width: 0;
+		padding: 10px;
+		background: #fff9e9;
+		border: 2px inset #b9ae95;
+		color: #403e35;
+		font: 24px/1.25 var(--game-font);
+		box-sizing: border-box;
+	}
+	fieldset {
+		border: 1px solid #b0a38c;
+	}
+	.dependency-check {
+		display: flex;
+		align-items: center;
 		gap: 8px;
 	}
-	@media (max-height: 760px) {
-		.rpg-workshop {
-			height: 620px;
+	.dependency-check input {
+		width: 20px;
+		height: 20px;
+		accent-color: #6f894e;
+	}
+	footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 18px;
+		padding: 12px 18px;
+		background: #dce2cb;
+		border-top: 2px solid #9aaa80;
+	}
+	footer p {
+		margin: 0 0 4px;
+		font-size: 12px;
+	}
+	.finalize {
+		background: #bbcf97;
+		font-weight: 600;
+		flex-shrink: 0;
+	}
+	@media (max-width: 900px) {
+		.workshop-body {
+			grid-template-columns: 220px minmax(0, 1fr);
 		}
-		.feature-screen {
-			height: calc(100% - 244px);
-		}
-		.feature-choice {
-			height: 68px;
-		}
-		.feature-choice small {
-			display: none;
+		aside {
+			padding: 14px;
 		}
 	}
-	@media (max-width: 760px) {
+	@media (max-width: 600px) {
 		.rpg-workshop {
-			position: static;
-			width: 100%;
-			height: auto;
-			min-height: 100vh;
-			border-width: 2px;
-			overflow: auto;
-			transform: none;
+			inset: 70px 10px 12px;
 		}
-		.project-tabs {
-			grid-template-columns: 1fr 1fr;
-			height: auto;
+		header {
+			padding: 10px;
+			gap: 8px;
 		}
-		.feature-screen {
-			grid-template-columns: 1fr;
-			height: auto;
-		}
-		.feature-screen aside {
-			display: none;
-		}
-		.rpg-list {
-			min-height: 360px;
-		}
-		.rpg-workshop > footer {
-			height: auto;
-			flex-wrap: wrap;
-		}
-		.folder-bar h2 {
+		h2 {
 			font-size: 16px;
+		}
+		.workshop-body {
+			display: block;
+			overflow: auto;
+		}
+		aside {
+			border-right: 0;
+			border-bottom: 2px solid #b2ab97;
+		}
+		.feature-editor {
+			overflow: visible;
+			padding: 10px;
+		}
+		footer {
+			flex-direction: column;
+			align-items: stretch;
+			padding: 10px;
+		}
+		nav button {
+			flex: 1;
+			font-size: 11px;
+		}
+		.feature-heading {
+			align-items: start;
 		}
 	}
 </style>

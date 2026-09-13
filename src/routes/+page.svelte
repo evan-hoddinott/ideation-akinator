@@ -1,4 +1,7 @@
 <script lang="ts">
+	import '$lib/workflow.css';
+	import TagPicker from '$lib/components/TagPicker.svelte';
+	import BudgetMeter from '$lib/components/BudgetMeter.svelte';
 	import type { WorkstationView } from '$lib/workstation-3d';
 	import { resolve } from '$app/paths';
 	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
@@ -7,9 +10,9 @@
 	import LoginTerminal from '$lib/components/LoginTerminal.svelte';
 	import MainMenu from '$lib/components/MainMenu.svelte';
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
+	import ResearchBrief from '$lib/components/ResearchBrief.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
 	import SageStage from '$lib/components/SageStage.svelte';
-	import SummonedScroll from '$lib/components/SummonedScroll.svelte';
 	import VerticalWorld from '$lib/components/VerticalWorld.svelte';
 	import { OracleAudio, type OracleEffect } from '$lib/oracle-audio';
 	import {
@@ -21,6 +24,7 @@
 	import {
 		createDemoPortfolio,
 		createDemoProject,
+		createDemoResultsProject,
 		DEMO_INTERVIEW_QUESTIONS,
 		createDemoFinalPlan,
 		createDemoFocusedResearchJob,
@@ -30,8 +34,12 @@
 		nextDemoInterview
 	} from '$lib/demo';
 	import {
+		focusedRequestFingerprint,
+		finalizationConflicts,
+		nextFinalizationAction
+	} from '$lib/finalization-flow';
+	import {
 		createProjectFinalization,
-		finalizationFingerprint,
 		parseFinalProjectPlan,
 		parseFocusedResearchJobView,
 		type FinalRecalculationRequest,
@@ -40,7 +48,11 @@
 		type SelectedConceptInput,
 		type SelectedFeatureInput
 	} from '$lib/finalization';
-	import { createFeatureWorkshop, type FeatureWorkshopState } from '$lib/feature-workshop';
+	import {
+		createFeatureWorkshop,
+		featurePlacement,
+		type FeatureWorkshopState
+	} from '$lib/feature-workshop';
 	import {
 		CLARITY_LABELS,
 		mergeIndustrySuggestions,
@@ -118,7 +130,9 @@
 	let conceptBusy = $state(false);
 	let conceptMessage = $state('');
 	let focusedResearchBusy = $state(false);
+	let focusedStartSequence = 0;
 	let finalPlanBusy = $state(false);
+	let finalPlanController: AbortController | null = null;
 	let finalizationMessage = $state('');
 	let pdfBusy = $state(false);
 	let pdfMessage = $state('');
@@ -132,9 +146,9 @@
 	let loadedAnswerSignature = '';
 	let playerNameDraft = $state('');
 	let projectNameDraft = $state('');
-	let problemReviewOpen = $state(false);
-	let preferenceReviewOpen = $state(false);
-	let researchScrollOpen = $state(false);
+	let activeProblemId = $state('');
+	let answerConfirming = $state(false);
+	let confirmedAnswer = $state('');
 	let broadResearchPerformanceOpen = $state(false);
 	let broadResearchSkipped = $state(false);
 	let preferenceStep = $state(0);
@@ -152,7 +166,7 @@
 	let mainMenuOpen = $state(true);
 	let resetIntent = $state<'menu' | 'new' | 'demo'>('menu');
 	let presentationDebugMode = $state<
-		'off' | 'clips' | 'workstation' | 'popup' | 'world' | 'mail' | 'scroll' | 'history'
+		'off' | 'clips' | 'workstation' | 'popup' | 'world' | 'mail' | 'scroll' | 'history' | 'results'
 	>('off');
 	let debugAltitude = $state<number | null>(null);
 	let debugResearchHold = $state(false);
@@ -204,6 +218,17 @@
 			project?.finalization.research.status === 'running'
 	);
 	const researchIsActive = $derived(broadResearchIsActive || focusedResearchIsActive);
+	const finalPrintActive = $derived.by(() => {
+		if (
+			!project ||
+			project.stage !== 'focused' ||
+			!project.finalization.plan ||
+			project.finalization.printPresented
+		)
+			return false;
+		const input = focusedResearchRequest(project);
+		return !!input && finalizationConflicts(input, project.finalization).length === 0;
+	});
 	const currentQuestion = $derived(
 		project?.interview.questions[project.interview.currentQuestionIndex] ?? null
 	);
@@ -214,18 +239,16 @@
 			: null
 	);
 	const answeredQuestionCount = $derived(project?.interview.answers.length ?? 0);
-	const activeProblemCard = $derived(project?.problemInput.cards.at(-1) ?? null);
+	const activeProblemCard = $derived(
+		project?.problemInput.cards.find((card) => card.id === activeProblemId) ??
+			project?.problemInput.cards.at(-1) ??
+			null
+	);
 	const filledProblemCount = $derived(
 		project?.problemInput.cards.filter((card) => card.text.trim()).length ?? 0
 	);
 	const researchSourceCount = $derived(project?.research.result?.sources.length ?? 0);
-	const preferencePrompts = [
-		'Should the ideas use any particular technology?',
-		'Which industries should the research and ideas focus on?',
-		'How original should the ideas be?',
-		'What can you spend on a prototype?',
-		'What else must every idea respect?'
-	];
+
 	const sageDebugClips: SageClip[] = [
 		'idle',
 		'talk',
@@ -332,6 +355,14 @@
 
 		const result = loadProject(window.localStorage);
 		project = result.project;
+		if (project?.finalization.planStatus === 'running' && !project.finalization.plan) {
+			project = saveProject(window.localStorage, {
+				...project,
+				finalization: { ...project.finalization, planStatus: 'failed' }
+			});
+			finalizationMessage =
+				'Plan generation was interrupted. Your completed research is saved. Retry the plan when ready.';
+		}
 		playerNameDraft = result.project?.personality.playerName ?? '';
 		projectNameDraft = result.project?.personality.projectName ?? '';
 		stateReady = true;
@@ -356,11 +387,19 @@
 			requestedMode !== 'world' &&
 			requestedMode !== 'mail' &&
 			requestedMode !== 'scroll' &&
-			requestedMode !== 'history'
+			requestedMode !== 'history' &&
+			requestedMode !== 'results'
 		)
 			return;
 		presentationDebugMode = requestedMode;
 		mainMenuOpen = false;
+		if (requestedMode === 'results') {
+			project = createDemoResultsProject();
+			if (import.meta.env.DEV && new URL(window.location.href).searchParams.has('print'))
+				project.finalization.printPresented = false;
+			stateNotice = '';
+			return;
+		}
 		if (requestedMode === 'popup') {
 			const debugProject = createDemoProject();
 			debugProject.stage = 'problem';
@@ -398,10 +437,17 @@
 			};
 			project = debugProject;
 			broadResearchPerformanceOpen = false;
-			researchScrollOpen = true;
 			return;
 		}
 		if (requestedMode === 'mail') {
+			if (import.meta.env.DEV && new URL(window.location.href).searchParams.has('perform')) {
+				const debugProject = createDemoResultsProject();
+				debugProject.stage = 'concepts';
+				debugProject.concepts = { status: 'idle', portfolio: null };
+				debugProject.finalization = createProjectFinalization();
+				project = debugProject;
+				return;
+			}
 			const debugProject = createDemoProject();
 			const portfolio = createDemoPortfolio();
 			for (const key of Object.keys(window.localStorage)) {
@@ -496,7 +542,7 @@
 			insightMessage = '';
 			return;
 		}
-		if (signature === completedInsightSignature) return;
+		if (signature === completedInsightSignature && project?.problemInput.clarityLabel) return;
 
 		void retryNonce;
 		insightStatus = 'waiting';
@@ -593,6 +639,7 @@
 			...namedProject,
 			personality: reaction.personality
 		});
+		resumeRunAudio();
 		playSageCue(reaction.sound);
 		stateNotice = 'Project started. Your progress now stays in this browser.';
 	}
@@ -623,6 +670,7 @@
 		insightMessage = 'Canned demo reading. No model call occurred.';
 		completedInsightSignature = insightSignature;
 		stateNotice = 'Token-free visual demo. Every research result, question, and idea is canned.';
+		resumeRunAudio();
 		playSageCue(reaction.sound);
 	}
 
@@ -632,13 +680,22 @@
 		beginDemo();
 	}
 
+	function resumeRunAudio() {
+		if (!project || project.personality.muted) return;
+		oracleAudio ??= new OracleAudio();
+		oracleAudio.setEra(worldEraIndex);
+		void oracleAudio.setEnabled(true);
+	}
+
 	function continueFromMenu() {
 		mainMenuOpen = false;
+		resumeRunAudio();
 	}
 
 	function newFromMenu() {
 		if (project) startOver();
 		mainMenuOpen = false;
+		beginProject();
 	}
 
 	function demoFromMenu() {
@@ -869,11 +926,13 @@
 
 	function addProblem() {
 		if (!project) return;
+		const card = createProblemCard();
+		activeProblemId = card.id;
 		persist({
 			...project,
 			problemInput: {
 				...clearProblemReading(project.problemInput),
-				cards: [...project.problemInput.cards, createProblemCard()]
+				cards: [...project.problemInput.cards, card]
 			}
 		});
 		performSageEvent('problem-added', project);
@@ -982,7 +1041,9 @@
 			preferences: {
 				...project.preferences,
 				selectedIndustryTags: mergedIndustries.selected,
-				suggestedIndustryTags: mergedIndustries.suggested
+				suggestedIndustryTags: mergedIndustries.suggested,
+				suggestedTechnologyTags:
+					insights.suggestedTechnologyTags ?? project.preferences.suggestedTechnologyTags ?? []
 			}
 		});
 		if (project && mergedIndustries.selected.length > previousIndustryCount) {
@@ -1028,29 +1089,16 @@
 
 	function nextPreferenceStep() {
 		if (!project) return;
+		if (
+			!project.preferences.technologyTags.length ||
+			!project.preferences.selectedIndustryTags.length
+		) {
+			preferenceError =
+				'Choose a technology preference and at least one research topic. Open to anything is a valid preference.';
+			return;
+		}
 		preferenceError = '';
-		if (preferenceStep === 0 && project.preferences.technologyTags.length === 0) {
-			preferenceError = 'Add a technology preference. "Open to anything" counts.';
-			return;
-		}
-		if (preferenceStep === 1 && project.preferences.selectedIndustryTags.length === 0) {
-			preferenceError = 'Keep or add at least one industry.';
-			return;
-		}
-		if (preferenceStep === 3) {
-			if (project.preferences.prototypeBudgetUsd === null) {
-				preferenceError = 'Enter a prototype budget. Zero is allowed.';
-				return;
-			}
-			if (
-				project.preferences.includeProductionPlanning &&
-				project.preferences.productionBudgetUsd === null
-			) {
-				preferenceError = 'Enter a production budget or turn production planning off.';
-				return;
-			}
-		}
-		preferenceStep = Math.min(4, preferenceStep + 1);
+		preferenceStep = 1;
 	}
 
 	function previousPreferenceStep() {
@@ -1062,9 +1110,9 @@
 		preferenceStep -= 1;
 	}
 
-	function addTag(kind: 'technology' | 'industry') {
+	function addTag(kind: 'technology' | 'industry', value?: string) {
 		if (!project) return;
-		const draft = kind === 'technology' ? technologyTagDraft : industryTagDraft;
+		const draft = value ?? (kind === 'technology' ? technologyTagDraft : industryTagDraft);
 		const tag = draft.trim().replace(/\s+/g, ' ');
 		if (!tag) return;
 		const key = kind === 'technology' ? 'technologyTags' : 'selectedIndustryTags';
@@ -1108,7 +1156,10 @@
 				...project,
 				preferences: {
 					...project.preferences,
-					technologyTags: project.preferences.technologyTags.filter((entry) => entry !== tag)
+					technologyTags: project.preferences.technologyTags.filter((entry) => entry !== tag),
+					dismissedTechnologyTags: Array.from(
+						new Set([...(project.preferences.dismissedTechnologyTags ?? []), tag])
+					)
 				}
 			});
 			return;
@@ -1140,6 +1191,22 @@
 		if (level === 5) performSageEvent('innovation-wild', project);
 	}
 
+	function updateBudget(kind: 'prototype' | 'production', value: number | null) {
+		if (
+			!project ||
+			(value !== null && (!Number.isFinite(value) || value < 0 || value > 1_000_000_000))
+		)
+			return;
+		persist({
+			...project,
+			preferences: {
+				...project.preferences,
+				[kind === 'prototype' ? 'prototypeBudgetUsd' : 'productionBudgetUsd']: value
+			}
+		});
+		preferenceError = '';
+	}
+
 	function setBudget(kind: 'prototype' | 'production', input: HTMLInputElement) {
 		if (!project) return;
 		const value = input.value === '' ? null : Math.max(0, input.valueAsNumber);
@@ -1151,11 +1218,6 @@
 			}
 		});
 		preferenceError = '';
-	}
-
-	function budgetMeterPercent(value: number | null): number {
-		if (value === null || value <= 0) return 0;
-		return Math.min(100, (Math.log10(value + 1) / 5) * 100);
 	}
 
 	function setProductionPlanning(includeProductionPlanning: boolean) {
@@ -1205,7 +1267,8 @@
 		});
 		preferenceError = '';
 		preferencesSealed = false;
-		stateNotice = 'Intake complete. Review it once, then begin the broad research pass.';
+		stateNotice = 'Project brief saved. Researching your problems.';
+		void startBroadResearch();
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
@@ -1513,11 +1576,11 @@
 		};
 	}
 
-	function submitInterviewAnswer(
+	async function submitInterviewAnswer(
 		status: InterviewAnswerStatus,
 		immediateValue?: InterviewAnswer['value']
 	) {
-		if (!project || !currentQuestion || interviewBusy) return;
+		if (!project || !currentQuestion || interviewBusy || answerConfirming) return;
 		const answer = makeInterviewAnswer(
 			currentQuestion,
 			status,
@@ -1533,6 +1596,19 @@
 			return;
 		}
 
+		const questionId = currentQuestion.id;
+		const projectId = project.id;
+		answerConfirming = true;
+		confirmedAnswer = JSON.stringify(answer.value);
+		await new Promise((resolveDelay) => window.setTimeout(resolveDelay, 360));
+		if (
+			project?.id !== projectId ||
+			project.stage !== 'questions' ||
+			currentQuestion?.id !== questionId
+		) {
+			answerConfirming = false;
+			return;
+		}
 		const index = project.interview.currentQuestionIndex;
 		const existing = project.interview.answers.find(
 			(entry) => entry.questionId === currentQuestion.id
@@ -1547,6 +1623,7 @@
 				interview: { ...project.interview, currentQuestionIndex: index + 1 }
 			});
 			interviewMessage = '';
+			answerConfirming = false;
 			return;
 		}
 
@@ -1585,7 +1662,12 @@
 			project
 		);
 		interviewMessage = '';
-		void requestNextInterview(project);
+		try {
+			await requestNextInterview(project);
+		} finally {
+			answerConfirming = false;
+			confirmedAnswer = '';
+		}
 	}
 
 	function draftAnswerValue(question: InterviewQuestion): InterviewAnswer['value'] {
@@ -1810,9 +1892,7 @@
 		if (event !== 'blocked') {
 			const candidate = { ...project, featureWorkshop: next };
 			const input = focusedResearchRequest(candidate);
-			const fingerprint = input
-				? finalizationFingerprint(input.selectedConcept.id, input.includedFeatures)
-				: null;
+			const fingerprint = input ? focusedRequestFingerprint(input) : null;
 			project = saveProject(window.localStorage, {
 				...candidate,
 				completedStages: candidate.completedStages.filter((stage) => stage !== 'focused'),
@@ -1857,6 +1937,7 @@
 		if (!included.length) return null;
 		const selectedConcept: SelectedConceptInput = {
 			id: concept.id,
+			isStretch: concept.isStretch,
 			name: concept.name,
 			pitch: concept.pitch,
 			description: concept.description,
@@ -1879,6 +1960,9 @@
 			problems: session.problemInput.cards.map((card) => card.text.trim()).filter(Boolean),
 			selectedConcept,
 			includedFeatures,
+			deferredFeatures: configuration.features
+				.filter((feature) => featurePlacement(feature) === 'later')
+				.map(({ id, name, description }) => ({ id, name, description })),
 			constraints: { ...preferences.constraints },
 			prototypeBudgetUsd: preferences.prototypeBudgetUsd,
 			includeProductionPlanning: preferences.includeProductionPlanning,
@@ -1889,12 +1973,13 @@
 
 	function enterFinalizationRoom() {
 		if (!project) return;
+		stateNotice = '';
 		const input = focusedResearchRequest(project);
 		if (!input) {
 			conceptMessage = 'Seal one project with at least one feature before focused research.';
 			return;
 		}
-		const fingerprint = finalizationFingerprint(input.selectedConcept.id, input.includedFeatures);
+		const fingerprint = focusedRequestFingerprint(input);
 		project = saveProject(window.localStorage, {
 			...project,
 			stage: 'focused',
@@ -1905,6 +1990,35 @@
 		});
 		finalizationMessage = '';
 		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	$effect(() => {
+		if (!project || project.stage !== 'focused' || focusedResearchBusy || finalPlanBusy) return;
+		const input = focusedResearchRequest(project);
+		if (!input) return;
+		const action = nextFinalizationAction(input, project.finalization);
+		if (action === 'research') void startFocusedResearch();
+		if (action === 'plan') void generateFinalPlan();
+	});
+
+	function currentFocusedRequestMatches(projectId: string, fingerprint: string) {
+		if (!project || project.id !== projectId || project.stage !== 'focused') return false;
+		const current = focusedResearchRequest(project);
+		return (
+			!!current &&
+			focusedRequestFingerprint(current) === fingerprint &&
+			project.finalization.configurationFingerprint === fingerprint
+		);
+	}
+
+	function finishFinalPrint() {
+		if (!project || !project.finalization.plan) return;
+		const input = focusedResearchRequest(project);
+		if (!input || finalizationConflicts(input, project.finalization).length) return;
+		project = saveProject(window.localStorage, {
+			...project,
+			finalization: { ...project.finalization, printPresented: true }
+		});
 	}
 
 	function returnToWorkshop() {
@@ -1932,16 +2046,37 @@
 	}
 
 	async function startFocusedResearch() {
-		if (!project || focusedResearchBusy || focusedResearchIsActive) return;
+		if (
+			!project ||
+			focusedResearchBusy ||
+			focusedResearchIsActive ||
+			finalPlanBusy ||
+			project.finalization.research.result
+		)
+			return;
 		const input = focusedResearchRequest(project);
 		if (!input) {
 			finalizationMessage = 'The sealed project configuration is incomplete.';
 			return;
 		}
+		const projectId = project.id;
+		const sequence = ++focusedStartSequence;
+		const fingerprint = focusedRequestFingerprint(input);
 		focusedResearchBusy = true;
+		project = saveProject(window.localStorage, {
+			...project,
+			finalization: {
+				...project.finalization,
+				configurationFingerprint: fingerprint,
+				research: { jobId: null, status: 'failed', result: null },
+				plan: null,
+				planStatus: 'idle',
+				printPresented: false
+			}
+		});
 		finalizationMessage = isDemoProject(project)
 			? 'Loading the canned configured-project investigation...'
-			: 'The Sage is fetching the large computer again...';
+			: 'Checking your chosen build against the evidence...';
 		performSageEvent('research-started', project);
 		try {
 			if (isDemoProject(project)) {
@@ -1955,6 +2090,7 @@
 			});
 			const body: unknown = await response.json();
 			if (!response.ok) {
+				if (!currentFocusedRequestMatches(projectId, fingerprint)) return;
 				const error = body as { message?: unknown };
 				finalizationMessage =
 					typeof error.message === 'string' ? error.message : 'Focused research could not start.';
@@ -1962,11 +2098,16 @@
 			}
 			const job = parseFocusedResearchJobView(body);
 			if (!job) throw new Error('Invalid focused research job');
+			if (!currentFocusedRequestMatches(projectId, fingerprint)) {
+				await fetch(resolve(`/api/focused-research/jobs/${job.id}`), { method: 'DELETE' });
+				return;
+			}
 			persistFocusedResearchJob(job);
 		} catch {
+			if (!currentFocusedRequestMatches(projectId, fingerprint)) return;
 			finalizationMessage = 'Focused research could not start. Your chosen project is still saved.';
 		} finally {
-			focusedResearchBusy = false;
+			if (sequence === focusedStartSequence) focusedResearchBusy = false;
 		}
 	}
 
@@ -1981,9 +2122,18 @@
 	async function pollFocusedResearchJob(jobId: string) {
 		if (!project || !focusedResearchIsActive || project.finalization.research.jobId !== jobId)
 			return;
+		const projectId = project.id;
 		try {
 			const response = await fetch(resolve(`/api/focused-research/jobs/${jobId}`));
 			const body: unknown = await response.json();
+			if (
+				!project ||
+				project.id !== projectId ||
+				project.finalization.research.jobId !== jobId ||
+				!focusedResearchIsActive
+			)
+				return;
+			if (!response.ok && response.status !== 404) throw new Error('Temporary status failure');
 			if (!response.ok) {
 				const error = body as { message?: unknown };
 				project = saveProject(window.localStorage, {
@@ -2004,6 +2154,8 @@
 			if (!job) throw new Error('Invalid focused research job');
 			persistFocusedResearchJob(job);
 		} catch {
+			if (!project || project.id !== projectId || project.finalization.research.jobId !== jobId)
+				return;
 			finalizationMessage =
 				'The focused research status could not be refreshed. I will keep trying.';
 		}
@@ -2012,6 +2164,7 @@
 	async function cancelFocusedResearch(silent = false) {
 		const jobId = project?.finalization.research.jobId;
 		if (!project || !jobId || !focusedResearchIsActive) return;
+		const projectId = project.id;
 		if (isDemoProject(project)) {
 			project = saveProject(window.localStorage, {
 				...project,
@@ -2030,24 +2183,53 @@
 			});
 			const body: unknown = await response.json();
 			const job = response.ok ? parseFocusedResearchJobView(body) : null;
-			if (job) persistFocusedResearchJob(job);
+			if (job && project?.id === projectId && project.finalization.research.jobId === jobId)
+				persistFocusedResearchJob(job);
 		} catch {
-			if (!silent) finalizationMessage = 'The cancellation signal did not reach the server.';
+			if (!silent && project?.id === projectId)
+				finalizationMessage = 'The cancellation signal did not reach the server.';
 		}
 	}
+
+	function cancelFinalPlan() {
+		if (!project || !finalPlanController) return;
+		finalPlanController.abort();
+		finalizationMessage = 'Plan generation cancelled. Your completed research is saved.';
+		project = saveProject(window.localStorage, {
+			...project,
+			finalization: { ...project.finalization, planStatus: 'failed' }
+		});
+	}
+
+	$effect(() => {
+		if (
+			project?.stage !== 'focused' &&
+			finalPlanBusy &&
+			project?.finalization.planStatus === 'running'
+		)
+			cancelFinalPlan();
+	});
 
 	async function generateFinalPlan() {
 		if (!project || finalPlanBusy || !project.finalization.research.result) return;
 		const base = focusedResearchRequest(project);
-		if (!base) return;
+		if (!base || finalizationConflicts(base, project.finalization).length) return;
+		const projectId = project.id;
+		const fingerprint = focusedRequestFingerprint(base);
+		const controller = new AbortController();
+		finalPlanController = controller;
 		const input: FinalRecalculationRequest = {
 			...base,
 			focusedResearch: project.finalization.research.result
 		};
 		finalPlanBusy = true;
+		project = saveProject(window.localStorage, {
+			...project,
+			finalization: { ...project.finalization, planStatus: 'running' }
+		});
 		finalizationMessage = isDemoProject(project)
 			? 'Playing the canned recalculation...'
-			: 'The Sage is recalculating every frozen estimate and requirement...';
+			: 'Updating costs, requirements and development steps for your chosen build...';
 		try {
 			let plan;
 			if (isDemoProject(project)) {
@@ -2057,10 +2239,13 @@
 				const response = await fetch(resolve('/api/final-plan'), {
 					method: 'POST',
 					headers: { 'content-type': 'application/json' },
-					body: JSON.stringify(input)
+					body: JSON.stringify(input),
+					signal: controller.signal
 				});
 				recordApiUsage(response);
 				const body: unknown = await response.json();
+				if (!currentFocusedRequestMatches(projectId, fingerprint) || controller.signal.aborted)
+					return;
 				if (!response.ok) {
 					const error = body as { message?: unknown };
 					finalizationMessage =
@@ -2070,19 +2255,42 @@
 				plan = parseFinalProjectPlan(body, input);
 				if (!plan) throw new Error('Invalid final project plan');
 			}
-			if (!project) return;
+			if (
+				!project ||
+				!currentFocusedRequestMatches(projectId, fingerprint) ||
+				controller.signal.aborted
+			)
+				return;
 			project = saveProject(window.localStorage, {
 				...project,
-				completedStages: Array.from(new Set([...project.completedStages, 'focused'])),
-				finalization: { ...project.finalization, plan }
+				completedStages: finalizationConflicts(base, { ...project.finalization, plan }).length
+					? project.completedStages.filter((stage) => stage !== 'focused')
+					: Array.from(new Set([...project.completedStages, 'focused'])),
+				finalization: { ...project.finalization, plan, planStatus: 'ready', printPresented: false }
 			});
-			finalizationMessage = 'Every frozen estimate and requirement has been recalculated.';
+			finalizationMessage = 'Your final plan is saved with updated estimates and requirements.';
 			performSageEvent('concepts-complete', project);
 		} catch {
+			if (!currentFocusedRequestMatches(projectId, fingerprint) || controller.signal.aborted)
+				return;
 			finalizationMessage =
 				'The recalculated project file did not stabilize. Focused research is still saved.';
 		} finally {
-			finalPlanBusy = false;
+			if (
+				project &&
+				project.id === projectId &&
+				project.finalization.configurationFingerprint === fingerprint &&
+				!project.finalization.plan
+			) {
+				project = saveProject(window.localStorage, {
+					...project,
+					finalization: { ...project.finalization, planStatus: 'failed' }
+				});
+			}
+			if (finalPlanController === controller) {
+				finalPlanBusy = false;
+				finalPlanController = null;
+			}
 		}
 	}
 
@@ -2135,6 +2343,9 @@
 	}
 
 	function startOver() {
+		focusedStartSequence += 1;
+		finalPlanController?.abort();
+		finalPlanController = null;
 		resetWorldSignal += 1;
 		const retainedMuted = project?.personality.muted ?? previewMuted;
 		const retainedCalm = project?.personality.calmMode ?? previewCalm;
@@ -2170,9 +2381,6 @@
 		projectNameDraft = '';
 		customAnswer = '';
 		customAnswerOpen = false;
-		problemReviewOpen = false;
-		preferenceReviewOpen = false;
-		researchScrollOpen = false;
 		preferenceStep = 0;
 		pauseMenuOpen = false;
 		sageSpeaking = false;
@@ -2222,7 +2430,12 @@
 		data-era={worldEra}
 	>
 		<VerticalWorld
-			paused={mainMenuOpen || pauseMenuOpen}
+			runId={visualProject.id}
+			paused={mainMenuOpen ||
+				pauseMenuOpen ||
+				project?.stage === 'concepts' ||
+				project?.stage === 'focused' ||
+				workstationView?.purpose === 'concepts'}
 			altitude={sceneryAltitude}
 			stage={visualProject.stage}
 			calm={visualProject.personality.calmMode}
@@ -2240,7 +2453,9 @@
 				researching={researchIsActive}
 				workstation={workstationView}
 				onFallbackChange={(fallback) => (sageModelFallback = fallback)}
-				paused={mainMenuOpen || pauseMenuOpen}
+				paused={mainMenuOpen ||
+					pauseMenuOpen ||
+					(project?.stage === 'focused' && !finalPrintActive)}
 				speaking={sageSpeaking}
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
@@ -2248,6 +2463,7 @@
 				resetSignal={resetWorldSignal}
 				allowPopup={!!project &&
 					project.stage !== 'welcome' &&
+					project.stage !== 'focused' &&
 					!researchIsActive &&
 					!workstationView}
 				onAnchors={(anchors) => (sageAnchors = anchors)}
@@ -2257,6 +2473,7 @@
 		{/if}
 		{#if stateReady && project?.stage === 'research' && (broadResearchIsActive || (project.research.result && broadResearchPerformanceOpen))}
 			<ResearchWorkstation
+				paused={pauseMenuOpen || mainMenuOpen}
 				active={true}
 				calm={project.personality.calmMode || broadResearchSkipped || sageModelFallback}
 				projectId={project.id}
@@ -2270,11 +2487,12 @@
 				findingCount={project.research.result?.findings.length ?? 0}
 				gapCount={project.research.result?.gaps.length ?? 0}
 				onCancel={() => cancelResearchJob()}
-				onInspect={() => {
+				sources={project.research.result?.sources ?? []}
+				disclaimer={project.research.result?.disclaimer ?? ''}
+				onContinue={() => {
 					broadResearchPerformanceOpen = false;
-					researchScrollOpen = true;
+					enterInterview();
 				}}
-				onContinue={() => (broadResearchPerformanceOpen = false)}
 				onSkip={skipBroadResearchPerformance}
 				anchors={sageAnchors}
 				onWorkstationChange={(view) => (workstationView = view)}
@@ -2305,7 +2523,7 @@
 				<span>REWINDING ONE QUESTION...</span>
 			</div>
 		{/if}
-		{#if project && project.stage !== 'welcome' && project.stage !== 'concepts'}
+		{#if project && project.stage !== 'welcome' && project.stage !== 'concepts' && project.stage !== 'focused'}
 			<ChaosLayer
 				eraIndex={sceneryEraIndex}
 				projectId={project.id}
@@ -2363,7 +2581,7 @@
 		<div class="workspace" class:has-companion={project && project.stage !== 'welcome'}>
 			{#if visualProject.stage !== 'concepts'}
 				<main class="dialogue-workbench">
-					{#if stateNotice}
+					{#if stateNotice && project?.stage !== 'focused' && project?.stage !== 'concepts'}
 						<div class="floating-state-notice" role="status">{stateNotice}</div>
 					{/if}
 
@@ -2383,163 +2601,208 @@
 						<SageDialogue
 							altitude={sageAltitude}
 							personality={project.personality}
-							label={`CLUE ${String(project.problemInput.cards.length).padStart(2, '0')}`}
-							meta={`${filledProblemCount} offered · ${project.problemInput.clarityLabel ?? 'signal unread'}`}
-							prompt={filledProblemCount === 0
-								? 'Describe the real problem you want a project to solve.'
-								: 'Add another related problem, or continue to the project constraints.'}
+							layout="journal"
+							dialogueId={`${project.id}:problem`}
+							label="YOUR QUEST JOURNAL"
+							meta={`${filledProblemCount} related problem${filledProblemCount === 1 ? '' : 's'}`}
+							prompt="What keeps going wrong? Tell me who it affects and why it matters. Rough notes are enough."
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
-							<div class="dialogue-form problem-response">
-								<label class="compact-field">
-									<span>Short topic name <small>optional</small></span>
-									<input
-										type="text"
-										value={project.problemInput.topic}
-										placeholder="Campus transit, shop inventory, meal planning..."
-										oninput={(event) => setTopic(event.currentTarget.value)}
-									/>
-								</label>
-								{#if activeProblemCard}
-									<label class="compact-field main-response">
-										<span>What happens, who is affected, and why does it matter?</span>
-										<textarea
-											rows="4"
-											value={activeProblemCard.text}
-											placeholder="Example: Students miss the last bus because schedule changes are buried in PDF notices."
-											oninput={(event) =>
-												setProblemText(activeProblemCard.id, event.currentTarget.value)}></textarea>
-									</label>
-								{/if}
-
-								<div class="clarity-whisper" aria-live="polite">
-									<div>
-										<span>UNDERSTANDING</span><b>{project.problemInput.clarityLabel ?? 'STATIC'}</b>
-									</div>
-									<div class="mini-reading-track">
-										<i style={`width: ${(clarityPosition / CLARITY_LABELS.length) * 100}%`}></i>
-									</div>
-									<small
-										>{insightStatus === 'idle'
-											? 'The crystal wakes when you type.'
-											: insightMessage}</small
-									>
-								</div>
-
-								{#if project.problemInput.topicCoherenceWarning}
-									<p class="dialogue-warning">{project.problemInput.topicCoherenceWarning}</p>
-								{/if}
-
-								<div class="dialogue-primary-actions">
-									<button
-										class="answer-button secondary"
-										type="button"
-										disabled={!activeProblemCard?.text.trim()}
-										onclick={addProblem}>Add another related problem</button
-									>
-									<button
-										class="answer-button primary"
-										type="button"
-										disabled={filledProblemCount === 0}
-										onclick={goToPreferences}>Continue to project constraints</button
-									>
-								</div>
-								<button
-									class="quiet-game-action"
-									type="button"
-									onclick={() => (problemReviewOpen = true)}
-								>
-									Review my {filledProblemCount || 'empty'} clue{filledProblemCount === 1
-										? ''
-										: 's'}
-								</button>
-							</div>
-						</SageDialogue>
-
-						<SummonedScroll
-							open={problemReviewOpen}
-							title="Clues already offered"
-							kicker="THE SAGE'S QUESTIONABLE NOTES"
-							onClose={() => (problemReviewOpen = false)}
-							onPerformanceChange={(performance) => (sagePerformance = performance)}
-							onEffect={playOracleEffect}
-						>
-							<div class="scroll-problem-list">
-								{#each project.problemInput.cards as card, index (card.id)}
-									<article>
-										<header>
-											<b>CLUE {String(index + 1).padStart(2, '0')}</b><button
-												type="button"
-												onclick={() => removeProblem(card.id)}>Remove</button
-											>
-										</header>
-										<textarea
-											rows="4"
-											value={card.text}
-											oninput={(event) => setProblemText(card.id, event.currentTarget.value)}
-										></textarea>
-										<div>
+							<div class="problem-journal">
+								<aside class="journal-notes" aria-label="Your related problems">
+									<h2>Problem notes</h2>
+									{#each project.problemInput.cards as card, index (card.id)}
+										<div class="journal-note" class:active={activeProblemCard?.id === card.id}>
 											<button
 												type="button"
-												disabled={index === 0}
-												onclick={() => moveProblem(index, -1)}>Move up</button
-											><button
-												type="button"
-												disabled={index === project.problemInput.cards.length - 1}
-												onclick={() => moveProblem(index, 1)}>Move down</button
+												class="note-select"
+												aria-pressed={activeProblemCard?.id === card.id}
+												onclick={() => (activeProblemId = card.id)}
 											>
+												<b>NOTE {index + 1}</b><span>{card.text || 'An unwritten problem...'}</span>
+											</button>
+											<div class="note-tools">
+												<button
+													type="button"
+													aria-label={`Move note ${index + 1} up`}
+													disabled={index === 0}
+													onclick={() => moveProblem(index, -1)}>↑</button
+												>
+												<button
+													type="button"
+													aria-label={`Move note ${index + 1} down`}
+													disabled={index === project.problemInput.cards.length - 1}
+													onclick={() => moveProblem(index, 1)}>↓</button
+												>
+												<button type="button" onclick={() => removeProblem(card.id)}>Remove</button>
+											</div>
 										</div>
-									</article>
-								{/each}
+									{/each}
+									<button
+										type="button"
+										class="answer-button secondary"
+										disabled={!activeProblemCard?.text.trim()}
+										onclick={addProblem}>+ Related problem</button
+									>
+								</aside>
+								<div class="journal-editor">
+									<label class="compact-field"
+										><span>Topic <small>optional</small></span>
+										<input
+											type="text"
+											maxlength="120"
+											value={project.problemInput.topic}
+											placeholder="Campus transit, meal planning..."
+											oninput={(event) => setTopic(event.currentTarget.value)}
+										/>
+									</label>
+									{#if activeProblemCard}<label class="compact-field">
+											<span>What happens, who is affected, and why does it matter?</span>
+											<textarea
+												rows="5"
+												maxlength="500"
+												value={activeProblemCard.text}
+												placeholder="Students miss the last bus because schedule changes are buried in PDF notices."
+												oninput={(event) =>
+													setProblemText(activeProblemCard.id, event.currentTarget.value)}
+											></textarea>
+										</label>{/if}
+									<div class="journal-reading" aria-live="polite">
+										<b>{project.problemInput.clarityLabel ?? 'Waiting for a clue'}</b><span
+											>{insightStatus === 'idle'
+												? 'The Sage reads while you write.'
+												: insightMessage}</span
+										>
+									</div>
+									{#if project.problemInput.topicCoherenceWarning}<p class="dialogue-warning">
+											{project.problemInput.topicCoherenceWarning}
+										</p>{/if}
+									<button
+										type="button"
+										class="answer-button primary"
+										disabled={filledProblemCount === 0}
+										onclick={goToPreferences}>Set preferences and limits →</button
+									>
+								</div>
 							</div>
-						</SummonedScroll>
+						</SageDialogue>
 					{:else if project?.stage === 'preferences'}
 						<SageDialogue
 							altitude={sageAltitude}
 							personality={project.personality}
-							label={`LIMITATION ${preferenceStep + 1} OF 5`}
-							meta="five quick choices"
-							prompt={preferencePrompts[preferenceStep] ?? preferencePrompts[0]}
+							layout="journal"
+							dialogueId={`${project.id}:preferences:${preferenceStep}`}
+							label={preferenceStep === 0 ? 'DIRECTION · 1 OF 2' : 'LIMITS · 2 OF 2'}
+							meta="Your project brief"
+							prompt={preferenceStep === 0
+								? 'Choose the territory and tools. I have made a few suggestions from your notes.'
+								: 'Set the limits of this quest. Big ideas still have to fit the wallet.'}
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
 							<div class="dialogue-form preference-response">
-								{#if preferenceStep === 0}
-									<div class="tag-editor game-tag-editor">
-										<div class="tag-list">
-											{#each project.preferences.technologyTags as tag (tag)}<span class="tag-chip"
-													>{tag}<button type="button" onclick={() => removeTag('technology', tag)}
-														>×</button
-													></span
-												>{/each}
-											<input
-												bind:value={technologyTagDraft}
-												onkeydown={(event) => tagKeydown(event, 'technology')}
-												placeholder="Open to anything, TypeScript, Arduino..."
+								{#if preferenceStep === 0}<div class="preferences-columns">
+										<section>
+											<TagPicker
+												id="preferred-technologies"
+												label="Preferred technology"
+												selected={project.preferences.technologyTags}
+												suggestions={project.preferences.suggestedTechnologyTags ?? []}
+												dismissed={project.preferences.dismissedTechnologyTags ?? []}
+												catalog={[
+													'Open to anything',
+													'TypeScript',
+													'Python',
+													'JavaScript',
+													'Arduino',
+													'Raspberry Pi',
+													'Web app',
+													'Mobile app',
+													'3D printing',
+													'Bluetooth',
+													'OpenStreetMap',
+													'Computer vision',
+													'Robotics'
+												]}
+												onAdd={(tag) => addTag('technology', tag)}
+												onRemove={(tag) => removeTag('technology', tag)}
+												onDismiss={(tag) => removeTag('technology', tag)}
 											/>
-										</div>
-										<button type="button" onclick={() => addTag('technology')}>Add</button>
-									</div>
-								{:else if preferenceStep === 1}
-									<div class="detected-tags">
-										{#each project.preferences.selectedIndustryTags as tag (tag)}
-											<button type="button" onclick={() => removeTag('industry', tag)}
-												><span>✓</span>{tag}<small>remove</small></button
+											<button
+												class="answer-button secondary"
+												type="button"
+												onclick={() => addTag('technology', 'Open to anything')}
+												>I'm open to suggestions</button
 											>
-										{/each}
-									</div>
-									<div class="tag-editor game-tag-editor">
-										<div class="tag-list">
-											<input
-												bind:value={industryTagDraft}
-												onkeydown={(event) => tagKeydown(event, 'industry')}
-												placeholder="Add another industry..."
+											<details class="technology-exclusions">
+												<summary>Technologies to avoid</summary>
+												<p>
+													These are hard exclusions for all four ideas. Removing a preferred tag
+													above only removes the preference.
+												</p>
+												<TagPicker
+													id="excluded-technologies"
+													maxTags={10}
+													maxCharacters={480}
+													label="Never require these technologies"
+													selected={(project?.preferences.constraints.excludedTechnologies ?? '')
+														.split(',')
+														.map((tag) => tag.trim())
+														.filter(Boolean)}
+													catalog={[
+														'Robotics',
+														'Computer vision',
+														'Cloud services',
+														'Bluetooth',
+														'Arduino',
+														'Raspberry Pi'
+													]}
+													onAdd={(tag) =>
+														setConstraint(
+															'excludedTechnologies',
+															[
+																...(project?.preferences.constraints.excludedTechnologies ?? '')
+																	.split(',')
+																	.filter(Boolean),
+																tag
+															].join(',')
+														)}
+													onRemove={(tag) =>
+														setConstraint(
+															'excludedTechnologies',
+															(project?.preferences.constraints.excludedTechnologies ?? '')
+																.split(',')
+																.filter((entry) => entry !== tag)
+																.join(',')
+														)}
+												/>
+											</details>
+										</section>
+										<section>
+											<TagPicker
+												id="research-topics"
+												label="Industries and research topics"
+												selected={project.preferences.selectedIndustryTags}
+												suggestions={project.preferences.suggestedIndustryTags}
+												dismissed={project.preferences.dismissedIndustryTags}
+												catalog={[
+													'Higher Education',
+													'Transportation',
+													'Healthcare',
+													'Manufacturing',
+													'Consumer Software',
+													'Accessibility',
+													'Sustainability',
+													'Logistics',
+													'Food',
+													'Entertainment'
+												]}
+												onAdd={(tag) => addTag('industry', tag)}
+												onRemove={(tag) => removeTag('industry', tag)}
 											/>
-										</div>
-										<button type="button" onclick={() => addTag('industry')}>Add</button>
-									</div>
-								{:else if preferenceStep === 2}
+										</section>
+									</div>{:else}
 									<div class="rpg-meter innovation-meter">
 										<header>
 											<b>{project.preferences.innovationLevel}</b>
@@ -2554,69 +2817,53 @@
 											oninput={(event) => setInnovationLevel(event.currentTarget.valueAsNumber)}
 											aria-label="Innovation level"
 										/>
-										<div class="rpg-meter-ticks" aria-hidden="true">
-											{#each innovationLabels as anchor, index (anchor)}<i
-													data-label={anchor}
-													class:active={index + 1 <= project.preferences.innovationLevel}
-												></i>{/each}
+										<div class="originality-labels">
+											<span>Proven approach</span><span>Strange but buildable</span>
 										</div>
 									</div>
-								{:else if preferenceStep === 3}
-									<div class="game-budget-grid">
-										<label class="compact-field rpg-budget"
-											><span>Prototype budget in USD</span><input
-												type="number"
-												min="0"
-												value={project.preferences.prototypeBudgetUsd ?? ''}
-												oninput={(event) => setBudget('prototype', event.currentTarget)}
-												placeholder="2500"
-											/><span class="budget-track" aria-hidden="true"
-												><i
-													style={`width: ${budgetMeterPercent(project.preferences.prototypeBudgetUsd)}%`}
-												></i></span
-											></label
-										>
-										<label class="game-toggle"
-											><input
-												type="checkbox"
-												checked={project.preferences.includeProductionPlanning}
-												onchange={(event) => setProductionPlanning(event.currentTarget.checked)}
-											/><span>Also plan production costs</span></label
-										>
-										{#if project.preferences.includeProductionPlanning}<label
-												class="compact-field rpg-budget"
-												><span>Production budget in USD</span><input
-													type="number"
-													min="0"
-													value={project.preferences.productionBudgetUsd ?? ''}
-													oninput={(event) => setBudget('production', event.currentTarget)}
-													placeholder="25000"
-												/><span class="budget-track" aria-hidden="true"
-													><i
-														style={`width: ${budgetMeterPercent(project.preferences.productionBudgetUsd)}%`}
-													></i></span
-												></label
-											>{/if}
+
+									<div class="budget-workbench">
+										<BudgetMeter
+											id="prototype-budget"
+											label="Prototype budget"
+											value={project.preferences.prototypeBudgetUsd}
+											calm={project.personality.calmMode}
+											onChange={(value) => updateBudget('prototype', value)}
+										/>
+										<div class="production-budget">
+											<label class="production-check"
+												><input
+													type="checkbox"
+													checked={project.preferences.includeProductionPlanning}
+													onchange={(event) => setProductionPlanning(event.currentTarget.checked)}
+												/><span>Also plan production costs</span></label
+											>
+											{#if project.preferences.includeProductionPlanning}<BudgetMeter
+													id="production-budget"
+													label="Production budget"
+													value={project.preferences.productionBudgetUsd}
+													calm={project.personality.calmMode}
+													onChange={(value) => updateBudget('production', value)}
+												/>{:else}<p>Only the first working prototype will be budgeted.</p>{/if}
+										</div>
 									</div>
-								{:else}
-									<label class="compact-field main-response"
-										><span
-											>The one constraint most likely to ruin a bad idea <small>optional</small
-											></span
-										><textarea
-											rows="3"
-											value={project.preferences.constraints.other}
-											oninput={(event) => setConstraint('other', event.currentTarget.value)}
-											placeholder="Must be usable by one person, cannot need a subscription, has to fit in a backpack..."
-										></textarea></label
-									>
-									<button
-										class="quiet-game-action"
-										type="button"
-										onclick={() => (preferenceReviewOpen = true)}
-										>Edit additional constraints</button
-									>
-								{/if}
+									<details class="extra-limits">
+										<summary>Deadline, team, and other limits</summary>
+										<div class="practical-constraints">
+											{#each constraintFields as field (field.key)}
+												<label class:wide={field.wide}>
+													<span>{field.label} <small>optional</small></span>
+													<input
+														type="text"
+														maxlength="500"
+														value={project.preferences.constraints[field.key] ?? ''}
+														placeholder={field.placeholder}
+														oninput={(event) => setConstraint(field.key, event.currentTarget.value)}
+													/>
+												</label>
+											{/each}
+										</div>
+									</details>{/if}
 
 								{#if preferenceError}<p class="dialogue-warning" role="alert">
 										{preferenceError}
@@ -2627,40 +2874,18 @@
 										type="button"
 										onclick={previousPreferenceStep}>Back</button
 									>
-									{#if preferenceStep < 4}
+									{#if preferenceStep < 1}
 										<button class="answer-button primary" type="button" onclick={nextPreferenceStep}
 											>Save and continue</button
 										>
 									{:else}
 										<button class="answer-button primary" type="button" onclick={sealPreferences}
-											>Review and start research</button
+											>Research these problems</button
 										>
 									{/if}
 								</div>
 							</div>
 						</SageDialogue>
-
-						<SummonedScroll
-							open={preferenceReviewOpen}
-							title="The complete limitation spellbook"
-							kicker="EDITING REALITY'S FINE PRINT"
-							onClose={() => (preferenceReviewOpen = false)}
-							onPerformanceChange={(performance) => (sagePerformance = performance)}
-							onEffect={playOracleEffect}
-						>
-							<div class="scroll-constraint-grid">
-								{#each constraintFields as field (field.key)}
-									<label class:wide={field.wide}
-										><span>{field.label}</span><input
-											type="text"
-											value={project.preferences.constraints[field.key]}
-											placeholder={field.placeholder}
-											oninput={(event) => setConstraint(field.key, event.currentTarget.value)}
-										/></label
-									>
-								{/each}
-							</div>
-						</SummonedScroll>
 					{:else if project?.stage === 'research'}
 						{#if project.research.status === 'idle'}
 							<SageDialogue
@@ -2706,93 +2931,23 @@
 							<SageDialogue
 								altitude={sageAltitude}
 								personality={project.personality}
-								mode="announce"
-								label="RESEARCH COMPLETE"
-								meta={`${project.research.result.sources.length} sources bound`}
-								prompt="Research complete. Review the evidence now, or continue to a short interview."
+								layout="journal"
+								dialogueId={`${project.id}:research-brief`}
+								label="PRELIMINARY RESEARCH"
+								meta={`${project.research.result.sources.length} sources`}
+								prompt="Here is what I found. These notes will help us choose a useful direction."
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
-								<div class="dialogue-form research-complete-summary">
-									<p>{project.research.result.summary}</p>
-									<div class="research-result-counts">
-										<span><b>{project.research.result.findings.length}</b> findings</span><span
-											><b>{project.research.result.sources.length}</b> sources</span
-										><span><b>{project.research.result.gaps.length}</b> gaps</span>
-									</div>
-									<div class="dialogue-primary-actions">
-										<button
-											class="answer-button secondary"
-											type="button"
-											onclick={() => (researchScrollOpen = true)}
-											>Review research and sources</button
-										><button class="answer-button primary" type="button" onclick={enterInterview}
-											>Continue to follow-up questions</button
-										>
-									</div>
-								</div>
+								<ResearchBrief
+									summary={project.research.result.summary}
+									findings={project.research.result.findings}
+									gaps={project.research.result.gaps}
+									sources={project.research.result.sources}
+									disclaimer={project.research.result.disclaimer}
+									onContinue={enterInterview}
+								/>
 							</SageDialogue>
-
-							<SummonedScroll
-								open={researchScrollOpen}
-								title="Research recovered from the web"
-								kicker={`${project.research.result.sources.length} SOURCES BOUND`}
-								onClose={() => (researchScrollOpen = false)}
-								onPerformanceChange={(performance) => (sagePerformance = performance)}
-								onEffect={playOracleEffect}
-							>
-								<div class="scroll-research-brief">
-									<p class="scroll-summary">{project.research.result.summary}</p>
-									<p>{project.research.result.disclaimer}</p>
-									{#each RESEARCH_CATEGORIES as category (category)}
-										{@const categoryFindings = project.research.result.findings.filter(
-											(finding) => finding.category === category
-										)}
-										{#if categoryFindings.length}<section>
-												<h3>{researchCategoryLabels[category]}</h3>
-												{#each categoryFindings as finding (finding.id)}<article>
-														<h4>{finding.title}</h4>
-														<p>{finding.claim}</p>
-														{#if finding.interpretation}<p>
-																<b>Why it may matter:</b>
-																{finding.interpretation}
-															</p>{/if}
-														<div>
-															{#each finding.sourceIds as sourceId (sourceId)}{@const source =
-																	sourceFor(sourceId)}{#if source}<a
-																		href={source.url}
-																		target="_blank"
-																		rel="external noreferrer">{source.title}</a
-																	>{/if}{/each}
-														</div>
-													</article>{/each}
-											</section>{/if}
-									{/each}
-									{#if project.research.result.gaps.length}<section>
-											<h3>Where the signal was weak</h3>
-											<ul>
-												{#each project.research.result.gaps as gap (`${gap.category}-${gap.reason}`)}<li
-													>
-														<b>{researchCategoryLabels[gap.category]}</b>
-														{gap.reason}
-													</li>{/each}
-											</ul>
-										</section>{/if}
-									<details>
-										<summary>Source ledger ({project.research.result.sources.length})</summary>
-										<ol>
-											{#each project.research.result.sources as source (source.id)}<li>
-													<a href={source.url} target="_blank" rel="external noreferrer"
-														>{source.title}</a
-													><small
-														>{source.publisher} · {source.publicationDate ?? 'date unknown'}</small
-													>
-													<p>{source.evidenceSummary}</p>
-												</li>{/each}
-										</ol>
-									</details>
-								</div>
-							</SummonedScroll>
 						{:else}
 							<SageDialogue
 								altitude={sageAltitude}
@@ -2870,13 +3025,17 @@
 							<SageDialogue
 								altitude={sageAltitude}
 								personality={project.personality}
+								dialogueId={`${project.id}:question:${currentQuestion.id}`}
 								label={`INQUIRY ${project.interview.currentQuestionIndex + 1}`}
 								meta={`${answeredQuestionCount} answered`}
 								prompt={currentQuestion.prompt}
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
-								<div class="dialogue-form interview-response">
+								<div
+									class="dialogue-form interview-response"
+									aria-busy={interviewBusy || answerConfirming}
+								>
 									<details class="why-whisper">
 										<summary>Why are you asking?</summary>
 										<p>{currentQuestion.whyItMatters}</p>
@@ -2885,21 +3044,25 @@
 										<label class="compact-field main-response"
 											><span>Your answer</span><textarea
 												rows="4"
-												maxlength="2000"
+												maxlength="500"
 												bind:value={textAnswer}
+												disabled={interviewBusy || answerConfirming}
 												placeholder="A rough answer is enough..."></textarea></label
 										>
 									{:else if currentQuestion.type === 'single-choice'}
 										<div class="game-choice-list">
 											{#each currentQuestion.options as option (option.id)}<button
 													type="button"
-													disabled={interviewBusy}
+													disabled={interviewBusy || answerConfirming}
+													class:confirmed-answer={answerConfirming &&
+														confirmedAnswer === JSON.stringify(option.id)}
 													onclick={() => {
 														customAnswerOpen = false;
 														submitInterviewAnswer('answered', option.id);
 													}}>{option.label}</button
 												>{/each}<button
 												class:chosen={customAnswerOpen}
+												disabled={interviewBusy || answerConfirming}
 												type="button"
 												onclick={openCustomAnswer}>Something else...</button
 											>
@@ -2908,6 +3071,7 @@
 										<div class="game-choice-list multiple">
 											{#each currentQuestion.options as option (option.id)}<button
 													class:chosen={multipleAnswer.includes(option.id)}
+													disabled={interviewBusy || answerConfirming}
 													type="button"
 													onclick={() =>
 														toggleMultipleAnswer(option.id, !multipleAnswer.includes(option.id))}
@@ -2915,6 +3079,7 @@
 													>{option.label}</button
 												>{/each}<button
 												class:chosen={customAnswerOpen}
+												disabled={interviewBusy || answerConfirming}
 												type="button"
 												onclick={() => (customAnswerOpen = !customAnswerOpen)}
 												>Something else...</button
@@ -2924,11 +3089,13 @@
 										<div class="game-choice-list two">
 											<button
 												type="button"
-												disabled={interviewBusy}
+												disabled={interviewBusy || answerConfirming}
+												class:confirmed-answer={answerConfirming && confirmedAnswer === 'true'}
 												onclick={() => submitInterviewAnswer('answered', true)}>Yes</button
 											><button
 												type="button"
-												disabled={interviewBusy}
+												disabled={interviewBusy || answerConfirming}
+												class:confirmed-answer={answerConfirming && confirmedAnswer === 'false'}
 												onclick={() => submitInterviewAnswer('answered', false)}>No</button
 											>
 										</div>
@@ -2943,6 +3110,7 @@
 												min={currentQuestion.minimum ?? undefined}
 												max={currentQuestion.maximum ?? undefined}
 												bind:value={numberAnswer}
+												disabled={interviewBusy || answerConfirming}
 												placeholder="0"
 											/></label
 										>
@@ -2953,12 +3121,13 @@
 											<div>
 												<input
 													bind:value={customAnswer}
-													maxlength="2000"
+													disabled={interviewBusy || answerConfirming}
+													maxlength="500"
 													placeholder="The option the Sage somehow missed..."
 												/><button
 													class="answer-button primary"
 													type="button"
-													disabled={!customAnswer.trim() || interviewBusy}
+													disabled={!customAnswer.trim() || interviewBusy || answerConfirming}
 													onclick={() => submitInterviewAnswer('answered')}>Use this</button
 												>
 											</div></label
@@ -2970,26 +3139,28 @@
 									{#if currentQuestion.type === 'text' || currentQuestion.type === 'number' || currentQuestion.type === 'budget' || currentQuestion.type === 'multiple-choice'}<button
 											class="answer-button primary full"
 											type="button"
-											disabled={interviewBusy}
+											disabled={interviewBusy || answerConfirming}
 											onclick={() => submitInterviewAnswer('answered')}
 											>{interviewBusy ? 'Thinking...' : 'Answer and continue'}</button
 										>{/if}
 									<div class="minor-answer-actions">
 										<button
 											type="button"
-											disabled={interviewBusy}
+											disabled={interviewBusy || answerConfirming}
 											onclick={() => submitInterviewAnswer('skipped')}>Skip this</button
 										><button
 											type="button"
-											disabled={interviewBusy}
+											disabled={interviewBusy || answerConfirming}
 											onclick={() => submitInterviewAnswer('unknown')}>I do not know</button
 										><button
 											type="button"
-											disabled={interviewBusy || project.interview.currentQuestionIndex === 0}
+											disabled={interviewBusy ||
+												answerConfirming ||
+												project.interview.currentQuestionIndex === 0}
 											onclick={previousInterviewQuestion}>Previous</button
 										><button
 											type="button"
-											disabled={interviewBusy}
+											disabled={interviewBusy || answerConfirming}
 											onclick={() => interviewDialog?.showModal()}>End early</button
 										>
 									</div>
@@ -3000,13 +3171,12 @@
 						{@const focusedInput = focusedResearchRequest(project)}
 						{#if focusedInput}
 							<FinalizationRoom
+								paused={pauseMenuOpen || mainMenuOpen}
 								workstationFallback={sageModelFallback}
 								{project}
-								concept={focusedInput.selectedConcept}
-								features={focusedInput.includedFeatures}
+								input={focusedInput}
 								finalization={project.finalization}
 								personality={project.personality}
-								altitude={sageAltitude}
 								researchBusy={focusedResearchBusy}
 								planBusy={finalPlanBusy}
 								report={finalReport}
@@ -3017,10 +3187,12 @@
 								onCancelResearch={() => cancelFocusedResearch()}
 								onSkipResearch={skipFocusedResearchPerformance}
 								onGeneratePlan={generateFinalPlan}
+								onCancelPlan={cancelFinalPlan}
+								onPrintComplete={finishFinalPrint}
+								onNewRun={requestStartOver}
+								onEditLimits={goToPreferences}
 								onDownloadPdf={downloadFinalPdf}
 								onBack={returnToWorkshop}
-								onSpeakCharacter={playSageVoice}
-								onSpeakingChange={setSageSpeaking}
 								anchors={sageAnchors}
 								onWorkstationChange={(view) => (workstationView = view)}
 								onPerformanceChange={(performance) => (sagePerformance = performance)}
@@ -3089,7 +3261,7 @@
 			{/if}
 
 			<main class="workbench" class:legacy-hidden={visualProject.stage !== 'concepts'}>
-				{#if stateNotice}
+				{#if stateNotice && project?.stage !== 'concepts' && project?.stage !== 'focused'}
 					<div class="state-notice" role="status">
 						<span aria-hidden="true">i</span>
 						{stateNotice}
@@ -3699,7 +3871,7 @@
 											<span>Your answer</span>
 											<textarea
 												rows="5"
-												maxlength="2000"
+												maxlength="500"
 												bind:value={textAnswer}
 												placeholder="A rough answer is enough..."></textarea>
 										</label>
@@ -3772,19 +3944,19 @@
 									<button
 										class="secondary-button"
 										type="button"
-										disabled={interviewBusy}
+										disabled={interviewBusy || answerConfirming}
 										onclick={() => submitInterviewAnswer('skipped')}>Skip</button
 									>
 									<button
 										class="secondary-button"
 										type="button"
-										disabled={interviewBusy}
+										disabled={interviewBusy || answerConfirming}
 										onclick={() => submitInterviewAnswer('unknown')}>I don’t know</button
 									>
 									<button
 										class="summon-button compact"
 										type="button"
-										disabled={interviewBusy}
+										disabled={interviewBusy || answerConfirming}
 										onclick={() => submitInterviewAnswer('answered')}
 									>
 										<span>{interviewBusy ? 'Thinking...' : 'Save and continue'}</span><i
@@ -3813,7 +3985,7 @@
 								<button
 									class="secondary-button"
 									type="button"
-									disabled={interviewBusy}
+									disabled={interviewBusy || answerConfirming}
 									onclick={goToResearch}>Research room</button
 								>
 							</div>
@@ -3821,7 +3993,7 @@
 								<button
 									class="text-button"
 									type="button"
-									disabled={interviewBusy}
+									disabled={interviewBusy || answerConfirming}
 									onclick={() => interviewDialog?.showModal()}>End interview early</button
 								>
 							{/if}
@@ -3829,12 +4001,18 @@
 					</section>
 				{:else if project?.stage === 'concepts'}
 					<ConceptRoom
+						projectId={project.id}
+						initialView={project.featureWorkshop.status === 'confirmed' ? 'features' : 'inbox'}
+						prototypeBudgetUsd={project.preferences.prototypeBudgetUsd ?? 0}
 						portfolio={project.concepts.portfolio}
 						workshop={project.featureWorkshop}
 						sources={project.research.result?.sources ?? []}
 						muted={project.personality.muted}
 						calm={project.personality.calmMode}
 						busy={conceptBusy}
+						paused={mainMenuOpen || pauseMenuOpen}
+						workstationFallback={sageModelFallback}
+						onWorkstationChange={(view) => (workstationView = view)}
 						message={conceptMessage}
 						onGenerate={() => requestConcepts(false)}
 						onRegenerate={() => requestConcepts(true)}

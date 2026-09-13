@@ -53,6 +53,21 @@ describe('intake insight boundaries', () => {
 		).toEqual({ suggestedIndustryTags: ['Higher Education', 'Transportation'] });
 	});
 
+	it('accepts optional technology suggestions while rejecting malformed suggestions', () => {
+		expect(
+			parseIndustryResult({
+				suggestedIndustryTags: ['Transportation'],
+				suggestedTechnologyTags: [' TypeScript ', 'typescript', 'Arduino']
+			})
+		).toEqual({
+			suggestedIndustryTags: ['Transportation'],
+			suggestedTechnologyTags: ['TypeScript', 'Arduino']
+		});
+		expect(
+			parseIndustryResult({ suggestedIndustryTags: [], suggestedTechnologyTags: [42] })
+		).toBeNull();
+	});
+
 	it('never restores dismissed tags automatically', () => {
 		expect(
 			mergeIndustrySuggestions(

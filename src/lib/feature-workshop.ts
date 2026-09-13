@@ -4,12 +4,18 @@ export const FEATURE_TIERS = ['core', 'recommended', 'optional', 'custom'] as co
 
 export type FeatureTier = (typeof FEATURE_TIERS)[number];
 
+export type FeaturePlacement = 'now' | 'later' | 'out';
+
 export interface WorkshopFeature {
 	id: string;
 	name: string;
 	description: string;
 	tier: FeatureTier;
 	included: boolean;
+	placement?: FeaturePlacement;
+	autoIncluded?: boolean;
+	dependencyOnly?: boolean;
+	scopeImpact?: string;
 	dependencies: string[];
 	isCustom: boolean;
 }
@@ -131,10 +137,15 @@ export function toggleWorkshopFeature(
 					features: item.features.map((candidate) =>
 						included
 							? idsToInclude.has(candidate.id)
-								? { ...candidate, included: true }
+								? {
+										...candidate,
+										included: true,
+										placement: 'now' as const,
+										autoIncluded: candidate.id !== featureId
+									}
 								: candidate
 							: candidate.id === featureId
-								? { ...candidate, included: false }
+								? { ...candidate, included: false, placement: 'out' as const, autoIncluded: false }
 								: candidate
 					)
 				}
@@ -145,6 +156,110 @@ export function toggleWorkshopFeature(
 		requiresConfirmation: [],
 		blockedBy: []
 	};
+}
+
+export function featurePlacement(feature: WorkshopFeature): FeaturePlacement {
+	return feature.placement ?? (feature.included ? 'now' : 'out');
+}
+
+export function placeWorkshopFeature(
+	state: FeatureWorkshopState,
+	conceptId: string,
+	featureId: string,
+	placement: FeaturePlacement,
+	confirmDependencies = false
+): FeatureToggleResult {
+	const configuration = state.configurations.find((item) => item.conceptId === conceptId);
+	const feature = configuration?.features.find((item) => item.id === featureId);
+	if (!configuration || !feature || featurePlacement(feature) === placement)
+		return { state, blockedBy: [], requiresConfirmation: [] };
+	const result = toggleWorkshopFeature(
+		state,
+		conceptId,
+		featureId,
+		placement === 'now',
+		confirmDependencies
+	);
+	if (result.blockedBy.length || result.requiresConfirmation.length) return result;
+	const changed = result.state.configurations.find((item) => item.conceptId === conceptId)!;
+	let features = changed.features.map((item) =>
+		item.id === featureId
+			? { ...item, included: placement === 'now', placement, autoIncluded: false }
+			: item
+	);
+	// Only remove support features that were brought in automatically and are now unused.
+	// Explicitly chosen capabilities and the problem-solving core remain selected.
+	let removed = true;
+	while (removed) {
+		removed = false;
+		features = features.map((item) => {
+			if (
+				item.included &&
+				item.autoIncluded &&
+				item.dependencyOnly &&
+				item.tier !== 'core' &&
+				!features.some((other) => other.included && other.dependencies.includes(item.id))
+			) {
+				removed = true;
+				return {
+					...item,
+					included: false,
+					placement: placement === 'out' ? ('out' as const) : ('later' as const),
+					autoIncluded: false
+				};
+			}
+			return item;
+		});
+	}
+	return {
+		state: markConfigurationEdited(
+			result.state,
+			conceptId,
+			result.state.configurations.map((item) =>
+				item.conceptId === conceptId ? { ...item, features } : item
+			)
+		),
+		blockedBy: [],
+		requiresConfirmation: []
+	};
+}
+
+export function restoreSuggestedBuild(
+	state: FeatureWorkshopState,
+	concept: ProjectConcept
+): FeatureWorkshopState {
+	const suggested = createFeatureConfiguration(concept);
+	return markConfigurationEdited(
+		state,
+		concept.id,
+		state.configurations.map((item) => (item.conceptId === concept.id ? suggested : item))
+	);
+}
+
+export function editFeatureDescription(
+	state: FeatureWorkshopState,
+	conceptId: string,
+	featureId: string,
+	description: string
+): FeatureWorkshopState {
+	const value = description.trim();
+	const configuration = state.configurations.find((item) => item.conceptId === conceptId);
+	const feature = configuration?.features.find((item) => item.id === featureId);
+	if (!feature || !value || value.length > 500 || value === feature.description) return state;
+	return markConfigurationEdited(
+		state,
+		conceptId,
+		state.configurations.map((item) =>
+			item.conceptId === conceptId
+				? {
+						...item,
+						features: item.features.map((candidate) =>
+							candidate.id === featureId ? { ...candidate, description: value } : candidate
+						)
+					}
+				: item
+		)
+	);
 }
 
 export function addCustomFeature(
@@ -159,6 +274,10 @@ export function addCustomFeature(
 		!configuration ||
 		!name ||
 		!description ||
+		name.length > 100 ||
+		description.length > 500 ||
+		feature.id.length > 100 ||
+		configuration.features.length >= 40 ||
 		configuration.features.some((item) => normalize(item.name) === normalize(name)) ||
 		configuration.features.some((item) => item.id === feature.id) ||
 		feature.dependencies.some((dependency) =>
@@ -174,6 +293,7 @@ export function addCustomFeature(
 		description,
 		tier: 'custom',
 		included: true,
+		placement: 'now',
 		dependencies: Array.from(new Set(feature.dependencies)),
 		isCustom: true
 	};
@@ -191,7 +311,9 @@ export function addCustomFeature(
 					...item,
 					features: [
 						...item.features.map((candidate) =>
-							dependenciesToInclude.has(candidate.id) ? { ...candidate, included: true } : candidate
+							dependenciesToInclude.has(candidate.id)
+								? { ...candidate, included: true, placement: 'now' as const, autoIncluded: true }
+								: candidate
 						),
 						custom
 					]
@@ -232,7 +354,12 @@ export function confirmWorkshopConcept(
 	confirmedAt = new Date()
 ): FeatureWorkshopState {
 	const configuration = state.configurations.find((item) => item.conceptId === conceptId);
-	if (!configuration || !configuration.features.some((feature) => feature.included)) return state;
+	if (
+		!configuration ||
+		!configuration.features.some((feature) => feature.included) ||
+		configuration.features.some((feature) => feature.tier === 'core' && !feature.included)
+	)
+		return state;
 	const includedIds = new Set(
 		configuration.features.filter((feature) => feature.included).map((feature) => feature.id)
 	);
@@ -254,6 +381,35 @@ export function confirmWorkshopConcept(
 }
 
 function createFeatureConfiguration(concept: ProjectConcept): ConceptFeatureConfiguration {
+	if (concept.featureBlueprint?.length) {
+		const included = new Set(
+			concept.featureBlueprint.filter((item) => item.tier !== 'optional').map((item) => item.id)
+		);
+		const includeDependencies = (id: string) => {
+			for (const dependency of concept.featureBlueprint!.find((item) => item.id === id)!
+				.dependencies) {
+				if (included.has(dependency)) continue;
+				included.add(dependency);
+				includeDependencies(dependency);
+			}
+		};
+		for (const id of included) includeDependencies(id);
+		return {
+			conceptId: concept.id,
+			features: concept.featureBlueprint.map((item) => ({
+				...item,
+				id: `${concept.id}:feature:${concept.featureBlueprint!.indexOf(item) + 1}`,
+				dependencies: item.dependencies.map(
+					(id) =>
+						`${concept.id}:feature:${concept.featureBlueprint!.findIndex((feature) => feature.id === id) + 1}`
+				),
+				included: included.has(item.id),
+				placement: included.has(item.id) ? 'now' : 'later',
+				autoIncluded: item.tier === 'optional' && included.has(item.id),
+				isCustom: false
+			}))
+		};
+	}
 	const features = concept.proposedFeatures.map((name, index): WorkshopFeature => {
 		const tier: FeatureTier = index === 0 ? 'core' : index === 1 ? 'recommended' : 'optional';
 		return {
@@ -267,6 +423,7 @@ function createFeatureConfiguration(concept: ProjectConcept): ConceptFeatureConf
 						: 'Useful, but safe to leave outside the first prototype.',
 			tier,
 			included: tier !== 'optional',
+			placement: tier !== 'optional' ? 'now' : 'later',
 			dependencies: index === 1 ? [`${concept.id}:feature:1`] : [],
 			isCustom: false
 		};
@@ -303,24 +460,45 @@ function parseFeature(value: unknown): WorkshopFeature | null {
 		return null;
 	}
 	if (value.isCustom !== (value.tier === 'custom')) return null;
+	if (
+		value.placement !== undefined &&
+		(!['now', 'later', 'out'].includes(value.placement as string) ||
+			value.included !== (value.placement === 'now'))
+	)
+		return null;
+	if (value.autoIncluded !== undefined && typeof value.autoIncluded !== 'boolean') return null;
+	if (value.dependencyOnly !== undefined && typeof value.dependencyOnly !== 'boolean') return null;
+	if (value.scopeImpact !== undefined && typeof value.scopeImpact !== 'string') return null;
 	return {
 		id: value.id,
 		name: value.name.trim(),
 		description: value.description.trim(),
 		tier: value.tier as FeatureTier,
 		included: value.included,
+		...(value.placement !== undefined ? { placement: value.placement as FeaturePlacement } : {}),
+		...(value.autoIncluded !== undefined ? { autoIncluded: value.autoIncluded as boolean } : {}),
+		...(value.dependencyOnly !== undefined
+			? { dependencyOnly: value.dependencyOnly as boolean }
+			: {}),
+		...(value.scopeImpact !== undefined ? { scopeImpact: value.scopeImpact as string } : {}),
 		dependencies: Array.from(new Set(value.dependencies as string[])),
 		isCustom: value.isCustom
 	};
 }
 
 function configurationDependenciesExist(configuration: ConceptFeatureConfiguration): boolean {
-	const ids = new Set(configuration.features.map((feature) => feature.id));
-	return configuration.features.every(
-		(feature) =>
-			!feature.dependencies.includes(feature.id) &&
-			feature.dependencies.every((dependency) => ids.has(dependency))
-	);
+	const features = new Map(configuration.features.map((feature) => [feature.id, feature]));
+	const visit = (id: string, path: Set<string>): boolean => {
+		if (path.has(id)) return false;
+		const feature = features.get(id);
+		if (!feature) return false;
+		return feature.dependencies.every(
+			(dependency) =>
+				(!feature.included || features.get(dependency)?.included) &&
+				visit(dependency, new Set([...path, id]))
+		);
+	};
+	return configuration.features.every((feature) => visit(feature.id, new Set()));
 }
 
 function collectMissingDependencies(

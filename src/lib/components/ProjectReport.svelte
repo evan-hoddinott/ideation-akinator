@@ -208,6 +208,17 @@
 						</div>
 					</section>
 
+					{#if report.plan.deferredFeatures?.length}<section id="report-roadmap">
+							<h2>Later roadmap</h2>
+							<p>
+								Deferred from the prototype. These features are excluded from its estimate and
+								timeline.
+							</p>
+							{#each report.plan.deferredFeatures as feature (feature.id)}<article>
+									<h3>{feature.name}</h3>
+									<p>{feature.description}</p>
+								</article>{/each}
+						</section>{/if}
 					<section id="report-requirements">
 						<p class="section-number">06 // WHAT IT MUST DO</p>
 						<h2>Requirements</h2>

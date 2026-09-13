@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import MediaEra from '$lib/components/MediaEra.svelte';
 	import CozyWorld from '$lib/components/CozyWorld.svelte';
 	import { INTERNET_ERAS } from '$lib/internet-era';
 	import { eraExhibits } from '$lib/era-journey';
 	import type { WorkflowStage } from '$lib/project-state';
 	let {
 		altitude,
+		runId,
 		stage,
 		calm = false,
 		paused = false,
@@ -15,6 +17,7 @@
 		onEraChange = () => {}
 	}: {
 		altitude: number;
+		runId: string;
 		stage: WorkflowStage;
 		calm?: boolean;
 		paused?: boolean;
@@ -38,7 +41,14 @@
 	});
 </script>
 
-<div class="vertical-world" data-stage={stage} data-era={era} data-reset={resetSignal}>
+<div
+	class="vertical-world"
+	data-stage={stage}
+	data-era={era}
+	data-reset={resetSignal}
+	inert={paused}
+	aria-hidden={paused}
+>
 	<CozyWorld
 		{altitude}
 		{calm}
@@ -48,13 +58,16 @@
 			onEraChange(index);
 		}}
 	/>
+	{#if visibleEra === 8 || visibleEra === 10 || visibleEra === 11}
+		{#key `${runId}:${visibleEra}`}<MediaEra era={visibleEra} {runId} {paused} {calm} />{/key}
+	{/if}
 	<span class="sr-only">{clues.filter((c) => c.trim()).length} saved problem clues</span>
-	<button
-		class="scenery-control"
-		type="button"
-		aria-label={`Explore ${eraExhibits[visibleEra][1]}`}
-		onclick={inspect}>LOOK AROUND</button
-	>
+	{#if ![8, 10, 11].includes(visibleEra)}<button
+			class="scenery-control"
+			type="button"
+			aria-label={`Explore ${eraExhibits[visibleEra][1]}`}
+			onclick={inspect}>LOOK AROUND</button
+		>{/if}
 	{#if message}<div class="scenery-reaction" role="status">{message}</div>{/if}
 </div>
 

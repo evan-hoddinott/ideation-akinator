@@ -11,6 +11,7 @@ describe('3D workstation', () => {
 		camera.updateMatrixWorld();
 		computer.root.position.x += 0.4;
 		computer.root.rotation.z = 0.02;
+		computer.update('monitor-turn', 12, 1.1);
 		computer.root.updateMatrixWorld(true);
 		const style = { transform: '' };
 		const rect = { left: 0, top: 30, width: 1440, height: 740 } as DOMRect;

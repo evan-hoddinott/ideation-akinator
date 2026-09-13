@@ -120,7 +120,7 @@ body
 body
 	.app-frame
 	:is(.dialogue-form, .rpg-feature-workshop, .constraint-grid, .game-tag-editor)
-	:is(input, textarea, select) {
+	:is(input:not([type='range']):not([type='checkbox']), textarea, select) {
 	color: #50483f;
 	background: #fff5df;
 	border: 2px solid #a58d70;

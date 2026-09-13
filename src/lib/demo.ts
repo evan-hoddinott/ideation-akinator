@@ -11,6 +11,9 @@ import type { InterviewNextResult, InterviewQuestion, ProjectInterview } from '$
 import { createProject, type ProjectSession } from '$lib/project-state';
 import type { BroadResearchResult, ResearchJobView } from '$lib/research';
 
+import { createFeatureWorkshop, confirmWorkshopConcept } from '$lib/feature-workshop';
+import { focusedRequestFingerprint } from '$lib/finalization-flow';
+
 const DEMO_PREFIX = 'demo-';
 
 export const DEMO_INTERVIEW_QUESTIONS: InterviewQuestion[] = [
@@ -86,6 +89,7 @@ export function createDemoProject(now = new Date()): ProjectSession {
 			selectedIndustryTags: ['Higher education', 'Transportation'],
 			dismissedIndustryTags: [],
 			suggestedIndustryTags: ['Higher education', 'Transportation'],
+			suggestedTechnologyTags: ['TypeScript', 'Web app', 'OpenStreetMap'],
 			innovationLevel: 3,
 			prototypeBudgetUsd: 1_500,
 			includeProductionPlanning: true,
@@ -122,7 +126,8 @@ export function demoIntakeInsights(): IntakeInsights {
 			'The problem notes describe one shared transit information loop.'
 		],
 		topicCoherenceWarning: null,
-		suggestedIndustryTags: ['Higher education', 'Transportation']
+		suggestedIndustryTags: ['Higher education', 'Transportation'],
+		suggestedTechnologyTags: ['TypeScript', 'Web app', 'OpenStreetMap']
 	};
 }
 
@@ -406,6 +411,7 @@ export function createDemoFinalPlan(
 		executiveSummary:
 			'This recalculated demo plan keeps the confirmed notice workflow small. It tests staff publishing and rider comprehension before adding live tracking or prediction.',
 		confirmedFeatures: features,
+		...(request.deferredFeatures ? { deferredFeatures: request.deferredFeatures } : {}),
 		prototypeBudget: {
 			minimumUsd: 450,
 			maximumUsd: 1_200,
@@ -500,6 +506,89 @@ export function createDemoFinalPlan(
 	};
 }
 
+export function createDemoResultsProject(now = new Date()): ProjectSession {
+	const project = createDemoProject(now);
+	const portfolio = createDemoPortfolio(now);
+	project.stage = 'focused';
+	project.completedStages = [
+		'problem',
+		'preferences',
+		'research',
+		'questions',
+		'concepts',
+		'focused'
+	];
+	project.research = {
+		jobId: 'demo-results-broad',
+		status: 'completed',
+		result: createDemoResearchResult(now)
+	};
+	project.concepts = { status: 'ready', portfolio };
+	project.featureWorkshop = confirmWorkshopConcept(
+		createFeatureWorkshop(portfolio),
+		portfolio.concepts[0].id,
+		now
+	);
+	project.interview = {
+		status: 'completed',
+		questions: DEMO_INTERVIEW_QUESTIONS,
+		answers: [
+			{ questionId: 'demo-first-user', status: 'answered', value: 'students' },
+			{ questionId: 'demo-live-feed', status: 'answered', value: false },
+			{ questionId: 'demo-success', status: 'answered', value: ['fewer-missed'] }
+		],
+		currentQuestionIndex: 2,
+		completionReason: 'The demo decisions are complete.',
+		confidence: 'normal'
+	};
+	project.personality.achievements = ['FORBIDDEN FLOPPY', 'POPUP JANITOR', 'PURL ACTUALLY HELPED'];
+	const concept = portfolio.concepts[0];
+	const configuration = project.featureWorkshop.configurations[0];
+	const input: FocusedResearchRequest = {
+		projectId: project.id,
+		topic: project.problemInput.topic,
+		problems: project.problemInput.cards.map((card) => card.text),
+		selectedConcept: {
+			id: concept.id,
+			isStretch: concept.isStretch,
+			name: concept.name,
+			pitch: concept.pitch,
+			description: concept.description,
+			targetUser: concept.targetUser,
+			distinctApproach: concept.distinctApproach,
+			prototypeBudget: concept.prototypeBudget,
+			productionBudget: concept.productionBudget,
+			prototypeTimeline: concept.prototypeTimeline
+		},
+		includedFeatures: configuration.features
+			.filter((feature) => feature.included)
+			.map(({ id, name, description, tier, dependencies }) => ({
+				id,
+				name,
+				description,
+				tier,
+				dependencies
+			})),
+		deferredFeatures: configuration.features
+			.filter((feature) => feature.placement === 'later')
+			.map(({ id, name, description }) => ({ id, name, description })),
+		constraints: { ...project.preferences.constraints },
+		prototypeBudgetUsd: project.preferences.prototypeBudgetUsd!,
+		includeProductionPlanning: project.preferences.includeProductionPlanning,
+		productionBudgetUsd: project.preferences.productionBudgetUsd,
+		broadResearch: project.research.result!
+	};
+	const focusedResearch = createDemoFocusedResearchResult(input, now);
+	project.finalization = {
+		configurationFingerprint: focusedRequestFingerprint(input),
+		research: { jobId: 'demo-results-focused', status: 'completed', result: focusedResearch },
+		plan: createDemoFinalPlan({ ...input, focusedResearch }, now),
+		planStatus: 'ready',
+		printPresented: true
+	};
+	return project;
+}
+
 function createConcept(
 	index: number,
 	input: {
@@ -525,6 +614,35 @@ function createConcept(
 		],
 		distinctApproach: input.distinctApproach,
 		proposedFeatures: input.features,
+		requiredTechnologies:
+			index === 2
+				? ['Microcontroller', 'Network connection', 'Accessible display']
+				: index === 3
+					? ['Python', 'Transit schedule data', 'Simulation engine']
+					: ['Web browser', 'Database', 'Staff authentication'],
+		majorComponents:
+			index === 2
+				? ['Display controller', 'Notice delivery service', 'Weather-resistant enclosure']
+				: ['Staff workspace', 'Transit data store', 'Rider-facing output'],
+		featureBlueprint: input.features.map((name, featureIndex) => ({
+			id: `feature-${featureIndex + 1}`,
+			name,
+			description:
+				featureIndex === 0
+					? `Use ${name.toLowerCase()} to solve the central ${index === 1 ? 'staff publishing' : 'campus transit information'} problem.`
+					: featureIndex === 1
+						? `Extend the core workflow with ${name.toLowerCase()}.`
+						: `Add ${name.toLowerCase()} after validating the first working version.`,
+			tier: featureIndex === 0 ? 'core' : featureIndex === 1 ? 'recommended' : 'optional',
+			dependencies: featureIndex === 0 ? [] : ['feature-1'],
+			dependencyOnly: false,
+			scopeImpact:
+				featureIndex === 0
+					? 'The minimum useful demonstration. Removing this leaves the central problem unsolved.'
+					: featureIndex === 1
+						? 'Adds another workflow and its testing; deferring it leaves a simpler first version.'
+						: 'Adds ongoing data and testing work. Keep it for later unless essential to the pilot.'
+		})),
 		highLevelRequirements: [
 			'Accept a service change from an authorized staff member.',
 			'Present current information in a readable and accessible format.'
@@ -577,15 +695,17 @@ function createConcept(
 		comparison: COMPARISON_DIMENSIONS.map((dimension) => ({
 			dimension,
 			rating:
-				dimension === 'technical-risk'
-					? stretch
-						? 'high'
-						: 'low'
-					: dimension === 'originality'
+				dimension === 'budget-fit' && stretch
+					? 'low'
+					: dimension === 'technical-risk'
 						? stretch
 							? 'high'
-							: 'medium'
-						: 'high',
+							: 'low'
+						: dimension === 'originality'
+							? stretch
+								? 'high'
+								: 'medium'
+							: 'high',
 			explanation:
 				dimension === 'technical-risk'
 					? stretch

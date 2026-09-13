@@ -39,6 +39,30 @@ describe('focused research AI orchestration', () => {
 		expect(parsed.result.sources[0]).toMatchObject({ url: sourceUrl, stage: 'focused' });
 	});
 
+	it('binds blocking contradictions to consulted evidence and rejects an omitted assessment', () => {
+		const input = request();
+		const raw = output(input);
+		raw.materialConflicts = [
+			{
+				kind: 'scope',
+				description: 'The required live feed is unavailable.',
+				sourceUrls: [sourceUrl]
+			}
+		];
+		const parsed = parseCompletedFocusedResearch(snapshot(raw), input);
+		expect(parsed.result.materialConflicts?.[0]).toMatchObject({
+			kind: 'scope',
+			sourceIds: ['focused-source-1']
+		});
+		raw.materialConflicts[0].sourceUrls = ['https://invented.example/claim'];
+		expect(() => parseCompletedFocusedResearch(snapshot(raw), input)).toThrow(
+			InvalidFocusedResearchResponseError
+		);
+		expect(() =>
+			parseCompletedFocusedResearch(snapshot({ ...raw, materialConflicts: undefined }), input)
+		).toThrow(InvalidFocusedResearchResponseError);
+	});
+
 	it('rejects an overlap check that omits a confirmed feature', () => {
 		const input = request();
 		const raw = output(input);
@@ -126,6 +150,7 @@ function output(input: FocusedResearchRequest) {
 				sourceUrls: [sourceUrl]
 			}
 		],
+		materialConflicts: [] as Array<{ kind: string; description: string; sourceUrls: string[] }>,
 		recommendations: ['Validate the campus data feed.'],
 		sourceDetails: [
 			{

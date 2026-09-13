@@ -60,11 +60,11 @@ The completion sequence now waits for the model to load, feeds the printer sheet
 
 The held document includes the research summary, findings, and gaps for both broad and focused research. Scrolling stays inside the paper. Initial focus, Tab containment, Escape, source inspection, and continuation are supported. Reduced-motion/model fallback retains the existing direct result controls.
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| PR-WORK-05 | verified | Browser pickup and held-page captures: `artifacts/paper-pickup.png`, `artifacts/paper-desktop.png`, `artifacts/paper-mobile.png`. The printable sheet and model mittens share the animated scene. |
-| PR-COMP-02 | verified for this handoff | Keyboard focus cycles through paper actions; inspection opens the sourced research document; taking the paper resumes the workflow. |
-| PR-COMP-03 | implemented | Verified this change at 1440×900 and 390×844, including internal keyboard scrolling with window scroll remaining zero. The other PRD viewport sizes were not rechecked in this pass. |
+| Requirement | Status                    | Evidence                                                                                                                                                                                          |
+| ----------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PR-WORK-05  | verified                  | Browser pickup and held-page captures: `artifacts/paper-pickup.png`, `artifacts/paper-desktop.png`, `artifacts/paper-mobile.png`. The printable sheet and model mittens share the animated scene. |
+| PR-COMP-02  | verified for this handoff | Keyboard focus cycles through paper actions; inspection opens the sourced research document; taking the paper resumes the workflow.                                                               |
+| PR-COMP-03  | implemented               | Verified this change at 1440×900 and 390×844, including internal keyboard scrolling with window scroll remaining zero. The other PRD viewport sizes were not rechecked in this pass.              |
 
 Validation: Svelte check (zero errors/warnings), scoped ESLint, five focused workstation/animation/hand-clearance tests, production build, and fresh-browser console/resource checks passed. Still local; no deployment. The browser recorder did not capture the full sequence reliably, so the screenshots are the visual evidence for this pass.
 
@@ -76,12 +76,12 @@ Replaced the traveling flat sheet with a locally authored, tessellated 3D paper 
 
 The approach is rendered in held poses at approximately 12 frames per second. Its grip, forward motion, and rotation use stepped progress. The scroll shares the Sage's 3D scene: two eight-sided rollers separate as the parchment opens in ten held steps, then the mittens move to the reading grip. Its content becomes interactive after the opening finishes. Scroll controls and content are portaled outside dialogue stacking contexts, with internal scrolling, initial focus, Escape, Tab containment, and focus return. Existing reduced-motion and unavailable-model paths keep a readable HTML document.
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| PR-WORK-05 | verified for this change | `artifacts/crinkle-paper-approach.png`, `artifacts/crinkle-paper-desktop.png`, `artifacts/crinkle-paper-mobile.png`; modeled paper moves from the printer toward the camera with real model mittens. |
-| PR-PROP-02 | verified for this change | `artifacts/crinkle-scroll-unfurl.png`, `artifacts/crinkle-scroll-desktop.png`; physical rollers and parchment opening, followed by internal HTML scrolling. |
-| PR-COMP-02 | verified for these documents | Keyboard scrolling stays inside the document; scroll Escape closes the document. Decorative tutorial popup is hidden during document presentation. |
-| PR-COMP-03 | implemented | Desktop and phone checks at 1440×900 and 390×844. The other listed PRD sizes are not claimed as reverified here. |
+| Requirement | Status                       | Evidence                                                                                                                                                                                             |
+| ----------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PR-WORK-05  | verified for this change     | `artifacts/crinkle-paper-approach.png`, `artifacts/crinkle-paper-desktop.png`, `artifacts/crinkle-paper-mobile.png`; modeled paper moves from the printer toward the camera with real model mittens. |
+| PR-PROP-02  | verified for this change     | `artifacts/crinkle-scroll-unfurl.png`, `artifacts/crinkle-scroll-desktop.png`; physical rollers and parchment opening, followed by internal HTML scrolling.                                          |
+| PR-COMP-02  | verified for these documents | Keyboard scrolling stays inside the document; scroll Escape closes the document. Decorative tutorial popup is hidden during document presentation.                                                   |
+| PR-COMP-03  | implemented                  | Desktop and phone checks at 1440×900 and 390×844. The other listed PRD sizes are not claimed as reverified here.                                                                                     |
 
 Focused tests cover real paper depth, the separate reading window/rim, roller orientation, held animation beats, and reading bounds including a landscape footprint. Visual proof remains phase screenshots rather than a reliable full browser recording. All changes are local, with no deployment.
 

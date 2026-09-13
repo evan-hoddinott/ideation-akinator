@@ -93,6 +93,7 @@ function request(): FocusedResearchRequest {
 
 function output(input: FocusedResearchRequest) {
 	return {
+		materialConflicts: [],
 		summary: 'The configured product remains plausible.',
 		verdict: 'caution',
 		verdictRationale: 'Data access needs validation.',

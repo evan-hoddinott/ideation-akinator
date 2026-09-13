@@ -108,11 +108,13 @@ export const POST: RequestHandler = async ({ cookies, request, getClientAddress,
 			model,
 			generationKind: input.rejectedConcepts.length ? 'replacement' : 'initial',
 			failureClass,
+			validationReason: error instanceof InvalidConceptResponseError ? error.reason : undefined,
 			...tokenUsage
 		});
 		return json(
 			{
 				code: failureClass,
+				reason: error instanceof InvalidConceptResponseError ? error.reason : undefined,
 				message: 'The four futures did not stabilize. Your interview is saved, and you can retry.'
 			},
 			{

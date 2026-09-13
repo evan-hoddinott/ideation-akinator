@@ -49,6 +49,7 @@ export interface ProblemInput {
 }
 
 export interface ProjectConstraints {
+	excludedTechnologies?: string;
 	targetPlatform: string;
 	deadline: string;
 	teamSize: string;
@@ -61,6 +62,8 @@ export interface ProjectConstraints {
 }
 
 export interface ProjectPreferences {
+	suggestedTechnologyTags?: string[];
+	dismissedTechnologyTags?: string[];
 	technologyTags: string[];
 	selectedIndustryTags: string[];
 	dismissedIndustryTags: string[];
@@ -597,6 +600,10 @@ function isPreferences(value: unknown): value is ProjectPreferences {
 		isStringArray(preferences.selectedIndustryTags) &&
 		isStringArray(preferences.dismissedIndustryTags) &&
 		isStringArray(preferences.suggestedIndustryTags) &&
+		(preferences.suggestedTechnologyTags === undefined ||
+			isStringArray(preferences.suggestedTechnologyTags)) &&
+		(preferences.dismissedTechnologyTags === undefined ||
+			isStringArray(preferences.dismissedTechnologyTags)) &&
 		isInnovationLevel(preferences.innovationLevel) &&
 		isNullableBudget(preferences.prototypeBudgetUsd) &&
 		typeof preferences.includeProductionPlanning === 'boolean' &&

@@ -83,9 +83,9 @@ describe('interview AI orchestration', () => {
 		expect(client.calls).toHaveLength(1);
 	});
 
-	it('retries a premature completion and a repeated question, then fails', async () => {
+	it('rejects repeated questions after a bounded retry', async () => {
 		const client = fakeClient([
-			{ decision: 'complete', question: null, completionReason: 'Done.' },
+			{ decision: 'ask', question: question(1), completionReason: null },
 			{ decision: 'ask', question: question(1), completionReason: null }
 		]);
 		await expect(generateInterviewTurn(client, 'test-model', request(1))).rejects.toBeInstanceOf(
@@ -94,12 +94,12 @@ describe('interview AI orchestration', () => {
 		expect(client.calls).toHaveLength(2);
 	});
 
-	it('accepts completion after five questions and caps the interview at twelve without a call', async () => {
+	it('accepts completion without a minimum quota and caps the interview at twelve without a call', async () => {
 		const completeClient = fakeClient([
 			{ decision: 'complete', question: null, completionReason: 'Enough detail is available.' }
 		]);
 		await expect(
-			generateInterviewTurn(completeClient, 'test-model', request(5))
+			generateInterviewTurn(completeClient, 'test-model', request(0))
 		).resolves.toMatchObject({
 			decision: 'complete'
 		});

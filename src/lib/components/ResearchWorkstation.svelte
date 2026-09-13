@@ -1,5 +1,9 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
+	import { catPlaylist } from '$lib/cat-media';
+	import { researchClock, advanceResearchClock, researchFrame } from '$lib/research-choreography';
+	import ResearchBrief from './ResearchBrief.svelte';
+	import type { ResearchSource } from '$lib/research';
 	import type { WorkstationView, WorkstationPhase } from '$lib/workstation-3d';
 	import { researchSceneOrder, type ResearchTask } from '$lib/research-performance';
 	import type { SageClip, SageScreenAnchors } from '$lib/sage-stage';
@@ -7,9 +11,11 @@
 
 	let {
 		active,
+		paused = false,
 		calm,
 		projectId,
 		task = 'broad',
+		finalDocument = false,
 		message,
 		sourceCount = 0,
 		complete = false,
@@ -18,6 +24,8 @@
 		gapCount = 0,
 		verdict = '',
 		findings = [],
+		sources = [],
+		disclaimer = '',
 		gaps = [],
 		onCancel,
 		onInspect = () => {},
@@ -29,9 +37,11 @@
 		onEffect = () => {}
 	}: {
 		active: boolean;
+		paused?: boolean;
 		calm: boolean;
 		projectId: string;
 		task?: ResearchTask;
+		finalDocument?: boolean;
 		message: string;
 		sourceCount?: number;
 		complete?: boolean;
@@ -39,7 +49,14 @@
 		findingCount?: number;
 		gapCount?: number;
 		verdict?: string;
-		findings?: { title: string; claim: string }[];
+		findings?: {
+			title: string;
+			claim: string;
+			interpretation?: string | null;
+			sourceIds?: string[];
+		}[];
+		sources?: ResearchSource[];
+		disclaimer?: string;
 		gaps?: { category: string; reason: string }[];
 		onCancel: () => void;
 		onInspect?: () => void;
@@ -51,6 +68,12 @@
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 
+	const catClip = $derived(catPlaylist(projectId)[0]);
+	let screenVideo = $state<HTMLVideoElement>();
+	$effect(() => {
+		if (paused || calm || !active) screenVideo?.pause();
+		else if (screenVideo && !document.hidden) void screenVideo.play().catch(() => {});
+	});
 	const modelReady = $derived(!!anchors);
 	const mineCells = Array.from({ length: 48 }, (_, index) => index);
 	const desktopFiles = [
@@ -63,24 +86,33 @@
 	];
 	let debugScene = $state<string | null>(null);
 	const scenes = $derived(debugScene ? [debugScene] : researchSceneOrder(projectId, task));
-	let sceneIndex = $state(0);
 	let paperElement = $state<HTMLElement>();
 	let screenElement = $state<HTMLDivElement>();
-	let phase = $state<WorkstationPhase>('exit');
-	let entranceComplete = $state(false);
-	let handoffStarted = false;
+	let clock = $state(researchClock());
+	const frame = $derived(researchFrame(clock, finalDocument));
+	const sceneIndex = $derived(Math.min(frame.sceneIndex, scenes.length - 1));
+	const phase = $derived(frame.phase);
 	let debugAnchors = $state(false);
-	let entranceTimers: number[] = [];
-	let handoffTimers: number[] = [];
 	let lastSoundPhase: WorkstationPhase | null = null;
 	let lastSoundScene = '';
+	let playedCues: string[] = [];
+	let continued = false;
+
+	$effect(() => {
+		if (!active) {
+			clock = researchClock();
+			continued = false;
+			lastSoundPhase = null;
+			playedCues = [];
+		}
+	});
 
 	const scenePerformances: Record<string, SageClip> = {
 		minecraft: 'research_one_hand',
 		cats: 'research_one_hand',
 		mines: 'research_typing',
 		search: 'research_inspect',
-		desktop: 'research_smack',
+		desktop: 'research_typing',
 		forums: 'research_inspect',
 		cable: 'research_cable',
 		sleep: 'research_sleep',
@@ -91,7 +123,7 @@
 	$effect(() => {
 		onWorkstationChange(
 			active && !calm && screenElement
-				? { screen: screenElement, phase, paper: paperElement }
+				? { screen: screenElement, phase, elapsedSeconds: frame.phaseElapsed, paper: paperElement }
 				: null
 		);
 	});
@@ -112,35 +144,43 @@
 							? 'workstation_turn'
 							: phase === 'researching'
 								? (scenePerformances[scenes[sceneIndex]] ?? 'research_typing')
-								: phase === 'noticed'
+								: phase === 'noticed' || phase === 'printing'
 									? 'research_complete'
 									: 'scroll_present';
 		onPerformanceChange(performance);
 	});
 
+	const cues: Partial<Record<WorkstationPhase, [number, OracleEffect, number][]>> = {
+		arrival: [[0, 'wheel-squeak', 0.38]],
+		parking: [
+			[0, 'cart-bump', 0.42],
+			[0.15, 'wheel-skid', 0.34]
+		],
+		turning: [[0, 'chair-turn', 0.36]],
+		researching: [
+			[0, 'hand-crack', 0.32],
+			[0.26, 'keyboard-type', 0.22]
+		],
+		noticed: [[0, 'sage-discovery', 0.3]],
+		printing: [
+			[0, 'printer-start', 0.34],
+			[0.24, 'printer-feed', 0.28],
+			[2.4, 'printer-complete', 0.35]
+		]
+	};
 	$effect(() => {
-		if (!active || calm) return;
-		const nextPhase = phase;
-		if (nextPhase !== lastSoundPhase) {
-			lastSoundPhase = nextPhase;
-			if (nextPhase === 'arrival') onEffect('wheel-squeak', 0.38);
-			if (nextPhase === 'parking') {
-				onEffect('cart-bump', 0.42);
-				window.setTimeout(() => onEffect('wheel-skid', 0.34), 150);
-			}
-			if (nextPhase === 'turning') onEffect('chair-turn', 0.36);
-			if (nextPhase === 'researching') {
-				onEffect('hand-crack', 0.32);
-				window.setTimeout(() => onEffect('keyboard-type', 0.22), 260);
-			}
-			if (nextPhase === 'noticed') onEffect('keyboard-strike', 0.42);
-			if (nextPhase === 'printing') {
-				onEffect('printer-start', 0.34);
-				window.setTimeout(() => onEffect('printer-feed', 0.28), 240);
-				window.setTimeout(() => onEffect('printer-complete', 0.35), 1_650);
+		if (!active || calm || paused || document.hidden) return;
+		if (phase !== lastSoundPhase) {
+			lastSoundPhase = phase;
+			playedCues = [];
+		}
+		for (const [at, cue, volume] of cues[phase] ?? []) {
+			if (frame.phaseElapsed >= at && !playedCues.includes(cue)) {
+				playedCues.push(cue);
+				onEffect(cue, volume);
 			}
 		}
-		if (nextPhase === 'researching') {
+		if (phase === 'researching') {
 			const scene = scenes[sceneIndex];
 			if (scene !== lastSoundScene) {
 				lastSoundScene = scene;
@@ -150,43 +190,6 @@
 					onEffect('keyboard-type', 0.18);
 			}
 		}
-	});
-
-	$effect(() => {
-		if (!active || calm || phase !== 'researching') return;
-		sceneIndex = 0;
-		const timer = window.setInterval(() => {
-			sceneIndex = Math.min(sceneIndex + 1, scenes.length - 1);
-		}, 4_200);
-		return () => window.clearInterval(timer);
-	});
-
-	$effect(() => {
-		if (!active || calm || !modelReady) return;
-		phase = 'exit';
-		entranceComplete = false;
-		handoffStarted = false;
-		entranceTimers.forEach((timer) => window.clearTimeout(timer));
-		entranceTimers = [
-			window.setTimeout(() => (phase = 'arrival'), 900),
-			window.setTimeout(() => (phase = 'parking'), 2_850),
-			window.setTimeout(() => (phase = 'turning'), 3_950),
-			window.setTimeout(() => {
-				phase = 'researching';
-				entranceComplete = true;
-			}, 5_250)
-		];
-	});
-
-	$effect(() => {
-		if (!active || calm || !complete || !entranceComplete || handoffStarted) return;
-		handoffStarted = true;
-		phase = 'noticed';
-		handoffTimers = [
-			window.setTimeout(() => (phase = 'printing'), 760),
-			window.setTimeout(() => (phase = 'lifting'), 2_850),
-			window.setTimeout(() => (phase = 'presenting'), 5_450)
-		];
 	});
 
 	$effect(() => {
@@ -201,6 +204,30 @@
 	});
 
 	onMount(() => {
+		let last = performance.now();
+		let animation = 0;
+		const advance = (now: number) => {
+			const delta = (now - last) / 1000;
+			last = now;
+			clock = advanceResearchClock(
+				clock,
+				delta,
+				complete,
+				finalDocument,
+				paused || document.hidden || !active || calm || !modelReady
+			);
+			if (frame.finished && !continued && !paused && !document.hidden) {
+				continued = true;
+				onContinue();
+			}
+			animation = requestAnimationFrame(advance);
+		};
+		animation = requestAnimationFrame(advance);
+		const visibility = () => {
+			if (document.hidden) screenVideo?.pause();
+			else if (!paused && !calm && active) void screenVideo?.play().catch(() => {});
+		};
+		document.addEventListener('visibilitychange', visibility);
 		const debugUrl = new URL(window.location.href);
 		debugAnchors = debugUrl.searchParams.has('anchors');
 		const requestedScene = debugUrl.searchParams.get('researchScene');
@@ -214,11 +241,13 @@
 			if (phase === 'presenting' && paperElement) {
 				if (event.key === 'Escape') {
 					event.preventDefault();
-					onContinue();
+					if (task !== 'broad') onContinue();
 					return;
 				}
 				if (event.key === 'Tab') {
-					const controls = [...paperElement.querySelectorAll<HTMLElement>('button, a[href]')];
+					const controls = [
+						...paperElement.querySelectorAll<HTMLElement>('button, a[href], summary')
+					].filter((element) => element.getClientRects().length > 0);
 					const index = controls.indexOf(document.activeElement as HTMLElement);
 					if (
 						(event.shiftKey && index <= 0) ||
@@ -237,12 +266,14 @@
 			onSkip();
 		};
 		window.addEventListener('keydown', handleSkip);
-		return () => window.removeEventListener('keydown', handleSkip);
+		return () => {
+			window.cancelAnimationFrame(animation);
+			window.removeEventListener('keydown', handleSkip);
+			document.removeEventListener('visibilitychange', visibility);
+		};
 	});
 
 	onDestroy(() => {
-		entranceTimers.forEach((timer) => window.clearTimeout(timer));
-		handoffTimers.forEach((timer) => window.clearTimeout(timer));
 		onPerformanceChange(null);
 		onWorkstationChange(null);
 	});
@@ -250,22 +281,34 @@
 
 {#if active}
 	{#if calm}
-		<section class="research-calm" aria-live="polite">
-			<span>{complete ? 'RESEARCH COMPLETE' : 'LIVE RESEARCH'}</span>
-			<strong>{complete ? summary : message || 'Consulting the web...'}</strong>
-			<small>{sourceCount} sources bound so far</small>
-			{#if complete}<div class="calm-result-actions">
-					<button type="button" onclick={onInspect}>Inspect recovered files</button><button
-						type="button"
-						onclick={onContinue}>Continue</button
-					>
-				</div>{:else}<button type="button" onclick={onCancel}>Cancel</button>{/if}
+		<section class="research-calm" class:complete aria-live="polite">
+			<span
+				>{finalDocument
+					? 'FINAL PROJECT PLAN'
+					: complete
+						? 'PRELIMINARY RESEARCH NOTE'
+						: 'LIVE RESEARCH'}</span
+			>
+			{#if finalDocument}<strong>{summary}</strong><button type="button" onclick={onContinue}
+					>See project results</button
+				>
+			{:else if complete && task === 'broad'}
+				<ResearchBrief {summary} {findings} {gaps} {sources} {disclaimer} {onContinue} />
+			{:else}
+				<strong>{complete ? summary : message || 'Consulting the web...'}</strong>
+				<small>{sourceCount} sources found</small>
+				{#if complete}<div class="calm-result-actions">
+						<button type="button" onclick={onInspect}>Review findings</button>
+						<button type="button" onclick={onContinue}>Continue</button>
+					</div>{:else}<button type="button" onclick={onCancel}>Cancel</button>{/if}
+			{/if}
 		</section>
 	{:else}
 		<section
 			class="research-performance"
 			class:handoff={phase === 'presenting'}
 			data-phase={phase}
+			data-phase-elapsed={frame.phaseElapsed.toFixed(3)}
 			data-anchored={anchors ? 'true' : 'false'}
 			aria-label="The Signal Sage researches at a large computer"
 		>
@@ -286,16 +329,49 @@
 				aria-hidden="true"
 				inert
 			>
-				{#if scenes[sceneIndex] === 'minecraft'}
-					<video autoplay muted loop playsinline aria-label="Minecraft Beta gameplay distraction">
+				{#if ['noticed', 'printing', 'lifting', 'presenting'].includes(phase)}
+					<div class="print-status">
+						<small>{finalDocument ? 'FINAL PLAN SAVED' : 'RESEARCH SAVED'}</small>
+						<b
+							>{phase === 'noticed'
+								? finalDocument
+									? 'Final plan ready!'
+									: 'Notes ready!'
+								: phase === 'printing'
+									? finalDocument
+										? 'Printing final plan...'
+										: 'Printing field notes...'
+									: 'Printing complete'}</b
+						>
+						<span>{sourceCount} sources · {findingCount} findings</span>
+						<i aria-hidden="true">▤</i>
+					</div>
+				{:else if scenes[sceneIndex] === 'minecraft'}
+					<video
+						bind:this={screenVideo}
+						autoplay
+						muted
+						loop
+						playsinline
+						aria-label="Minecraft Beta gameplay distraction"
+					>
 						<source src="/video/retro/minecraft-beta-gameplay.webm" type="video/webm" />
 					</video>
 					<span class="screen-caption">IMPORTANT BLOCK RESEARCH</span>
 				{:else if scenes[sceneIndex] === 'cats'}
 					<div class="cat-site">
 						<h3>CAT TUBE 2003</h3>
-						<img src="/images/retro/kitka-cat.gif" alt="A running pixel cat" />
-						<p>BUFFERING 47 OF 8 CATS...</p>
+						{#if calm}<img src={catClip.poster} alt={catClip.title} />{:else}<video
+								bind:this={screenVideo}
+								src={catClip.src}
+								poster={catClip.poster}
+								autoplay
+								muted
+								loop
+								playsinline
+								aria-label={catClip.title}
+							></video>{/if}
+						<p>{catClip.title}</p>
 					</div>
 				{:else if scenes[sceneIndex] === 'mines'}
 					<div class="mine-window">
@@ -375,7 +451,13 @@
 				aria-live="polite"
 			>
 				<div><span class="strip-light"></span><b>ACTUAL RESEARCH STATUS</b></div>
-				<strong>{message || 'Consulting the dusty web...'}</strong>
+				<strong
+					>{complete
+						? finalDocument
+							? 'The final plan is saved. Printing your project.'
+							: 'Research complete. Preparing your notes.'
+						: message || 'Consulting the dusty web...'}</strong
+				>
 				<small>{sourceCount} sources bound so far · DECORATIVE CRT NONSENSE IS NOT A SOURCE</small>
 				{#if !complete}<button type="button" onclick={onCancel}>Cancel research</button>{/if}
 			</div>
@@ -385,51 +467,63 @@
 					class="paper-handoff"
 					role="dialog"
 					aria-modal="true"
-					aria-label="Printed research summary"
+					aria-label={finalDocument ? 'Printed final project plan' : 'Printed research summary'}
 				>
 					<article
 						bind:this={paperElement}
 						role="document"
 						tabindex="-1"
-						aria-label="Research paper. Scroll to read."
+						aria-label={finalDocument ? 'Final project plan' : 'Research paper. Scroll to read.'}
 					>
 						<div
 							class="paper-content"
+							class:final-document={finalDocument}
 							tabindex="-1"
 							role="document"
-							aria-label="Research paper contents"
+							aria-label={finalDocument ? 'Final project plan cover' : 'Research paper contents'}
 						>
-							<header>
-								<small>{task === 'broad' ? 'BROAD WEB DIVINATION' : 'CONFIGURATION CHECK'}</small><b
-									>RECOVERED INTERNET PAPER</b
+							{#if finalDocument}
+								<header><small>COMPLETED PROJECT</small><b>YOUR FINAL PLAN</b></header>
+								<p>{summary}</p>
+								<div class="paper-actions">
+									<button type="button" onclick={onContinue}>See project results</button>
+								</div>
+							{:else if task === 'broad'}
+								<header><small>THE SAGE'S FIELD NOTES</small><b>PRELIMINARY RESEARCH</b></header>
+								<ResearchBrief {summary} {findings} {gaps} {sources} {disclaimer} {onContinue} />
+							{:else}
+								<header>
+									<small>CONFIGURATION CHECK</small><b>RECOVERED INTERNET PAPER</b>
+								</header>
+								{#if verdict}<span class={`paper-verdict ${verdict}`}>{verdict}</span>{/if}
+								<p>{summary}</p>
+								<div class="paper-counts">
+									<span><b>{sourceCount}</b> sources</span><span
+										><b>{findingCount}</b> findings</span
+									><span><b>{gapCount}</b> gaps</span>
+								</div>
+								<small>Scroll to read · I’ve got the edges.</small>
+								{#each findings as finding, index (index)}<section>
+										<h3>{finding.title}</h3>
+										<p>{finding.claim}</p>
+									</section>{/each}
+								{#if gaps.length}<section>
+										<h3>Still uncertain</h3>
+										{#each gaps as gap, index (index)}<p>
+												<b>{gap.category}:</b>
+												{gap.reason}
+											</p>{/each}
+									</section>{/if}
+								<small class="tracking-joke"
+									>•• yellow dots included at no additional charge ••</small
 								>
-							</header>
-							{#if verdict}<span class={`paper-verdict ${verdict}`}>{verdict}</span>{/if}
-							<p>{summary}</p>
-							<div class="paper-counts">
-								<span><b>{sourceCount}</b> sources</span><span><b>{findingCount}</b> findings</span
-								><span><b>{gapCount}</b> gaps</span>
-							</div>
-							<small>Scroll to read · I’ve got the edges.</small>
-							{#each findings as finding, index (index)}<section>
-									<h3>{finding.title}</h3>
-									<p>{finding.claim}</p>
-								</section>{/each}
-							{#if gaps.length}<section>
-									<h3>Still uncertain</h3>
-									{#each gaps as gap, index (index)}<p>
-											<b>{gap.category}:</b>
-											{gap.reason}
-										</p>{/each}
-								</section>{/if}
-							<small class="tracking-joke">•• yellow dots included at no additional charge ••</small
-							>
-							<div class="paper-actions">
-								<button type="button" onclick={onInspect}>Inspect recovered files</button><button
-									type="button"
-									onclick={onContinue}>Take the paper</button
-								>
-							</div>
+								<div class="paper-actions">
+									<button type="button" onclick={onInspect}>Inspect recovered files</button><button
+										type="button"
+										onclick={onContinue}>Take the paper</button
+									>
+								</div>
+							{/if}
 						</div>
 					</article>
 				</div>
@@ -444,6 +538,25 @@
 		pointer-events: none;
 	}
 
+	.print-status {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		gap: 16px;
+		text-align: center;
+		color: #174437;
+		background: #d6e3b7;
+	}
+	.print-status b {
+		font-size: 19px;
+		max-width: 240px;
+	}
+	.print-status i {
+		font-size: 58px;
+		font-style: normal;
+	}
 	.crt-screen {
 		position: fixed;
 		left: 0;
@@ -568,9 +681,10 @@
 		background: #fff;
 	}
 
-	.cat-site img {
+	.cat-site :is(img, video) {
 		width: 76%;
-		height: auto;
+		height: 70%;
+		object-fit: contain;
 	}
 
 	.mine-window {
@@ -842,6 +956,7 @@
 		flex-wrap: wrap;
 		justify-content: center;
 		gap: 10px;
+		align-items: center;
 	}
 	.paper-actions button,
 	.calm-result-actions button {
@@ -849,9 +964,17 @@
 		border: 3px outset #d9d2b9;
 		background: #bfb8a1;
 		font:
-			700 8px 'Courier New',
+			700 14px/1.4 'Courier New',
 			monospace;
+		min-height: 44px;
 		cursor: pointer;
+	}
+	.final-document {
+		align-content: start;
+		gap: 24px;
+	}
+	.final-document .paper-actions {
+		justify-content: flex-start;
 	}
 
 	.anchor-debug i {
@@ -909,6 +1032,19 @@
 			monospace;
 	}
 
+	.research-calm.complete {
+		inset: max(88px, 14dvh) max(24px, calc((100vw - 1120px) / 2)) 28px;
+		width: auto;
+		overflow: auto;
+		padding: 24px;
+		background: #fff4d8;
+		color: #4b4031;
+		border: 4px ridge #b4a080;
+	}
+	.research-calm.complete > span {
+		color: #435237;
+		font-size: 14px;
+	}
 	.research-calm > span {
 		color: #6ff8ec;
 		font-weight: 700;

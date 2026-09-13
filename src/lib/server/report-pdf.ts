@@ -106,6 +106,16 @@ export async function renderProjectPdf(report: ProjectReport): Promise<Buffer> {
 		labeledParagraph(doc, `${feature.name} · ${feature.tier}`, feature.description);
 	}
 
+	if (report.plan.deferredFeatures?.length) {
+		section(context, 'Later roadmap');
+		paragraph(
+			doc,
+			'Deferred from the prototype. These features are excluded from the prototype estimate and timeline.'
+		);
+		for (const feature of report.plan.deferredFeatures)
+			labeledParagraph(doc, feature.name, feature.description);
+	}
+
 	section(context, 'Functional requirements');
 	for (const requirement of report.plan.functionalRequirements) {
 		keep(doc, 72);

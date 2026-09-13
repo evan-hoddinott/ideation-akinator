@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
+	import PurlSprite from './PurlSprite.svelte';
+	import ConceptPerformance from './ConceptPerformance.svelte';
+	import type { WorkstationView } from '$lib/workstation-3d';
+	import CursedAttachment from '$lib/components/CursedAttachment.svelte';
 	import RpgFeatureWorkshop from '$lib/components/RpgFeatureWorkshop.svelte';
 	import {
 		COMPARISON_DIMENSIONS,
@@ -8,7 +12,11 @@
 		type ConceptPortfolio,
 		type ProjectConcept
 	} from '$lib/concepts';
-	import { allConceptMailDownloaded, conceptMailEnvelope, nextMailIndex } from '$lib/concept-mail';
+	import {
+		allConceptMailDownloaded,
+		conceptMailEnvelope,
+		nextUnreadMailIndex
+	} from '$lib/concept-mail';
 	import type { FeatureWorkshopState } from '$lib/feature-workshop';
 	import type { ResearchSource } from '$lib/research';
 	import type { OracleEffect } from '$lib/oracle-audio';
@@ -16,12 +24,18 @@
 
 	let {
 		portfolio,
+		projectId,
+		initialView = 'inbox',
+		prototypeBudgetUsd,
 		workshop,
 		sources,
 		busy,
 		message,
 		muted,
 		calm,
+		paused = false,
+		workstationFallback = false,
+		onWorkstationChange = () => {},
 		onGenerate,
 		onRegenerate,
 		onBack,
@@ -35,12 +49,18 @@
 		onEffect = () => {}
 	}: {
 		portfolio: ConceptPortfolio | null;
+		projectId: string;
+		initialView?: 'inbox' | 'features';
+		prototypeBudgetUsd: number;
 		workshop: FeatureWorkshopState;
 		sources: ResearchSource[];
 		busy: boolean;
 		message: string;
 		muted: boolean;
 		calm: boolean;
+		paused?: boolean;
+		workstationFallback?: boolean;
+		onWorkstationChange?: (view: WorkstationView | null) => void;
 		onGenerate: () => void;
 		onRegenerate: () => void;
 		onBack: () => void;
@@ -58,12 +78,26 @@
 	} = $props();
 
 	type MailView = 'notification' | 'inbox' | 'dossier' | 'comparison' | 'features';
-	let view = $state<MailView>('notification');
+	let view = $state<MailView>('inbox');
+	let performing = $state(false);
+	let room = $state<HTMLElement>();
+	async function completePerformance() {
+		performing = false;
+		await tick();
+		room
+			?.querySelector<HTMLButtonElement>('.client-tools button, .summoning-screen button')
+			?.focus();
+	}
+	let wasBusy = false;
+	$effect(() => {
+		if (busy && !wasBusy) performing = true;
+		wasBusy = busy;
+	});
 	let activeIndex = $state(0);
 	let downloadedIds = $state<string[]>([]);
 	let trashIds = $state<string[]>([]);
 	let downloading = $state(false);
-	let loadedGeneration = $state(0);
+	let loadedGeneration = $state('');
 	let mailReady = $state(false);
 	let storm = $state(false);
 	let defeatDialog = $state<HTMLDialogElement>();
@@ -76,10 +110,11 @@
 	const conceptPortraits = ['smug', 'thinking', 'delighted', 'forbidden'] as const;
 
 	$effect(() => {
-		const generation = portfolio?.generationNumber ?? 0;
+		const generation = portfolio ? mailStorageKey() : '';
 		if (!generation || generation === loadedGeneration) return;
 		loadedGeneration = generation;
 		mailReady = false;
+		storm = false;
 		const saved = loadMailState();
 		if (saved) {
 			view = saved.view;
@@ -87,13 +122,22 @@
 			downloadedIds = saved.downloadedIds;
 			trashIds = saved.trashIds;
 		} else {
-			view = 'notification';
+			view = 'inbox';
 			activeIndex = 0;
 			downloadedIds = [];
 			trashIds = [];
-			window.setTimeout(playMailSound, 300);
-			onPerformanceChange('mail_notice');
-			window.setTimeout(() => onPerformanceChange(null), 1_100);
+			if (!performing && !busy) {
+				window.setTimeout(playMailSound, 300);
+				onPerformanceChange('mail_notice');
+				window.setTimeout(() => onPerformanceChange(null), 1_100);
+			}
+		}
+		if (initialView === 'features') {
+			view = 'features';
+			activeIndex = Math.max(
+				0,
+				portfolio?.concepts.findIndex((concept) => concept.id === workshop.selectedConceptId) ?? 0
+			);
 		}
 		mailReady = true;
 	});
@@ -135,7 +179,7 @@
 	}
 
 	function mailStorageKey() {
-		return `ideation-akinator:concept-mail:${portfolio?.generationNumber ?? 0}:${portfolio?.concepts[0]?.id ?? 'empty'}`;
+		return `ideation-akinator:concept-mail:${projectId}:${portfolio?.generatedAt ?? 'empty'}:${portfolio?.generationNumber ?? 0}`;
 	}
 
 	function loadMailState(): {
@@ -164,13 +208,8 @@
 			let savedView = views.includes(value.view as MailView)
 				? (value.view as MailView)
 				: 'notification';
-			if (
-				(savedView === 'dossier' && !savedDownloads.includes(portfolio.concepts[savedIndex].id)) ||
-				((savedView === 'comparison' || savedView === 'features') &&
-					savedDownloads.length < portfolio.concepts.length)
-			) {
-				savedView = 'inbox';
-			}
+			if (savedView === 'notification') savedView = 'inbox';
+
 			return {
 				view: savedView,
 				activeIndex: savedIndex,
@@ -195,9 +234,31 @@
 	}
 
 	function openMessage(index: number) {
-		if (!portfolio || index > downloadedIds.length) return;
+		if (!portfolio?.concepts[index]) return;
+		storm = false;
 		activeIndex = index;
-		view = downloadedIds.includes(portfolio.concepts[index].id) ? 'dossier' : 'inbox';
+		const concept = portfolio.concepts[index];
+		const firstOpen = !downloadedIds.includes(concept.id);
+		downloadedIds = Array.from(new Set([...downloadedIds, concept.id]));
+		view = 'dossier';
+		// On a narrow screen the message follows the four inbox rows.
+		// Bring the opened concept into view without scrolling the document.
+		if (window.innerWidth <= 600) {
+			void tick().then(() => {
+				const body = room?.querySelector<HTMLElement>('.client-body');
+				const pane = room?.querySelector<HTMLElement>('.message-pane');
+				if (body && pane) {
+					body.scrollTop += pane.getBoundingClientRect().top - body.getBoundingClientRect().top;
+				}
+			});
+		}
+		if (firstOpen) {
+			onReveal();
+			if (downloadedIds.length === portfolio.concepts.length) onAllRevealed();
+			if (concept.isStretch) {
+				storm = true;
+			}
+		}
 	}
 
 	function downloadAttachment() {
@@ -229,7 +290,10 @@
 			onAllRevealed();
 			return;
 		}
-		activeIndex = nextMailIndex(portfolio.concepts.length, downloadedIds);
+		activeIndex = nextUnreadMailIndex(
+			portfolio.concepts.map((concept) => concept.id),
+			downloadedIds
+		);
 		view = 'inbox';
 	}
 
@@ -275,9 +339,28 @@
 	};
 </script>
 
-<section class="mail-stage" class:storm aria-labelledby="mail-stage-title">
+<section
+	bind:this={room}
+	class="mail-stage"
+	class:storm
+	class:desktop={!!portfolio && !performing}
+	aria-labelledby="mail-stage-title"
+>
 	<h1 id="mail-stage-title" class="sr-only">The Sage receives four possible projects</h1>
-	{#if !portfolio}
+	{#if performing}
+		<ConceptPerformance
+			{busy}
+			{portfolio}
+			{message}
+			{calm}
+			{paused}
+			fallback={workstationFallback}
+			{onWorkstationChange}
+			{onPerformanceChange}
+			{onEffect}
+			onDone={completePerformance}
+		/>
+	{:else if !portfolio}
 		<div class="summoning-screen" aria-live="polite">
 			<div class="crystal" class:busy aria-hidden="true">?</div>
 			<span>PROPHECY.EXE</span>
@@ -293,7 +376,7 @@
 	{:else if view === 'notification'}
 		<div class="mail-notification">
 			<div class="running-purl">
-				<img src="/images/retro/kitka-cat.gif" alt="Purl delivers mail" /><span>🐈✉✉✉✉</span>
+				<PurlSprite action="walk" {calm} label="Purl delivers mail" /><span>🐈✉✉✉✉</span>
 			</div>
 			<div class="mail-toast">
 				<img src="/images/retro/windows93/mail.png" alt="" />
@@ -306,44 +389,73 @@
 			</div>
 		</div>
 	{:else if view === 'features'}
-		<RpgFeatureWorkshop {portfolio} {workshop} onChange={onWorkshopChange} {onContinue} />
+		<RpgFeatureWorkshop
+			{portfolio}
+			{workshop}
+			initialConceptId={activeConcept?.id}
+			onChange={onWorkshopChange}
+			onConceptChange={(id) =>
+				(activeIndex = portfolio.concepts.findIndex((item) => item.id === id))}
+			{onContinue}
+			onBack={() => (view = 'comparison')}
+		/>
 	{:else}
 		<div class="mail-client" class:stretch-mail={activeConcept?.isStretch}>
 			<header class="client-title">
-				<span>CURSED ONLINE 4.20 — MAILBOX</span>
+				<span
+					>{activeConcept?.isStretch
+						? 'PURL.EXE / QUARANTINED MAIL'
+						: 'CURSED ONLINE 4.20 / MAILBOX'}</span
+				>
 				<div>_ □ ×</div>
 			</header>
 			<nav class="client-tools" aria-label="Mail tools">
-				<button type="button" onclick={() => (view = 'inbox')}>INBOX ({4 - trashIds.length})</button
+				<button
+					type="button"
+					onclick={() => {
+						storm = false;
+						view = 'inbox';
+					}}>INBOX ({4 - trashIds.length})</button
 				>
-				<button type="button" onclick={() => (view = 'comparison')} disabled={!allDownloaded}
-					>COMPARE</button
+				<button
+					type="button"
+					onclick={() => {
+						storm = false;
+						view = 'comparison';
+					}}>COMPARE</button
 				>
-				<button type="button" onclick={() => (view = 'features')} disabled={!allDownloaded}
-					>PROJECT FILES</button
+				<button
+					type="button"
+					onclick={() => {
+						storm = false;
+						view = 'features';
+					}}>PROJECT FILES</button
 				>
 				<span>PURL'S OUTBOX: 4</span>
 			</nav>
-			<div class="client-body">
+			<div class="client-body" class:comparing={view === 'comparison'}>
 				<aside class="inbox-list" aria-label="Four messages">
 					{#each portfolio.concepts as concept, index (concept.id)}
-						{@const envelope = conceptMailEnvelope(concept, index)}
 						<button
 							type="button"
 							class:active={activeIndex === index}
-							class:locked={index > downloadedIds.length}
 							class:trashed={trashIds.includes(concept.id)}
-							disabled={index > downloadedIds.length}
+							class:corrupted={concept.isStretch}
 							onclick={() => openMessage(index)}
 						>
-							<i
-								>{downloadedIds.includes(concept.id)
-									? '✉'
-									: index <= downloadedIds.length
-										? '●'
-										: '⌛'}</i
+							<i aria-hidden="true"
+								>{concept.isStretch ? '☣' : downloadedIds.includes(concept.id) ? '✉' : '●'}</i
 							>
-							<span><small>{envelope.from.split('<')[0]}</small><b>{envelope.subject}</b></span>
+							<span>
+								<small
+									>{concept.isStretch
+										? 'Purl.exe · OVER BUDGET'
+										: index === 0
+											? 'Purl · MY BEST GUESS'
+											: 'Purl · ANOTHER IDEA'}</small
+								>
+								<b>{concept.name}</b>
+							</span>
 							{#if trashIds.includes(concept.id)}<em>TRASH</em>{/if}
 						</button>
 					{/each}
@@ -352,13 +464,14 @@
 				{#if view === 'comparison'}
 					<section class="comparison-pane">
 						<header>
-							<span>ALL 4 ATTACHMENTS RECOVERED</span>
+							<span>FOUR ROUGH DIRECTIONS</span>
 							<h2>COMPARE THE FOUR CONCEPTS</h2>
 							<p>Select a concept to reread it, or open Project Files to choose features.</p>
 						</header>
 						<div class="comparison-grid">
 							<div class="dimension-column">
-								<b>SIGNAL</b>{#each COMPARISON_DIMENSIONS as dimension (dimension)}<span
+								<b>COMPARE</b><span>Prototype estimate</span><span>Timeline</span
+								>{#each COMPARISON_DIMENSIONS as dimension (dimension)}<span
 										>{dimensionLabels[dimension]}</span
 									>{/each}
 							</div>
@@ -368,7 +481,11 @@
 									onclick={() => openMessage(index)}
 									class:trashed={trashIds.includes(concept.id)}
 								>
-									<b>{concept.name}</b
+									<b>{concept.name}</b><span
+										>{money(concept.prototypeBudget.minimumUsd)}–{money(
+											concept.prototypeBudget.maximumUsd
+										)}</span
+									><span>{concept.prototypeTimeline}</span
 									>{#each COMPARISON_DIMENSIONS as dimension (dimension)}{@const rating =
 											concept.comparison.find((item) => item.dimension === dimension)}<span
 											class={rating?.rating}>{rating?.rating}</span
@@ -376,8 +493,13 @@
 								</button>
 							{/each}
 						</div>
-						<button class="configure-button" type="button" onclick={() => (view = 'features')}
-							>CHOOSE A CONCEPT AND FEATURES ▶</button
+						<button
+							class="configure-button"
+							type="button"
+							onclick={() => {
+								storm = false;
+								view = 'features';
+							}}>CHOOSE A CONCEPT AND FEATURES ▶</button
 						>
 					</section>
 				{:else if activeConcept}
@@ -447,6 +569,50 @@
 									><span>TIME <b>{activeConcept.prototypeTimeline}</b></span>
 								</div>
 								<p>{activeConcept.description}</p>
+								<h3>PROBLEM ADDRESSED</h3>
+								<ul>
+									{#each activeConcept.problemsAddressed as problem (problem)}<li>
+											{problem}
+										</li>{/each}
+								</ul>
+								<h3>REQUIRED TECHNOLOGIES</h3>
+								<ul>
+									{#each activeConcept.requiredTechnologies ?? ['Not recorded in this older concept. Finalization will establish the stack.'] as technology (technology)}<li
+										>
+											{technology}
+										</li>{/each}
+								</ul>
+								<h3>MAJOR COMPONENTS</h3>
+								<ul>
+									{#each activeConcept.majorComponents ?? activeConcept.implementationOutline as component (component)}<li
+										>
+											{component}
+										</li>{/each}
+								</ul>
+								<h3>UNIQUE VALUE</h3>
+								<p>{activeConcept.mainAdvantage}</p>
+								<h3>COST AND TIMELINE ASSUMPTIONS</h3>
+								<ul>
+									{#each [...activeConcept.prototypeBudget.assumptions, ...activeConcept.majorAssumptions] as assumption, i (i)}<li
+										>
+											{assumption}
+										</li>{/each}
+								</ul>
+								{#if activeConcept.isStretch}<p class="cost-exception">
+										<b>Intentional budget exception.</b> Your limit is {money(prototypeBudgetUsd)}.
+										This estimate reaches {money(
+											Math.max(0, activeConcept.prototypeBudget.maximumUsd - prototypeBudgetUsd)
+										)} over that limit. {activeConcept.distinctApproach}
+									</p>{/if}
+								<h3>MAIN CHALLENGES</h3>
+								<ul>
+									{#each activeConcept.majorRisks as risk (risk)}<li>{risk}</li>{/each}
+								</ul>
+								{#if activeConcept.evidenceGaps.length}<h3>STILL UNCERTAIN</h3>
+									<ul>
+										{#each activeConcept.evidenceGaps as gap (gap)}<li>{gap}</li>{/each}
+									</ul>{/if}
+
 								<p><b>WHY IT IS DIFFERENT:</b> {activeConcept.distinctApproach}</p>
 								<h3>FEATURE FILES</h3>
 								<ul>
@@ -469,6 +635,13 @@
 									</div>{/each}
 							</div>
 							<footer class="dossier-actions">
+								<button
+									type="button"
+									onclick={() => {
+										storm = false;
+										view = 'features';
+									}}>Configure this direction</button
+								>
 								<button type="button" onclick={() => trashConcept(activeConcept)}
 									>MOVE TO TRASH</button
 								><button class="next-mail" type="button" onclick={nextMessage}
@@ -479,23 +652,27 @@
 					</section>
 				{/if}
 			</div>
+			{#if storm && activeConcept?.isStretch}<CursedAttachment
+					{calm}
+					{muted}
+					{onEffect}
+					onDismiss={() => (storm = false)}
+				/>{/if}
 			<footer class="status-bar">
-				<span>MAIL: {downloadedIds.length}/4 DOWNLOADED</span><span>TRASH: {trashIds.length}</span
-				><span>CONNECTED AT 56,000 BPS</span>
+				<span>MAIL: {downloadedIds.length}/4 READ</span><span>TRASH: {trashIds.length}</span><span
+					>CONNECTED AT 56,000 BPS</span
+				>
 			</footer>
 		</div>
 	{/if}
 
-	{#if storm}<div class="glitch-storm" aria-hidden="true">
-			<i>ROYAL_BANK_DETAILS.EXE</i><i>THIS IS FINE</i><i>RARE DROP!!!</i>
+	{#if message && portfolio && !performing}<p class="concept-error" role="alert">{message}</p>{/if}
+	{#if view !== 'features' && !performing}<div class="stage-actions">
+			<button type="button" disabled={busy} onclick={onBack}>← BACK TO QUESTIONS</button
+			>{#if portfolio}<button type="button" onclick={() => defeatDialog?.showModal()}
+					>DEFEAT THE SAGE</button
+				>{/if}
 		</div>{/if}
-	{#if message && portfolio}<p class="concept-error" role="alert">{message}</p>{/if}
-	<div class="stage-actions">
-		<button type="button" disabled={busy} onclick={onBack}>← BACK TO QUESTIONS</button
-		>{#if portfolio}<button type="button" onclick={() => defeatDialog?.showModal()}
-				>DEFEAT THE SAGE</button
-			>{/if}
-	</div>
 </section>
 
 <dialog class="defeat-dialog" bind:this={defeatDialog}>
@@ -523,6 +700,11 @@
 		overflow: hidden;
 		clip: rect(0, 0, 0, 0);
 	}
+	.cost-exception {
+		border: 2px solid #a24562;
+		padding: 12px;
+		background: #f5dae2;
+	}
 	.mail-stage {
 		position: fixed;
 		z-index: 10;
@@ -538,6 +720,9 @@
 	.mail-stage > *,
 	.mail-stage > :global(.rpg-workshop) {
 		pointer-events: auto;
+	}
+	.mail-stage.desktop {
+		background: var(--game-desktop);
 	}
 	.summoning-screen {
 		width: min(760px, 90vw);
@@ -602,10 +787,6 @@
 		bottom: 50px;
 		animation: purl-mail 2.8s steps(16) infinite alternate;
 	}
-	.running-purl img {
-		width: 160px;
-		image-rendering: pixelated;
-	}
 	.running-purl span {
 		display: block;
 		padding: 6px;
@@ -622,9 +803,10 @@
 		align-items: center;
 		width: min(620px, 75vw);
 		padding: 15px;
-		border: 5px outset #eee;
+		border: 8px solid transparent;
+		border-image: var(--game-window-border);
 		background: #eee2c9;
-		box-shadow: 5px 6px #85776166;
+		box-shadow: 8px 8px var(--game-shadow);
 		animation: toast-in 0.8s steps(8);
 	}
 	.mail-toast img {
@@ -642,7 +824,10 @@
 		font-size: 20px;
 	}
 	.mail-toast button {
-		border: 3px outset #eee;
+		border: 4px solid #8c8068;
+		box-shadow:
+			inset 2px 2px #fff4d9,
+			4px 4px #a99b80;
 		min-height: 42px;
 		padding: 10px 12px;
 		background: #eee2c9;
@@ -661,17 +846,19 @@
 	}
 	.mail-client {
 		position: absolute;
-		top: 50%;
-		right: 26px;
-		width: min(920px, calc(100vw - 330px));
-		height: min(660px, calc(100vh - 110px));
-		border: 5px outset #eee;
+		top: 80px;
+		left: 28px;
+		right: 28px;
+		width: auto;
+		height: calc(100dvh - 145px);
+		border: 8px solid transparent;
+		border-image: var(--game-window-border);
 		background: #eee2c9;
-		box-shadow: 5px 6px #85776166;
+		box-shadow: 8px 8px var(--game-shadow);
 		display: grid;
-		grid-template-rows: 36px 48px 1fr 30px;
+		grid-template-rows: 40px 52px minmax(0, 1fr) 36px;
 		overflow: hidden;
-		transform: translateY(-50%);
+		transform: none;
 	}
 	.client-title {
 		display: flex;
@@ -683,22 +870,39 @@
 		font-size: 12px;
 	}
 	.stretch-mail .client-title {
-		background: repeating-linear-gradient(
-			90deg,
-			#16003b 0 12px,
-			#a80078 12px 18px,
-			#00b6ac 18px 21px
-		);
+		background: #513049;
+		color: #fff1dc;
+		border-bottom: 3px solid #a275ab;
+		text-shadow: 2px 0 #99576e;
 	}
+	.stretch-mail {
+		border-color: #ad7f9f;
+	}
+	.inbox-list button.corrupted {
+		border-left: 5px solid #965680;
+		background: #ecdde8;
+	}
+	.inbox-list button.corrupted.active {
+		background: #d9bad1;
+		color: #432b44;
+	}
+	.inbox-list button.corrupted i {
+		color: #8a315b;
+		font: 24px monospace;
+	}
+
 	.client-tools {
 		display: flex;
 		gap: 6px;
 		align-items: center;
 		padding: 5px;
-		border-bottom: 3px ridge #aaa;
+		border-bottom: 4px solid #aa9a7c;
 	}
 	.client-tools button {
-		border: 2px outset #eee;
+		border: 2px solid #92846c;
+		box-shadow:
+			inset 2px 2px #fff4d9,
+			2px 2px #b3a387;
 		background: #eee2c9;
 		min-height: 32px;
 		font: 11px 'Tomo';
@@ -713,35 +917,40 @@
 	}
 	.client-body {
 		display: grid;
-		grid-template-columns: 240px 1fr;
+		grid-template-columns: 300px minmax(0, 1fr);
 		min-height: 0;
 	}
+	.client-body.comparing {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.comparing .inbox-list {
+		display: none;
+	}
 	.inbox-list {
-		border-right: 3px ridge #999;
-		background: #fff;
-		overflow: hidden;
+		display: grid;
+		grid-template-rows: repeat(4, minmax(min-content, 1fr));
+		border-right: 4px solid #a79b82;
+		background: #faf1dc;
+		overflow: auto;
 	}
 	.inbox-list button {
 		position: relative;
 		display: grid;
 		grid-template-columns: 20px 1fr;
 		width: 100%;
-		height: 25%;
+		height: auto;
 		padding: 9px;
 		border: 0;
-		border-bottom: 1px solid #aaa;
-		background: #fff;
+		border-bottom: 2px solid #b1a388;
+		background: #faf1dc;
 		text-align: left;
 		font: 12px 'Tomo';
 		cursor: pointer;
 	}
 	.inbox-list button.active {
-		background: #d2d2e4;
-		color: #4c4c4c;
-	}
-	.inbox-list button.locked {
-		color: #4c4c4c;
-		background: #ddd;
+		background: #c4d3ac;
+		color: #354630;
+		box-shadow: inset 6px 0 #5a7046;
 	}
 	.inbox-list button.trashed {
 		text-decoration: line-through;
@@ -766,11 +975,11 @@
 		grid-template-rows: auto 1fr auto;
 		min-width: 0;
 		min-height: 0;
-		background: #fff;
+		background: #faf1dc;
 	}
 	.message-pane > header {
 		padding: 8px 13px;
-		border-bottom: 1px solid #aaa;
+		border-bottom: 2px solid #b1a388;
 	}
 	.message-pane > header small {
 		display: block;
@@ -795,13 +1004,16 @@
 		width: min(500px, 100%);
 		margin: 22px auto 5px;
 		padding: 11px;
-		border: 3px outset #eee;
+		border: 4px solid #8c8068;
+		box-shadow:
+			inset 2px 2px #fff4d9,
+			4px 4px #a99b80;
 		background: #eee2c9;
 		text-align: left;
 		cursor: pointer;
 	}
 	.attachment img {
-		width: 42px;
+		width: 48px;
 		image-rendering: pixelated;
 	}
 	.attachment b,
@@ -811,7 +1023,7 @@
 	.download-track {
 		height: 18px;
 		border: 3px inset #ddd;
-		background: #fff;
+		background: #faf1dc;
 	}
 	.download-track i {
 		display: block;
@@ -836,21 +1048,21 @@
 	}
 	.dossier-head {
 		display: grid;
-		grid-template-columns: 112px minmax(0, 1fr);
+		grid-template-columns: 144px minmax(0, 1fr);
 		gap: 13px;
 	}
 	.concept-portrait {
 		position: relative;
-		width: 104px;
-		height: 104px;
-		flex: 0 0 104px;
+		width: 136px;
+		height: 136px;
+		flex: 0 0 136px;
 		border: 4px ridge #cfb56e;
 		background: #d7d2e4;
 	}
 	.concept-portrait img {
 		display: block;
-		width: 96px;
-		height: 96px;
+		width: 128px;
+		height: 128px;
 		image-rendering: pixelated;
 	}
 	.concept-portrait span {
@@ -880,8 +1092,8 @@
 	}
 	.dossier-head h2 {
 		margin: 4px 0;
-		color: #00006f;
-		font-size: 26px;
+		color: #4a513a;
+		font-size: 36px;
 	}
 	.dossier-head p {
 		margin: 0;
@@ -932,7 +1144,10 @@
 	}
 	.dossier-actions button,
 	.configure-button {
-		border: 2px outset #eee;
+		border: 2px solid #92846c;
+		box-shadow:
+			inset 2px 2px #fff4d9,
+			2px 2px #b3a387;
 		min-height: 38px;
 		padding: 8px 10px;
 		background: #eee2c9;
@@ -941,8 +1156,9 @@
 	}
 	.dossier-actions .next-mail,
 	.configure-button {
-		background: #d2d2e4;
-		color: #4c4c4c;
+		background: #c4d3ac;
+		color: #354630;
+		box-shadow: inset 6px 0 #5a7046;
 	}
 	.status-bar {
 		display: flex;
@@ -974,12 +1190,12 @@
 	.dimension-column,
 	.comparison-grid > button {
 		display: grid;
-		grid-template-rows: 45px repeat(7, 1fr);
+		grid-template-rows: 56px repeat(9, minmax(40px, 1fr));
 		min-width: 0;
 		border: 0;
 		border-right: 1px solid #aaa;
 		padding: 0;
-		background: #fff;
+		background: #faf1dc;
 		color: #111;
 		font: 10px 'Tomo';
 		cursor: pointer;
@@ -1014,34 +1230,6 @@
 	.configure-button {
 		justify-self: end;
 		margin-top: 10px;
-	}
-	.glitch-storm i {
-		position: fixed;
-		z-index: 30;
-		padding: 8px;
-		border: 4px outset #eee;
-		background: #eee2c9;
-		color: #c00000;
-		font: 8px 'Tomo';
-		animation: glitch-pop 0.3s steps(3);
-	}
-	.glitch-storm i:nth-child(1) {
-		left: 8%;
-		top: 13%;
-	}
-	.glitch-storm i:nth-child(2) {
-		right: 7%;
-		top: 35%;
-	}
-	.glitch-storm i:nth-child(3) {
-		left: 36%;
-		bottom: 8%;
-		color: #600080;
-	}
-	@keyframes glitch-pop {
-		from {
-			transform: scale(0) skew(40deg);
-		}
 	}
 	.stage-actions {
 		position: fixed;
@@ -1101,23 +1289,40 @@
 	}
 	@media (max-width: 760px) {
 		.mail-stage {
-			position: absolute;
-			min-height: 100vh;
-			padding: 50px 0 0;
+			position: fixed;
+			padding: 60px 5px 55px;
+			place-items: stretch;
 		}
 		.mail-client {
-			position: static;
+			position: relative;
+			top: auto;
+			left: auto;
+			right: auto;
 			width: 100%;
-			height: auto;
-			min-height: calc(100vh - 50px);
-			grid-template-rows: 30px auto 1fr 24px;
+			height: 100%;
+			min-height: 0;
+			box-sizing: border-box;
+			grid-template-rows: auto auto minmax(0, 1fr) auto;
 			transform: none;
 		}
 		.client-tools {
 			flex-wrap: wrap;
 		}
 		.client-body {
-			grid-template-columns: 1fr;
+			display: block;
+			overflow: auto;
+		}
+		.dossier-scroll {
+			overflow: visible;
+		}
+		.dossier-actions {
+			flex-wrap: wrap;
+		}
+		.client-title {
+			min-height: 36px;
+		}
+		.status-bar {
+			flex-wrap: wrap;
 		}
 		.inbox-list {
 			display: grid;
@@ -1125,10 +1330,12 @@
 			border-right: 0;
 		}
 		.inbox-list button {
-			height: 74px;
+			height: auto;
+			min-height: 106px;
 		}
 		.message-pane {
-			min-height: 520px;
+			display: block;
+			min-height: 0;
 		}
 		.comparison-grid {
 			overflow: auto;
@@ -1146,6 +1353,89 @@
 		}
 		.stage-actions {
 			position: absolute;
+		}
+	}
+
+	.mail-client {
+		font: 24px/1.25 var(--game-font);
+	}
+	.client-title {
+		font: 24px/1.25 var(--game-font);
+	}
+	.client-tools button,
+	.configure-button,
+	.dossier-actions button {
+		font: 24px/1.25 var(--game-font);
+	}
+	.inbox-list button {
+		font: 24px/1.25 var(--game-font);
+		align-content: start;
+		padding: 14px 10px;
+	}
+	.inbox-list b {
+		font: 24px/1.25 var(--game-font);
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+	.inbox-list small {
+		font: 12px/1.5 var(--game-font);
+		margin-bottom: 6px;
+	}
+	.comparison-pane {
+		overflow: auto;
+	}
+	.comparison-pane h2 {
+		font: 24px/1.25 var(--game-font);
+	}
+	.comparison-pane p,
+	.comparison-grid > button,
+	.dimension-column {
+		font: 24px/1.25 var(--game-font);
+	}
+	.comparison-grid {
+		grid-template-columns: 180px repeat(4, minmax(180px, 1fr));
+		overflow: auto;
+	}
+	.dossier-scroll,
+	.message-copy {
+		font: 24px/1.25 var(--game-font);
+	}
+	.dossier-scroll h3 {
+		font: 24px/1.25 var(--game-font);
+	}
+	.stat-row span {
+		font: 24px/1.25 var(--game-font);
+	}
+	.message-pane > header {
+		font: 24px/1.25 var(--game-font);
+	}
+	.status-bar {
+		font: 24px/1.25 var(--game-font);
+	}
+	.mail-client button:hover {
+		filter: brightness(0.97);
+	}
+	.mail-client button:active {
+		box-shadow: inset 0 0 0 2px #758659;
+	}
+	.mail-client :is(button, a):focus-visible {
+		outline: 3px solid #75608e;
+		outline-offset: -3px;
+	}
+	@media (max-width: 600px) {
+		.dossier-head {
+			grid-template-columns: 80px minmax(0, 1fr);
+		}
+		.concept-portrait {
+			width: 72px;
+			height: 72px;
+		}
+		.concept-portrait img {
+			width: 64px;
+			height: 64px;
+		}
+		.dossier-head h2 {
+			font-size: 24px;
 		}
 	}
 </style>

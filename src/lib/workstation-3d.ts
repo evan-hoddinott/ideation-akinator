@@ -10,14 +10,18 @@ export type WorkstationPhase =
 	| 'printing'
 	| 'lifting'
 	| 'presenting';
+export type ConceptPerformancePhase =
+	'composing' | 'mail-arrival' | 'monitor-grip' | 'monitor-turn' | 'desktop-zoom';
 export interface WorkstationView {
 	screen: HTMLDivElement;
-	phase: WorkstationPhase;
+	phase: WorkstationPhase | ConceptPerformancePhase;
+	elapsedSeconds?: number;
+	purpose?: 'concepts';
 	paper?: HTMLElement;
 }
 
 /** Physical props use the Sage's world units. The CRT faces the seated wizard. */
-export function createWorkstation() {
+export function createWorkstation(purlTexture = new THREE.Texture()) {
 	const root = new THREE.Group();
 	root.name = 'ResearchWorkstation';
 	const cream = new THREE.MeshStandardMaterial({ color: 0xd1c5ab, roughness: 0.83 });
@@ -42,7 +46,7 @@ export function createWorkstation() {
 		name: string,
 		size: number[],
 		position: number[],
-		material = cream,
+		material: THREE.Material = cream,
 		parent: THREE.Object3D = root
 	) => {
 		const mesh = new THREE.Mesh(
@@ -137,6 +141,8 @@ export function createWorkstation() {
 	}
 	box('Printer', [1.14, 0.32, 0.76], [-0.3, 0.55, 0.15], light);
 	box('PrinterSlot', [0.9, 0.045, 0.02], [-0.3, 0.59, 0.54], dark);
+	box('PrinterOutputTray', [0.84, 0.018, 0.82], [-0.3, 0.555, 0.94], dark);
+	const printerLight = box('PrinterReadyLight', [0.07, 0.045, 0.025], [0.14, 0.65, 0.545], green);
 	const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.76), paperMaterial);
 	paper.name = 'PrintedResearch';
 	paper.rotation.x = -Math.PI / 2;
@@ -170,22 +176,74 @@ export function createWorkstation() {
 		return target;
 	};
 	const targets = {
-		left: contact(-0.65, 1.55, 1.17),
+		left: contact(-0.4, 1.65, 1.08),
 		pushLeft: contact(-0.64, 1.45, 1.35),
 		pushRight: contact(-1, 1.45, 1.35),
-		right: contact(-0.95, 1.55, 1.02),
+		right: contact(-1.1, 1.65, 1.08),
 		smack: contact(0.38, 2.61, -0.18),
 		cable: contact(1.4, 0.87, -0.5)
 	};
+	const monitorContact = (y: number, z: number) => {
+		const target = new THREE.Object3D();
+		target.position.set(-0.83, y, z);
+		monitor.add(target);
+		return target;
+	};
+	// Both hands grip the accessible side of the heavy CRT, at the bezel and rear case.
+	const monitorGrips = [monitorContact(0.12, 0.36), monitorContact(-0.24, -0.28)];
+	purlTexture.colorSpace = THREE.SRGBColorSpace;
+	purlTexture.magFilter = THREE.NearestFilter;
+	purlTexture.minFilter = THREE.NearestFilter;
+	purlTexture.generateMipmaps = false;
+	purlTexture.repeat.set(1 / 8, 1 / 4);
+	const purlMaterial = new THREE.MeshBasicMaterial({
+		map: purlTexture,
+		transparent: true,
+		alphaTest: 0.1,
+		side: THREE.DoubleSide
+	});
+	const purl = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), purlMaterial);
+	purl.position.set(0.06, 1.72, 1.03);
+	purl.rotation.y = 1.05;
+	purl.visible = false;
+	purl.name = 'PurlKeyboardIntern';
+	root.add(purl);
 	return {
 		root,
+		monitor,
+		monitorGrips,
 		screen,
 		paper,
 		targets,
-		update(phase: WorkstationPhase, time: number, phaseTime: number) {
+		update(phase: WorkstationPhase | ConceptPerformancePhase, time: number, phaseTime: number) {
+			const conceptPhase = [
+				'composing',
+				'mail-arrival',
+				'monitor-grip',
+				'monitor-turn',
+				'desktop-zoom'
+			].includes(phase);
+			purl.visible = conceptPhase;
+			const pawing = phase === 'composing' && Math.floor(phaseTime / 3) % 3 === 1;
+			const cell = pawing
+				? [2, 2 + (Math.floor(time * 5.5) % 2)]
+				: phase === 'mail-arrival'
+					? [7, 3]
+					: [3, 3];
+			purlTexture.offset.set(cell[0] / 8, (3 - cell[1]) / 4);
+			const turn =
+				phase === 'desktop-zoom'
+					? 1
+					: phase === 'monitor-turn'
+						? THREE.MathUtils.smoothstep(phaseTime, 0, 2.2)
+						: 0;
+			monitor.rotation.y = THREE.MathUtils.lerp(conceptPhase ? 0 : 0.35, 1.05, turn);
 			paper.visible = phase === 'printing';
-			paper.scale.y = THREE.MathUtils.clamp(phaseTime / 1.7, 0.01, 1);
-			paper.position.z = 0.48 + paper.scale.y * 0.38;
+			paper.scale.y = THREE.MathUtils.clamp(phaseTime / 2.4, 0.01, 1);
+			paper.position.z = 0.55 + paper.scale.y * 0.38;
+			printerLight.visible =
+				['noticed', 'printing', 'lifting', 'presenting'].includes(phase) &&
+				(phase !== 'printing' || Math.sin(time * 10) > -0.3);
 			for (const wheel of wheels) if (phase === 'arrival') wheel.rotateY(-0.18);
 			towerLED.visible = Math.sin(time * 9) > -0.5;
 		},
@@ -201,9 +259,11 @@ export function createWorkstation() {
 				purple,
 				green,
 				paperMaterial,
-				screenMaterial
+				screenMaterial,
+				purlMaterial
 			])
 				material.dispose();
+			purlTexture.dispose();
 		}
 	};
 }
@@ -266,7 +326,8 @@ export function reachContact(
 	joints: THREE.Object3D[],
 	hand: THREE.Object3D,
 	target: THREE.Vector3,
-	weight: number
+	weight: number,
+	iterations = 5
 ) {
 	const origin = new THREE.Vector3(),
 		end = new THREE.Vector3();
@@ -274,7 +335,7 @@ export function reachContact(
 		to = new THREE.Vector3();
 	const parentRotation = new THREE.Quaternion(),
 		rotation = new THREE.Quaternion();
-	for (let pass = 0; pass < 5; pass++)
+	for (let pass = 0; pass < iterations; pass++)
 		for (const joint of joints) {
 			joint.getWorldPosition(origin);
 			hand.getWorldPosition(end);

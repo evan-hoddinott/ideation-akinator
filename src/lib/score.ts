@@ -17,7 +17,7 @@ export interface ScoreInput {
 	projectName: string;
 	createdAt: string;
 	completedAt: string;
-	clarityLabel: ClarityLabel;
+	clarityLabel: ClarityLabel | null;
 	problemCount: number;
 	broadSourceCount: number;
 	broadGapCount: number;
@@ -68,7 +68,7 @@ export interface ScoreResult {
 export function buildScoreInput(project: ProjectSession, tokenTotal: number): ScoreInput | null {
 	const plan = project.finalization.plan;
 	const focused = project.finalization.research.result;
-	if (!plan || !focused || !project.problemInput.clarityLabel) return null;
+	if (!plan || !focused) return null;
 	return {
 		projectId: project.id,
 		projectName: plan.productName,
@@ -107,7 +107,7 @@ export function parseScoreInput(value: unknown): ScoreInput | null {
 		!isIso(input.createdAt) ||
 		!isIso(input.completedAt) ||
 		Date.parse(input.completedAt ?? '') < Date.parse(input.createdAt ?? '') ||
-		!CLARITY_LABELS.includes(input.clarityLabel as ClarityLabel) ||
+		(input.clarityLabel !== null && !CLARITY_LABELS.includes(input.clarityLabel as ClarityLabel)) ||
 		!integer(input.problemCount, 1, 50) ||
 		!integer(input.broadSourceCount, 0, 100) ||
 		!integer(input.broadGapCount, 0, 100) ||
@@ -140,11 +140,14 @@ export function parseScoreInput(value: unknown): ScoreInput | null {
 }
 
 export function calculateScore(input: ScoreInput): ScoreResult {
-	const clarity = clamp(
-		8 + CLARITY_LABELS.indexOf(input.clarityLabel) * 4 + Math.min(2, input.problemCount - 1),
-		0,
-		20
-	);
+	const clarity =
+		input.clarityLabel === null
+			? 0
+			: clamp(
+					8 + CLARITY_LABELS.indexOf(input.clarityLabel) * 4 + Math.min(2, input.problemCount - 1),
+					0,
+					20
+				);
 	const evidence = clamp(
 		4 +
 			input.broadSourceCount +
@@ -181,7 +184,12 @@ export function calculateScore(input: ScoreInput): ScoreResult {
 	const ratio = input.totalQuestions ? input.answeredQuestions / input.totalQuestions : 0;
 	const interview = clamp(Math.round(ratio * 10) - (input.interviewEndedEarly ? 2 : 0), 0, 10);
 	const factors: ScoreFactor[] = [
-		{ id: 'clarity', label: 'Problem clarity', points: Math.round(clarity), maximum: 20 },
+		{
+			id: 'clarity',
+			label: input.clarityLabel === null ? 'Problem clarity · not assessed' : 'Problem clarity',
+			points: Math.round(clarity),
+			maximum: 20
+		},
 		{ id: 'evidence', label: 'Evidence quality', points: Math.round(evidence), maximum: 20 },
 		{
 			id: 'differentiation',

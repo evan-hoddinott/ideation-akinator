@@ -28,6 +28,22 @@ describe('finished project report', () => {
 		expect(safeReportFilename('Campus Signal Bell!?')).toBe('campus-signal-bell-prd.pdf');
 	});
 
+	it('retains the later roadmap in the saved report without adding it to chosen features', () => {
+		const project = finalizedDemo();
+		project.finalization.plan!.deferredFeatures = [
+			{
+				id: 'later-display',
+				name: 'Station display',
+				description: 'A future public display outside the prototype estimate.'
+			}
+		];
+		const report = buildProjectReport(project)!;
+		expect(parseProjectReport(report)?.plan.deferredFeatures).toEqual(
+			project.finalization.plan!.deferredFeatures
+		);
+		expect(report.plan.confirmedFeatures.some((f) => f.id === 'later-display')).toBe(false);
+	});
+
 	it('renders a real PDF with the saved source links', async () => {
 		const report = buildProjectReport(finalizedDemo(), new Date('2026-09-02T12:00:00Z'))!;
 		const pdf = await renderProjectPdf(report);

@@ -24,6 +24,16 @@ function memoryStorage(initial?: string): StorageLike & { value: () => string | 
 }
 
 describe('versioned project state', () => {
+	it('preserves technology suggestions, dismissals, and hard exclusions across refresh', () => {
+		const storage = memoryStorage();
+		const project = createProject();
+		project.preferences.suggestedTechnologyTags = ['Arduino', 'TypeScript'];
+		project.preferences.dismissedTechnologyTags = ['Arduino'];
+		project.preferences.constraints.excludedTechnologies = 'Robotics';
+		saveProject(storage, project);
+		expect(loadProject(storage).project?.preferences).toEqual(project.preferences);
+	});
+
 	it('round-trips a current project', () => {
 		const storage = memoryStorage();
 		const project = createProject(new Date('2026-08-31T10:00:00Z'), 'project-1');
@@ -55,6 +65,8 @@ describe('versioned project state', () => {
 		});
 		expect(project.finalization).toEqual({
 			configurationFingerprint: null,
+			planStatus: 'idle',
+			printPresented: false,
 			research: { jobId: null, status: 'idle', result: null },
 			plan: null
 		});
@@ -225,6 +237,8 @@ describe('versioned project state', () => {
 		if (loaded.status !== 'migrated') throw new Error('expected migrated project');
 		expect(loaded.project.finalization).toEqual({
 			configurationFingerprint: null,
+			planStatus: 'idle',
+			printPresented: false,
 			research: { jobId: null, status: 'idle', result: null },
 			plan: null
 		});

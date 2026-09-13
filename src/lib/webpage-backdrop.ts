@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CAT_CLIPS } from './cat-media';
 import { webSprites } from './web-sprites';
 
 export function createWebpageBackdrop(era: number) {
@@ -18,7 +19,9 @@ export function createWebpageBackdrop(era: number) {
 		pictures.push(im);
 		return im;
 	};
-	const cat = image(webSprites.cat.url),
+	const catPictures = CAT_CLIPS.map((clip) => image(clip.thumbnail));
+	let pictureIndex = 0;
+	const cat = catPictures[0],
 		globe = image(webSprites.globe.url),
 		stars = image(webSprites.star.url),
 		hello = image(webSprites.hello.url),
@@ -27,7 +30,6 @@ export function createWebpageBackdrop(era: number) {
 		HTMLImageElement,
 		{ durations: readonly number[]; tile: number; columns: number }
 	>([
-		[cat, webSprites.cat],
 		[globe, webSprites.globe],
 		[stars, webSprites.star],
 		[hello, webSprites.hello],
@@ -51,6 +53,7 @@ export function createWebpageBackdrop(era: number) {
 	};
 	const line = (x: number, y: number, w: number, color: string) => rect(x, y, w, 1, color);
 	const img = (im: HTMLImageElement, x: number, y: number, w: number, h: number) => {
+		if (im === cat) im = catPictures[(era + pictureIndex++) % catPictures.length];
 		if (!im.complete || !im.naturalWidth) return;
 		const sprite = sprites.get(im);
 		if (!sprite) {
@@ -76,6 +79,7 @@ export function createWebpageBackdrop(era: number) {
 		);
 	};
 	function paint() {
+		pictureIndex = 0;
 		if (innerWidth < 760) {
 			const backgrounds = [
 				'#233e37',
