@@ -50,6 +50,16 @@ npm run deploy:verify:auth
 
 The checks cover DNS, local and public health, the anonymous password screen, anonymous API rejection, the loopback-only port, container health and hardening, the active tunnel container, and retirement of the old system service. The authenticated version also checks the session cookie flags and verifies that the session survives a second page load.
 
+## September 13 workflow deployment
+
+Application revision `947e156` from branch `codex/workflow-redesign` is deployed at `https://idea.battery.rip` in image `sha256:873d49ae3405d0845f52351b76045d0f465a77a7b5e2c563f7a3c2bbadb2f41e`. The existing Docker/Cloudflare route, secrets and leaderboard volume are preserved. The prior image remains tagged `ideation-akinator:before-workflow-20260913`.
+
+The unit suite passes 180 tests in 43 files. Type checking reports zero errors/warnings, full lint passes, and the production container build succeeds. `npm run deploy:verify` passes all public health, anonymous authentication, runtime-hardening and tunnel checks. All 38 new media/cursor/frame/font asset hashes match the local source files.
+
+Local acceptance includes the complete edited demo and real equipment-lending workflow, real material-conflict revision, failure/refresh/retry/cancellation fixtures, responsive checks, motion recordings, and downloaded PDF consistency. A real final-plan request to the deployed endpoint reused completed research and returned HTTP 200 in 37 seconds with a complete 4–6 week timeline. Model estimates and research gaps remain visible.
+
+Authenticated browser verification uses a private two-hour signed session. It verifies authorization and session persistence, not a new password-entry login. Public journey/report evidence is recorded in [workflow verification](WORKFLOW-VERIFICATION.md).
+
 ## September 11 internet-history deployment
 
 Application commit `796e001` is deployed at `https://idea.battery.rip` in image `sha256:b38a6be1564244c046edbb3fb7b2a43642323a6f4be18b467982381c26369a77`.

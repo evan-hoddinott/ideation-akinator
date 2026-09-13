@@ -2,7 +2,7 @@
 
 The approved W-01 through W-14 redesign is implemented. The visual correction follows the user's Webfishing direction: the existing low-poly Sage/world, Tomo bitmap lettering, stepped pixel frames, hard shadows and native-resolution sprites. This record separates observed behavior from generated estimates. The attached assignment is a rubric reference; this is not a completed student submission.
 
-Final release checks are in progress. See [verification](WORKFLOW-VERIFICATION.md), [approved scope](WORKFLOW-REDESIGN-PROPOSAL.md), [asset credits](WORKFLOW-ASSET-SOURCES.md) and [deployment](DEPLOYMENT.md).
+Application revision `947e156` is deployed at `https://idea.battery.rip`. The public health/authentication/container verifier passes. Final browser evidence is recorded below. See [verification](WORKFLOW-VERIFICATION.md), [approved scope](WORKFLOW-REDESIGN-PROPOSAL.md), [asset credits](WORKFLOW-ASSET-SOURCES.md) and [deployment](DEPLOYMENT.md).
 
 ## Delivered workflow
 
@@ -33,7 +33,7 @@ The next real portfolio returned four concepts in 56 seconds. Review found the f
 
 The selected Local Ledger Desk then exercised a real material conflict: locally editable SQLite files cannot guarantee immutable audit events. The feature editor gained an Edit details control. Revising that promise to application-enforced append-only history preserved the intended workflow and cleared the researched conflict. Research then advanced automatically to final-plan generation, which returned HTTP 200 in 34 seconds. The plan estimates $0–$80 and 4–6 weeks. These are model planning assumptions, not proven costs or schedules.
 
-The final score returned HTTP 200. A 20-page PDF downloaded through the browser; extracted text matches all five confirmed features, the revised description, budget and timeline. See `after/live-final-project.json`, `finish-live-report.pdf`, `live-pdf-consistency.json`, and `finish-live-results-1440.png`. Broad and focused research are honestly marked partial, with gaps retained. The final timeline contains a model-truncated explanatory sentence; the range is intact. Generation instructions now request a short complete range and put phase details in developmentPhases.
+The final score returned HTTP 200. A 20-page PDF downloaded through the browser; extracted text matches all five confirmed features, the revised description, budget and timeline. See `after/live-final-project.json`, `finish-live-report.pdf`, `live-pdf-consistency.json`, and `finish-live-results-1440.png`. Broad and focused research are honestly marked partial, with gaps retained. The first final timeline contained a model-truncated explanatory sentence; the range was intact. Generation instructions now request a short complete range and put phase details in developmentPhases. A real retest against the deployed endpoint returned HTTP 200 in 37 seconds with the complete `4–6 weeks` timeline and a revised $0–$30 estimate. Research was reused rather than charged again.
 
 Relative-duration validation covers a single explicit day/week/month duration or range. Calendar dates, ambiguous multi-phase prose and semantic constraints still require the model/research assessment; it is not a universal proof of feasibility.
 
@@ -53,4 +53,10 @@ Invalid early CLI recordings of roughly one second are development failures, not
 
 ## Final checks
 
-The latest full unit suite passes 180 tests across 43 files. Svelte check reports zero errors/warnings. Final lint, responsive/recovery acceptance and deployment are recorded in the verification table as completed.
+The latest full unit suite passes 180 tests across 43 files. Svelte check reports zero errors/warnings. Full lint and the production container build pass. Browser failure/refresh/retry/cancellation fixtures retain completed research and reject a late cancelled plan. Public verification checks DNS, health, authentication, container hardening and the existing tunnel. All 38 new media/cursor/frame/font asset hashes match the local files.
+
+## Public completion
+
+The complete public token-free demo, refreshed session and PDF export passed. A real final-plan request to the deployed app also passed. Both public PDFs match their plans, with nine pages for the demo and twenty for the real project. Fresh public page-error and console logs are empty. See `after/public-pdf-checks.json`, `public-complete-demo.json`, `public-real-complete.json` and the public screenshots/recordings in the verification record. The original 68.75-second opening capture is named `finish-demo-opening-1440.mp4`; it is not claimed as a whole-journey recording.
+
+The redesign is complete and deployed. The known limits are model-estimate uncertainty, explicitly partial research, scoped responsive/race coverage, and playback-call verification rather than a human listening test. No additional implementation gate remains open for the approved scope.
