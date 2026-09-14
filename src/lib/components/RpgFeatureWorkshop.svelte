@@ -328,7 +328,7 @@
 <style>
 	.rpg-workshop {
 		position: absolute;
-		inset: 82px 28px 28px;
+		inset: 140px 28px 28px;
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
@@ -549,7 +549,7 @@
 	}
 	@media (max-width: 600px) {
 		.rpg-workshop {
-			inset: 70px 10px 12px;
+			inset: 165px 10px 12px;
 		}
 		header {
 			padding: 10px;

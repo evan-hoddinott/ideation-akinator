@@ -40,6 +40,7 @@ export type SageEvent =
 	| 'concept-summoning'
 	| 'concept-revealed'
 	| 'concepts-complete'
+	| 'final-plan-ready'
 	| 'concept-mail-skipped'
 	| 'concept-trashed'
 	| 'feature-changed'
@@ -91,6 +92,14 @@ interface SageLine {
 }
 
 const LINES: Record<SageEvent, SageLine[]> = {
+	'final-plan-ready': [
+		{
+			id: 'final-plan-ready-1',
+			text: 'The final plan is saved. One print coming up. Nobody make eye contact with the paper tray.',
+			mood: 'delighted',
+			sound: 'reveal'
+		}
+	],
 	welcome: [
 		{
 			id: 'welcome-1',

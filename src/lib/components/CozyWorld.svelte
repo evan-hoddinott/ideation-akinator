@@ -8,11 +8,13 @@
 		altitude,
 		calm = false,
 		paused = false,
+		onJourneyFrame = () => {},
 		onEraChange = () => {}
 	}: {
 		altitude: number;
 		calm?: boolean;
 		paused?: boolean;
+		onJourneyFrame?: (frame: { current: number; next: number; mix: number }) => void;
 		onEraChange?: (index: number) => void;
 	} = $props();
 	let canvas: HTMLCanvasElement;
@@ -157,6 +159,7 @@
 					canvas.dataset.era = String(era);
 					canvas.dataset.merge = journey.mix.toFixed(6);
 					canvas.dataset.revealed = String(revealedPixelCount(journey.mix, a.width * a.height));
+					onJourneyFrame({ current: journey.current, next: journey.next, mix: journey.mix });
 					// Native media pages own their player and measured 3D bezel.
 					// Keep the journey clock, but do not render an opaque world behind them.
 					const nativeMedia = [8, 10, 11].includes(era) && journey.current === journey.next;

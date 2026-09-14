@@ -601,9 +601,9 @@
 		position: fixed;
 		inset: 0;
 		z-index: 13;
-		padding: 64px 28px 20px;
+		padding: 140px 28px 20px;
 		pointer-events: auto;
-		background: var(--game-desktop);
+		background: transparent;
 		color: #382f40;
 		font: 24px/1.25 var(--game-font);
 	}
@@ -1211,7 +1211,7 @@
 			padding-bottom: 12px;
 		}
 		.score-room {
-			padding: 58px 16px 12px;
+			padding: 165px 16px 12px;
 		}
 		.results-heading {
 			padding: 14px 20px;
@@ -1314,7 +1314,7 @@
 	}
 	@media (max-width: 450px) {
 		.score-room {
-			padding: 56px 6px 7px;
+			padding: 165px 6px 7px;
 		}
 		.results-shell {
 			border-width: 3px;

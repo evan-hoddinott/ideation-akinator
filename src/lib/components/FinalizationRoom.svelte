@@ -312,15 +312,15 @@
 		position: fixed;
 		inset: 0;
 		z-index: 13;
-		padding: 78px 28px 58px;
-		background: var(--game-desktop);
+		padding: 140px 28px 58px;
+		background: transparent;
 		color: #322b40;
 		font: 24px/1.25 var(--game-font);
 		pointer-events: auto;
 	}
 	.desktop-label {
 		position: absolute;
-		top: 36px;
+		top: 112px;
 		color: #ebddef;
 		font:
 			bold 12px 'Courier New',
@@ -570,7 +570,7 @@
 	}
 	@media (max-width: 650px) {
 		.final-desktop {
-			padding: 62px 8px 44px;
+			padding: 165px 8px 44px;
 		}
 		.desktop-label {
 			top: 37px;

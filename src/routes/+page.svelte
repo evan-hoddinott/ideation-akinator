@@ -12,6 +12,7 @@
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
 	import ResearchBrief from '$lib/components/ResearchBrief.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
+	import SageBanter from '$lib/components/SageBanter.svelte';
 	import SageStage from '$lib/components/SageStage.svelte';
 	import VerticalWorld from '$lib/components/VerticalWorld.svelte';
 	import { OracleAudio, type OracleEffect } from '$lib/oracle-audio';
@@ -154,6 +155,7 @@
 	let preferenceStep = $state(0);
 	let pauseMenuOpen = $state(false);
 	let sageSpeaking = $state(false);
+	let banterSpeaking = $state(false);
 	let sageVoicePulse = $state(0);
 	let sageVoiceEnergy = $state(0.5);
 	let sagePerformance = $state<SageClip | null>(null);
@@ -2269,7 +2271,7 @@
 				finalization: { ...project.finalization, plan, planStatus: 'ready', printPresented: false }
 			});
 			finalizationMessage = 'Your final plan is saved with updated estimates and requirements.';
-			performSageEvent('concepts-complete', project);
+			performSageEvent('final-plan-ready', project);
 		} catch {
 			if (!currentFocusedRequestMatches(projectId, fingerprint) || controller.signal.aborted)
 				return;
@@ -2431,9 +2433,8 @@
 	>
 		<VerticalWorld
 			runId={visualProject.id}
-			paused={mainMenuOpen ||
-				pauseMenuOpen ||
-				project?.stage === 'concepts' ||
+			paused={mainMenuOpen || pauseMenuOpen}
+			interactionsPaused={project?.stage === 'concepts' ||
 				project?.stage === 'focused' ||
 				workstationView?.purpose === 'concepts'}
 			altitude={sceneryAltitude}
@@ -2456,7 +2457,7 @@
 				paused={mainMenuOpen ||
 					pauseMenuOpen ||
 					(project?.stage === 'focused' && !finalPrintActive)}
-				speaking={sageSpeaking}
+				speaking={sageSpeaking || banterSpeaking}
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
 				performance={sagePerformance}
@@ -2579,6 +2580,22 @@
 		</header>
 
 		<div class="workspace" class:has-companion={project && project.stage !== 'welcome'}>
+			{#if stateReady && project && !mainMenuOpen}
+				{#key project.id}<SageBanter
+						personality={project.personality}
+						stage={project.stage}
+						phase={project.finalization.printPresented
+							? 'results'
+							: finalPlanBusy
+								? 'plan'
+								: project.stage}
+						era={sceneryEraIndex}
+						paused={pauseMenuOpen}
+						primarySpeaking={sageSpeaking}
+						onSpeakingChange={(speaking) => (banterSpeaking = speaking)}
+						onVoice={playSageVoice}
+					/>{/key}
+			{/if}
 			{#if visualProject.stage !== 'concepts'}
 				<main class="dialogue-workbench">
 					{#if stateNotice && project?.stage !== 'focused' && project?.stage !== 'concepts'}

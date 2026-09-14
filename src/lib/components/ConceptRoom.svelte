@@ -722,7 +722,7 @@
 		pointer-events: auto;
 	}
 	.mail-stage.desktop {
-		background: var(--game-desktop);
+		background: transparent;
 	}
 	.summoning-screen {
 		width: min(760px, 90vw);
@@ -796,7 +796,7 @@
 	.mail-toast {
 		position: absolute;
 		right: 40px;
-		top: 80px;
+		top: 140px;
 		display: grid;
 		grid-template-columns: 55px 1fr auto;
 		gap: 14px;
@@ -846,11 +846,11 @@
 	}
 	.mail-client {
 		position: absolute;
-		top: 80px;
+		top: 140px;
 		left: 28px;
 		right: 28px;
 		width: auto;
-		height: calc(100dvh - 145px);
+		height: calc(100dvh - 205px);
 		border: 8px solid transparent;
 		border-image: var(--game-window-border);
 		background: #eee2c9;
@@ -1290,7 +1290,7 @@
 	@media (max-width: 760px) {
 		.mail-stage {
 			position: fixed;
-			padding: 60px 5px 55px;
+			padding: 165px 5px 55px;
 			place-items: stretch;
 		}
 		.mail-client {

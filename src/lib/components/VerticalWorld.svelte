@@ -2,6 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import MediaEra from '$lib/components/MediaEra.svelte';
 	import CozyWorld from '$lib/components/CozyWorld.svelte';
+	import PixelEraLayer from '$lib/components/PixelEraLayer.svelte';
 	import { INTERNET_ERAS } from '$lib/internet-era';
 	import { eraExhibits } from '$lib/era-journey';
 	import type { WorkflowStage } from '$lib/project-state';
@@ -11,6 +12,7 @@
 		stage,
 		calm = false,
 		paused = false,
+		interactionsPaused = false,
 		clues = [],
 		resetSignal = 0,
 		onInteract = () => {},
@@ -21,12 +23,19 @@
 		stage: WorkflowStage;
 		calm?: boolean;
 		paused?: boolean;
+		interactionsPaused?: boolean;
 		clues?: string[];
 		resetSignal?: number;
 		onInteract?: (object: string) => void;
 		onEraChange?: (index: number) => void;
 	} = $props();
 	let visibleEra = $state(0);
+	let journey = $state({ current: 0, next: 0, mix: 0 });
+	const mediaEras = $derived(
+		[...new Set([journey.current, journey.next])].filter(
+			(index) => index === 8 || index === 10 || index === 11
+		)
+	);
 	let message = $state('');
 	let timer = 0;
 	const era = $derived(INTERNET_ERAS[visibleEra]);
@@ -46,21 +55,29 @@
 	data-stage={stage}
 	data-era={era}
 	data-reset={resetSignal}
-	inert={paused}
-	aria-hidden={paused}
+	inert={paused || interactionsPaused}
+	aria-hidden={paused || interactionsPaused}
 >
 	<CozyWorld
 		{altitude}
 		{calm}
 		{paused}
+		onJourneyFrame={(frame) => (journey = frame)}
 		onEraChange={(index) => {
 			visibleEra = index;
 			onEraChange(index);
 		}}
 	/>
-	{#if visibleEra === 8 || visibleEra === 10 || visibleEra === 11}
-		{#key `${runId}:${visibleEra}`}<MediaEra era={visibleEra} {runId} {paused} {calm} />{/key}
-	{/if}
+	{#each mediaEras as index (`${runId}:${index}`)}
+		<PixelEraLayer {journey} era={index}>
+			<MediaEra
+				era={index}
+				{runId}
+				paused={paused || interactionsPaused || journey.current !== journey.next}
+				{calm}
+			/>
+		</PixelEraLayer>
+	{/each}
 	<span class="sr-only">{clues.filter((c) => c.trim()).length} saved problem clues</span>
 	{#if ![8, 10, 11].includes(visibleEra)}<button
 			class="scenery-control"

@@ -309,6 +309,15 @@
 </section>
 
 <style>
+	/* Raster artwork shares the world's render grid. Controls remain crisp and accessible. */
+	video,
+	.thumbnail img,
+	.stories img,
+	.video-heading img,
+	.brand {
+		filter: var(--era-pixel-filter, none);
+	}
+
 	.media-era {
 		position: absolute;
 		inset: 0;
@@ -316,7 +325,7 @@
 		background: #f2eddf;
 		color: #443d42;
 		font:
-			14px/1.5 Verdana,
+			14px/1.5 'Tomo',
 			sans-serif;
 		pointer-events: none;
 		isolation: isolate;
@@ -419,7 +428,7 @@
 	}
 	.play-overlay small {
 		font:
-			12px Verdana,
+			12px 'Tomo',
 			sans-serif;
 	}
 	.player-controls {
@@ -491,7 +500,7 @@
 		background: transparent;
 		color: #9c773f;
 		font:
-			15px Verdana,
+			15px 'Tomo',
 			sans-serif;
 		padding: 5px;
 	}
@@ -559,7 +568,7 @@
 	.video-info strong {
 		display: block;
 		font:
-			bold 13px/1.45 Verdana,
+			bold 13px/1.45 'Tomo',
 			sans-serif;
 		color: #5a6485;
 	}
@@ -603,7 +612,7 @@
 		border: 1px solid #b68e9b;
 		color: #52344c;
 		font:
-			13px/1.5 Verdana,
+			13px/1.5 'Tomo',
 			sans-serif;
 	}
 	.comments p {
@@ -645,7 +654,7 @@
 		border: 0;
 		color: #6c566c;
 		font:
-			11px Verdana,
+			11px 'Tomo',
 			sans-serif;
 	}
 	.stories img {
@@ -707,7 +716,7 @@
 	}
 	.short-feed .brand {
 		font:
-			bold 35px Verdana,
+			bold 35px 'Tomo',
 			sans-serif;
 		color: #f7e9e7;
 		text-shadow:
@@ -729,7 +738,7 @@
 		gap: 28px;
 		width: 15%;
 		font:
-			19px Verdana,
+			19px 'Tomo',
 			sans-serif;
 		color: #b2a3b8;
 	}
@@ -800,7 +809,7 @@
 	}
 	.action-rail small {
 		font:
-			10px Verdana,
+			10px 'Tomo',
 			sans-serif;
 	}
 	.short-feed .player-controls {
