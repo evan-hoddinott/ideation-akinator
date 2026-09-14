@@ -24,7 +24,7 @@ Local evidence is in ignored `artifacts/paper-purl/`.
 - The monitor-turn screenshot shows the actual inbox on the physical CRT. The feature desktop covers the full 375×667 viewport without horizontal overflow. Confirming the build activates the exit transition and returns to the world and required Sage handoff.
 - Thirty-one targeted tests passed across six files, including a full CRT-turn clearance check, research-driven ball timing, paper geometry, era progression and finalization contracts. Svelte check and ESLint passed; production builds passed.
 
-The walkthrough used saved canned demo data, not a new paid-provider run. Physical touch-device testing and a friend usability session were not performed. Development reloads interrupted several browser captures; final checks used fresh sessions. Production verification is recorded in DEPLOYMENT.md after release.
+The walkthrough used saved canned demo data, not a new paid-provider run. Physical touch-device testing and a friend usability session were not performed. Development reloads interrupted several browser captures; final checks used fresh sessions. Production verification passed and is recorded in DEPLOYMENT.md. The public mobile trace had no response overflow, and the 1024-pixel long-note review measured 454 pixels for both available and used space.
 
 ## Asset source
 

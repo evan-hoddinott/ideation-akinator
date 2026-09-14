@@ -114,3 +114,13 @@ Application commit `d7d55fb` restores mandatory Sage handoffs, milestone-based e
 Fifty-one targeted tests, Svelte check, changed-file ESLint and the production container build passed. Local desktop and phone checks covered the revised prompts and a complete canned research-to-results journey. Public authenticated checks covered welcome, the closing 404 encounter, results controls and the final long-note paging correction. These used a short-lived signed session, not a fresh password-entry test. A reused browser session timed out on reload; a fresh session successfully verified the ending. See [the encounter record](RPG-ENCOUNTER-PLAN.md) for evidence and test limits.
 
 Rollback: `ideation-akinator:before-rpg-encounter-20260914`, image `sha256:4b63b550282ed0f0cabaebe8b8d8259aa914b1bf3a8cd608bc2f8349d33975fd`.
+
+## September 14 paper and Purl encounters
+
+Application commit `54e0b66` is deployed at `https://idea.battery.rip` in healthy image `sha256:e5775912a269d52619555a106e2ad2746b70115242eeaaa01e441ca9f9284253`. The container build and deployment verifier passed. The existing Compose changes were preserved.
+
+Fresh authenticated public checks confirmed that two 500-character notes fit at 1024×768 with a 454-pixel response area and no horizontal overflow. The 375×667 research encounter recorded shake, read, throw and chase; no throw preceded completed research, and measured response overflow was zero. The world progressed through algorithmic, AI and final 404 eras, followed by the results controls. Browser page-error logs were empty. These checks used saved demo data and a short-lived signed session, not a fresh password-entry login or paid research request.
+
+The old running image could not be retagged because Docker no longer had that image available. Rollback was rebuilt from previous committed version `d7aeef3` before deployment: `ideation-akinator:before-paper-purl-20260914`, image `sha256:ae666e9800993711bcaa4fa92a4d430e074201b49aecbe280551a95419cf1fe8`.
+
+See [paper and Purl encounters](PAPER-PURL-ENCOUNTERS.md) for implementation scope, local evidence and test limits.
