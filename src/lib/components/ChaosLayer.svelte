@@ -302,7 +302,7 @@
 				class:useful={purl.useful}
 				type="button"
 				onclick={shooPurl}
-				aria-label="Shoo Purl the pixel cat"
+				aria-label="Shoo Purl the cat"
 			>
 				<span class="purl-bubble">{purl.message}</span><span class="purl-character"
 					><PurlSprite

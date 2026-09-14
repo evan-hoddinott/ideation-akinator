@@ -4,6 +4,8 @@
 	import { resolve } from '$app/paths';
 	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
 	import ChaosLayer from '$lib/components/ChaosLayer.svelte';
+	import type { MagicBallFrame } from '$lib/magic-ball';
+	let magicBall = $state<MagicBallFrame | null>(null);
 	import FinalizationRoom from '$lib/components/FinalizationRoom.svelte';
 	import LoginTerminal from '$lib/components/LoginTerminal.svelte';
 	import MainMenu from '$lib/components/MainMenu.svelte';
@@ -281,17 +283,6 @@
 			project?.finalization.research.status === 'running'
 	);
 	const researchIsActive = $derived(broadResearchIsActive || focusedResearchIsActive);
-	const finalPrintActive = $derived.by(() => {
-		if (
-			!project ||
-			project.stage !== 'focused' ||
-			!project.finalization.plan ||
-			project.finalization.printPresented
-		)
-			return false;
-		const input = focusedResearchRequest(project);
-		return !!input && finalizationConflicts(input, project.finalization).length === 0;
-	});
 	const currentQuestion = $derived(
 		project?.interview.questions[project.interview.currentQuestionIndex] ?? null
 	);
@@ -2099,7 +2090,16 @@
 	}
 
 	$effect(() => {
-		if (!project || project.stage !== 'focused' || focusedResearchBusy || finalPlanBusy) return;
+		if (
+			!project ||
+			project.stage !== 'focused' ||
+			focusedResearchBusy ||
+			finalPlanBusy ||
+			mainMenuOpen ||
+			pauseMenuOpen ||
+			activeEncounterBeat
+		)
+			return;
 		const input = focusedResearchRequest(project);
 		if (!input) return;
 		const action = nextFinalizationAction(input, project.finalization);
@@ -2558,10 +2558,9 @@
 				altitude={sageAltitude}
 				researching={researchIsActive}
 				workstation={workstationView}
+				{magicBall}
 				onFallbackChange={(fallback) => (sageModelFallback = fallback)}
-				paused={mainMenuOpen ||
-					pauseMenuOpen ||
-					(project?.stage === 'focused' && !finalPrintActive && !activeEncounterBeat)}
+				paused={mainMenuOpen || pauseMenuOpen}
 				speaking={sageSpeaking}
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
@@ -2629,7 +2628,7 @@
 				<span>REWINDING ONE QUESTION...</span>
 			</div>
 		{/if}
-		{#if project && project.stage !== 'welcome' && project.stage !== 'concepts' && project.stage !== 'focused'}
+		{#if project && project.stage !== 'welcome' && project.stage !== 'concepts' && project.stage !== 'focused' && !(project.stage === 'research' && project.research.result)}
 			<ChaosLayer
 				eraIndex={sceneryEraIndex}
 				projectId={project.id}
@@ -2753,7 +2752,7 @@
 							label="YOUR QUEST JOURNAL"
 							meta={`${filledProblemCount} related problem${filledProblemCount === 1 ? '' : 's'}`}
 							prompt={problemReview
-								? 'Let me check my notes. Even wizards misread their own handwriting. Does this describe the problem?'
+								? 'Even wizards misread their notes. Check your description below, then choose tools and limits. Related problems are optional.'
 								: 'Give me the messy version. My crystal ball has enough polished nonsense. What keeps going wrong?'}
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
@@ -2786,14 +2785,36 @@
 										>Review my problem →</button
 									>
 								{:else}
-									<PagedText
-										length={100}
-										text={activeProblemCard?.text || 'This note is empty. Edit it or remove it.'}
-									/>
+									<div class="problem-review-desktop">
+										{#each project.problemInput.cards.slice(Math.floor(Math.max(0, project.problemInput.cards.indexOf(activeProblemCard!)) / 2) * 2, Math.floor(Math.max(0, project.problemInput.cards.indexOf(activeProblemCard!)) / 2) * 2 + 2) as card (card.id)}
+											<article class:long-note={card.text.length > 250}>
+												<strong
+													>{project.problemInput.cards.indexOf(card) === 0
+														? 'Your problem'
+														: `Related problem ${project.problemInput.cards.indexOf(card)}`}</strong
+												>
+												<p>{card.text || 'Empty note'}</p>
+												<button
+													class="answer-button secondary"
+													onclick={() => {
+														activeProblemId = card.id;
+														setEncounter({ problemReview: false });
+													}}>Edit description</button
+												>
+											</article>
+										{/each}
+									</div>
+									<div class="problem-review-phone">
+										<p>{activeProblemCard?.text || 'This note is empty. Edit it or remove it.'}</p>
+									</div>
 									{#if project.problemInput.topicCoherenceWarning}<p class="dialogue-warning">
 											{project.problemInput.topicCoherenceWarning}
 										</p>{/if}
-									<nav class="encounter-note-nav" aria-label="Problem notes">
+									<nav
+										class="encounter-note-nav"
+										class:problem-review-phone={project.problemInput.cards.length <= 2}
+										aria-label="Problem notes"
+									>
 										<button
 											class="answer-button secondary"
 											disabled={project.problemInput.cards.indexOf(activeProblemCard!) <= 0}
@@ -2804,10 +2825,43 @@
 													].id;
 											}}>←</button
 										>
-										<span
-											>Note {project.problemInput.cards.indexOf(activeProblemCard!) + 1} of {project
-												.problemInput.cards.length}</span
-										>
+										<details class="note-actions phone-note-menu">
+											<summary
+												>Note {project.problemInput.cards.indexOf(activeProblemCard!) + 1} of {project
+													.problemInput.cards.length} ▾</summary
+											>
+											<div>
+												<button onclick={() => setEncounter({ problemReview: false })}
+													>Edit description</button
+												>
+												<button
+													onclick={() => {
+														addProblem();
+														setEncounter({ problemReview: false });
+													}}>Add related problem</button
+												>
+												<button
+													disabled={project.problemInput.cards.length === 1}
+													onclick={() => activeProblemCard && removeProblem(activeProblemCard.id)}
+													>Remove this note</button
+												>
+												<button
+													disabled={project.problemInput.cards.indexOf(activeProblemCard!) <= 0}
+													onclick={() =>
+														moveProblem(
+															project!.problemInput.cards.indexOf(activeProblemCard!),
+															-1
+														)}>Move earlier</button
+												>
+												<button
+													disabled={project.problemInput.cards.indexOf(activeProblemCard!) >=
+														project.problemInput.cards.length - 1}
+													onclick={() =>
+														moveProblem(project!.problemInput.cards.indexOf(activeProblemCard!), 1)}
+													>Move later</button
+												>
+											</div>
+										</details>
 										<button
 											class="answer-button secondary"
 											disabled={project.problemInput.cards.indexOf(activeProblemCard!) >=
@@ -2820,17 +2874,18 @@
 											}}>→</button
 										>
 									</nav>
-									<div class="encounter-note-nav">
+									<div class="encounter-note-nav desktop-note-actions">
 										<button
-											class="answer-button secondary"
-											onclick={() => setEncounter({ problemReview: false })}>Edit note</button
+											class="answer-button secondary problem-review-phone"
+											onclick={() => setEncounter({ problemReview: false })}
+											>Edit description</button
 										>
 										<button
 											class="answer-button secondary"
 											onclick={() => {
 												addProblem();
 												setEncounter({ problemReview: false });
-											}}>+ Related problem</button
+											}}>+ Related problem (optional)</button
 										>
 										<details class="note-actions">
 											<summary>More</summary>
@@ -2861,7 +2916,7 @@
 									<button
 										class="answer-button primary"
 										disabled={filledProblemCount === 0}
-										onclick={goToPreferences}>These are my problems →</button
+										onclick={goToPreferences}>Looks right — choose tools →</button
 									>
 								{/if}
 							</div>
@@ -2948,32 +3003,24 @@
 						{:else if broadResearchIsActive || (project.research.result && broadResearchPerformanceOpen)}
 							<!-- The performance is a sibling of the Sage so its rear and foreground layers can straddle him. -->
 						{:else if project.research.result}
-							<SageDialogue
-								paused={mainMenuOpen || pauseMenuOpen}
-								readIds={project?.encounter?.seen ?? []}
-								onRead={(id) => {
-									if (project && !project.encounter?.seen.includes(id))
-										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
-								}}
-								altitude={sageAltitude}
-								personality={project.personality}
-								layout="journal"
-								dialogueId={`${project.id}:research-brief`}
-								label="PRELIMINARY RESEARCH"
-								meta={`${project.research.result.sources.length} sources`}
-								prompt="Fact-checking ruined several excellent rumors. Here is what survived. These findings will guide my questions."
-								onSpeakCharacter={playSageVoice}
-								onSpeakingChange={setSageSpeaking}
-							>
+							<section class="standalone-field-paper" aria-label="The Sage's field notes">
+								<header>
+									<h2>The Sage's field notes</h2>
+									<p>Fact-checking ruined several excellent rumors. Here is what survived.</p>
+								</header>
 								<ResearchBrief
 									summary={project.research.result.summary}
 									findings={project.research.result.findings}
 									gaps={project.research.result.gaps}
 									sources={project.research.result.sources}
 									disclaimer={project.research.result.disclaimer}
-									onContinue={enterInterview}
 								/>
-							</SageDialogue>
+							</section>
+							<div class="paper-controls">
+								<button class="answer-button primary" onclick={enterInterview}
+									>Answer the Sage's questions →</button
+								>
+							</div>
 						{:else}
 							<SageDialogue
 								paused={mainMenuOpen || pauseMenuOpen}
@@ -3255,6 +3302,9 @@
 						{@const focusedInput = focusedResearchRequest(project)}
 						{#if focusedInput}
 							<FinalizationRoom
+								onMagicFrame={(frame) => (magicBall = frame)}
+								onSpeakCharacter={playSageVoice}
+								onSpeakingChange={setSageSpeaking}
 								paused={pauseMenuOpen || mainMenuOpen || !!activeEncounterBeat}
 								workstationFallback={sageModelFallback}
 								{project}

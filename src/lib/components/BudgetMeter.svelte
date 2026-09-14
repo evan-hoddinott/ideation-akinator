@@ -13,9 +13,8 @@
 		calm?: boolean;
 	} = $props();
 	let invalid = $state(false);
-	const position = $derived(
-		Math.min(100, (Math.log10(Math.max(0, value ?? 0) + 1) / Math.log10(100001)) * 100)
-	);
+	const rangeMaximum = $derived((value ?? 0) > 10000 ? Math.ceil(value! / 10000) * 10000 : 10000);
+	const position = $derived(Math.min(100, (Math.max(0, value ?? 0) / rangeMaximum) * 100));
 	const heat = $derived(
 		(value ?? 0) >= 10000 ? 'blazing' : (value ?? 0) >= 1000 ? 'sparking' : 'quiet'
 	);
@@ -48,6 +47,20 @@
 				></i>{/each}
 		</div>
 		{#if heat !== 'quiet'}<span class="budget-flame" aria-hidden="true"></span>{/if}
+		<input
+			class="budget-slider"
+			type="range"
+			min="0"
+			max={rangeMaximum}
+			step="50"
+			value={value ?? 0}
+			aria-label={`${label} slider`}
+			aria-valuetext={money(value ?? 0)}
+			oninput={(event) => choose(Number(event.currentTarget.value))}
+		/>
+	</div>
+	<div class="budget-ticks" aria-hidden="true">
+		<span>$0</span><span>{money(rangeMaximum / 2)}</span><span>{money(rangeMaximum)}</span>
 	</div>
 	<div class="budget-entry">
 		<button
@@ -82,11 +95,51 @@
 			>{/each}
 	</div>
 	<small class="budget-help"
-		>The bar covers $0–$100,000. Type any exact limit up to $1 billion.</small
+		>Drag the handle or type an exact amount. This is your prototype spending limit.</small
 	>
 </div>
 
 <style>
+	.budget-slider {
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		width: 100%;
+		height: 30px;
+		appearance: none;
+		background: transparent;
+		cursor: ew-resize;
+		margin: 0;
+	}
+	.budget-slider::-webkit-slider-thumb {
+		appearance: none;
+		width: 20px;
+		height: 30px;
+		background: #f3e6c7;
+		border: 3px outset #8c7958;
+		box-shadow: 2px 2px #493e2f;
+	}
+	.budget-slider::-moz-range-thumb {
+		width: 16px;
+		height: 24px;
+		border-radius: 0;
+		background: #f3e6c7;
+		border: 3px outset #8c7958;
+	}
+	.budget-slider:focus-visible {
+		outline: 3px solid #586f45;
+		outline-offset: 3px;
+	}
+	.budget-slider:active::-webkit-slider-thumb {
+		background: #c5d5a7;
+		border-style: inset;
+	}
+	.budget-ticks {
+		display: flex;
+		justify-content: space-between;
+		font: 14px var(--game-font);
+	}
+
 	.budget-help {
 		font-size: 14px;
 	}
@@ -123,8 +176,8 @@
 	}
 	.budget-scale {
 		position: relative;
-		height: 44px;
-		padding-top: 14px;
+		height: 74px;
+		padding-top: 44px;
 	}
 	.budget-segments {
 		height: 20px;

@@ -568,3 +568,171 @@ input:disabled {
 	background: #e5d7ba;
 	border: 1px solid #a58e6d;
 }
+
+.problem-review-desktop {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+	min-height: 0;
+}
+.problem-review-desktop article {
+	min-width: 0;
+	padding: 10px;
+	border: 2px solid #b49a74;
+	background: #eee2c5;
+}
+.problem-review-desktop p {
+	font: 18px/1.3 var(--game-font);
+	margin: 6px 0;
+	overflow-wrap: anywhere;
+}
+.problem-review-desktop strong {
+	font: 20px var(--game-font);
+}
+.problem-review-desktop .answer-button {
+	font-size: 18px;
+	padding: 5px 10px;
+	min-height: 32px;
+}
+.problem-review-phone {
+	display: none !important;
+}
+@media (max-width: 760px) {
+	.problem-review-desktop {
+		display: none;
+	}
+	.problem-review-phone {
+		display: flex !important;
+	}
+	.problem-review-phone p {
+		font: 16px/1.25 var(--game-font);
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+}
+
+@font-face {
+	font-family: 'Patrick Hand';
+	src: url('/fonts/PatrickHand-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-display: swap;
+}
+
+@media (min-width: 761px) {
+	.app-frame .sage-dialogue-stage.journal:has(.problem-review-desktop) {
+		height: min(500px, calc(100dvh - 110px));
+	}
+}
+
+.standalone-field-paper {
+	position: fixed;
+	z-index: 20;
+	left: 50%;
+	transform: translateX(-50%);
+	top: max(80px, 14dvh);
+	width: min(1000px, calc(100vw - 72px));
+	height: calc(100dvh - max(80px, 14dvh) - 100px);
+	box-sizing: border-box;
+	overflow: auto;
+	overscroll-behavior: contain;
+	background: #f1dfb7;
+	color: #40372c;
+	padding: 30px 44px;
+	border: 3px solid #c7af7f;
+	box-shadow: 8px 9px #332d3544;
+	font:
+		22px/1.45 'Patrick Hand',
+		cursive;
+}
+.standalone-field-paper h2 {
+	font:
+		32px 'Patrick Hand',
+		cursive;
+}
+.paper-controls {
+	position: fixed;
+	z-index: 30;
+	bottom: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: max-content;
+	max-width: calc(100vw - 24px);
+	pointer-events: auto;
+}
+.paper-controls button {
+	font: 22px/1.2 var(--game-font);
+	padding: 12px 20px;
+	border: 3px outset #a1b182;
+	background: #d6e3b7;
+	color: #35432b;
+	cursor: pointer;
+}
+.paper-controls button:hover {
+	background: #e0ecc9;
+}
+.paper-controls button:active {
+	border-style: inset;
+	transform: translateY(2px);
+}
+.paper-controls button:focus-visible {
+	outline: 3px solid #7155a1;
+	outline-offset: 3px;
+}
+@media (max-width: 600px) {
+	.standalone-field-paper {
+		padding: 18px;
+		width: calc(100vw - 32px);
+	}
+	.paper-controls button {
+		font-size: 18px;
+	}
+}
+
+@media (min-width: 761px) {
+	.app-frame .sage-dialogue-stage.journal:has(.long-note) {
+		height: min(640px, calc(100dvh - 110px));
+	}
+}
+@media (max-width: 760px) {
+	.desktop-note-actions {
+		display: none;
+	}
+	.encounter-problem:has(.problem-review-phone) {
+		gap: 8px;
+	}
+	.encounter-problem > .primary {
+		font-size: 20px;
+		padding: 8px;
+	}
+	.phone-note-menu summary {
+		padding: 8px;
+		font: 18px var(--game-font);
+	}
+	.problem-review-phone p {
+		font-size: 16px;
+		line-height: 1.2;
+	}
+}
+
+.problem-review-desktop .long-note p {
+	font-size: 16px;
+	line-height: 1.2;
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+	.app-frame .sage-dialogue-stage:has(.long-note) .rpg-panel {
+		grid-template-columns: 64px minmax(0, 1fr);
+		gap: 12px;
+		padding: 12px;
+	}
+	.app-frame .sage-dialogue-stage:has(.long-note) .sage-portrait,
+	.app-frame .sage-dialogue-stage:has(.long-note) .sage-portrait img {
+		width: 64px;
+		height: auto;
+	}
+	.app-frame .sage-dialogue-stage:has(.long-note) .sage-portrait figcaption {
+		display: none;
+	}
+	.app-frame .sage-dialogue-stage:has(.long-note) .encounter-problem {
+		gap: 8px;
+	}
+}

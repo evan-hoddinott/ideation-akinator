@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import type { MagicBallFrame } from '$lib/magic-ball';
 	import type { AnimationAction, Object3D } from 'three';
 	import type { WorkstationView } from '$lib/workstation-3d';
 	import type { SagePersonality } from '$lib/personality';
@@ -22,6 +23,7 @@
 		altitude,
 		researching = false,
 		workstation = null,
+		magicBall = null,
 		paused = false,
 		speaking = false,
 		voicePulse = 0,
@@ -38,6 +40,7 @@
 		altitude: number;
 		researching?: boolean;
 		workstation?: WorkstationView | null;
+		magicBall?: MagicBallFrame | null;
 		paused?: boolean;
 		speaking?: boolean;
 		voicePulse?: number;
@@ -288,9 +291,41 @@
 			const researchScene = new THREE.Group();
 			researchScene.add(presentation);
 			scene.add(researchScene);
-			const computer = createWorkstation(new THREE.TextureLoader().load('/images/purl/oneko.gif'));
+			const computer = createWorkstation();
 			researchScene.add(computer.root);
 			computer.root.visible = false;
+
+			const { createPurl } = await import('$lib/purl-3d');
+			const chaseCat = createPurl();
+			scene.add(chaseCat.root);
+			chaseCat.root.visible = false;
+			const ball = new THREE.Group();
+			scene.add(ball);
+			ball.visible = false;
+			const ballMaterial = new THREE.MeshStandardMaterial({
+				color: 0x292635,
+				roughness: 0.65,
+				flatShading: true
+			});
+			ball.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 2), ballMaterial));
+			const labelCanvas = document.createElement('canvas');
+			labelCanvas.width = 64;
+			labelCanvas.height = 64;
+			const ink = labelCanvas.getContext('2d')!;
+			ink.fillStyle = '#eee3ca';
+			ink.beginPath();
+			ink.arc(32, 32, 28, 0, Math.PI * 2);
+			ink.fill();
+			ink.fillStyle = '#292635';
+			ink.font = 'bold 42px monospace';
+			ink.textAlign = 'center';
+			ink.fillText('8', 32, 47);
+			const labelTexture = new THREE.CanvasTexture(labelCanvas);
+			labelTexture.magFilter = THREE.NearestFilter;
+			const labelMaterial = new THREE.MeshBasicMaterial({ map: labelTexture, transparent: true });
+			const ballLabel = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), labelMaterial);
+			ballLabel.position.z = 0.243;
+			ball.add(ballLabel);
 			const paperProp = createPaperProp();
 			const carriedPaper = paperProp.root;
 			carriedPaper.visible = false;
@@ -444,7 +479,7 @@
 				const horizontalDistance = fitWidth / 2 / Math.tan(horizontalFov / 2);
 				const distance =
 					(Math.max(verticalDistance, horizontalDistance) + poseSize.z * 0.55) *
-					(researching ? 0.6 : 0.65);
+					(magicBall ? 0.82 : researching ? 0.6 : 0.65);
 				camera.position.set(0, 0, distance);
 				if (workstation || $heldScroll) {
 					camera.position.set(1, 0.55, Math.max(8.4, 10.5 / camera.aspect));
@@ -885,6 +920,44 @@
 					});
 				}
 
+				ball.visible = !!magicBall;
+				chaseCat.root.visible = !!magicBall;
+				if (magicBall) {
+					const { phase: ballPhase, time: ballTime } = magicBall;
+					const shaking = ballPhase === 'shake';
+					const throwing = ballPhase === 'throw' || ballPhase === 'chase';
+					const origin = new THREE.Vector3(0, 0.6, 0.85);
+					presentation.localToWorld(origin);
+					ball.position.copy(origin);
+					if (shaking) {
+						ball.position.x += Math.sin(ballTime * 27) * 0.18;
+						ball.position.y += Math.cos(ballTime * 27) * 0.14;
+					}
+					if (throwing) {
+						const flight = Math.max(0, ballTime - 0.35);
+						ball.position.x += flight * 7;
+						ball.position.y += flight * 3 - flight * flight * 4;
+					}
+					ball.rotation.z = shaking ? Math.sin(ballTime * 27) * 0.4 : throwing ? ballTime * 12 : 0;
+					[leftHandMarker, rightHandMarker].forEach((hand, i) => {
+						if (!hand?.parent) return;
+						const target =
+							throwing && ballTime > 0.35
+								? origin.clone().add(new THREE.Vector3(0.6 + i * 0.3, 0.4, 0.1))
+								: ball.position.clone().add(new THREE.Vector3(i === 0 ? -0.26 : 0.26, 0, 0));
+						reachContact(i === 0 ? leftArm : rightArm, hand, target, 1);
+						hand.position.copy(hand.parent.worldToLocal(target));
+						hand.updateMatrixWorld(true);
+					});
+					if (headBone) headBone.rotation.x += shaking ? Math.sin(ballTime * 12) * 0.025 : 0.18;
+					chaseCat.root.scale.setScalar(0.85);
+					chaseCat.root.position.set(-1.6, -1.7, 1);
+					const chase = Math.max(0, ballTime - 0.85);
+					if (throwing) chaseCat.root.position.x += chase * 7;
+					chaseCat.root.rotation.y = throwing ? Math.PI / 2 : 0.35;
+					chaseCat.update(elapsed, throwing ? 'run' : shaking ? 'alert' : 'sit');
+				}
+
 				if (holdingPaper) clearHands();
 				if (workstation) {
 					workstation.screen.style.visibility = computer.root.visible ? 'visible' : 'hidden';
@@ -950,6 +1023,13 @@
 				window.cancelAnimationFrame(frameId);
 				director.dispose();
 				computer.dispose();
+				chaseCat.dispose();
+				ball.traverse((o) => {
+					if (o instanceof THREE.Mesh) o.geometry.dispose();
+				});
+				ballMaterial.dispose();
+				labelTexture.dispose();
+				labelMaterial.dispose();
 				paperProp.dispose();
 				resizeObserver.disconnect();
 				mixer.stopAllAction();
@@ -978,6 +1058,9 @@
 	class:fallback={useFallback}
 	class:ready={modelReady}
 	class:researching={researching || !!workstation}
+	class:consulting={!!magicBall}
+	data-magic-phase={magicBall?.phase}
+	data-magic-cycle={magicBall?.cycle}
 	class:concept-performance={workstation?.purpose === 'concepts'}
 	class:resetting
 	data-mood={personality.mood}
@@ -1035,6 +1118,20 @@
 </div>
 
 <style>
+	:global(.app-frame) .live-sage-stage.consulting {
+		left: 0;
+		top: 0;
+		width: 100vw;
+		height: calc(100dvh - 280px);
+		transform: none;
+		transition: none;
+	}
+	@media (max-width: 760px) {
+		:global(.app-frame) .live-sage-stage.consulting {
+			height: calc(100dvh - 340px);
+		}
+	}
+
 	.live-sage-stage {
 		position: fixed;
 		left: 15%;

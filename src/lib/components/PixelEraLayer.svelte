@@ -19,16 +19,15 @@
 		scale = $state(1);
 	let grid = $state('');
 	let mask = $state('');
-	let maskCanvas: HTMLCanvasElement;
-	let maskContext: CanvasRenderingContext2D | null;
-	let maskPixels: ImageData;
+	const clipId = `${id}-clip`;
+	let maskWidth = $state(1),
+		maskHeight = $state(1);
+
 	let ranks: Uint32Array[] = [];
 	let revision = $state(0);
 	let lastMask = '';
 
 	onMount(() => {
-		maskCanvas = document.createElement('canvas');
-		maskContext = maskCanvas.getContext('2d');
 		const resize = () => {
 			width = innerWidth;
 			height = innerHeight;
@@ -40,7 +39,7 @@
 			canvas.width = width;
 			canvas.height = height;
 			const ctx = canvas.getContext('2d');
-			if (!ctx || !maskContext) return;
+			if (!ctx) return;
 			const pixels = ctx.createImageData(width, height);
 			for (let y = 0; y < height; y++)
 				for (let x = 0; x < width; x++) {
@@ -55,9 +54,8 @@
 				}
 			ctx.putImageData(pixels, 0, 0);
 			grid = canvas.toDataURL();
-			maskCanvas.width = size.width;
-			maskCanvas.height = size.height;
-			maskPixels = maskContext.createImageData(size.width, size.height);
+			maskWidth = size.width;
+			maskHeight = size.height;
 			ranks = [
 				pixelRevealRanks(size.width, size.height),
 				pixelRevealRanks(size.width, size.height, true)
@@ -71,31 +69,43 @@
 	});
 
 	$effect(() => {
-		if (!revision || !maskContext) return;
+		if (!revision) return;
 		if (journey.current === journey.next) {
 			mask = '';
 			lastMask = '';
 			return;
 		}
-		const count = revealedPixelCount(journey.mix, maskCanvas.width * maskCanvas.height);
+		const count = revealedPixelCount(journey.mix, maskWidth * maskHeight);
 		const key = `${journey.current}:${journey.next}:${count}`;
 		if (key === lastMask) return;
 		lastMask = key;
 		const order = ranks[journey.next < journey.current ? 1 : 0];
 		const incoming = era === journey.next;
-		for (let y = 0; y < maskCanvas.height; y++)
-			for (let x = 0; x < maskCanvas.width; x++) {
-				// WebGL's texture origin is below the DOM canvas origin.
-				const revealed = order[(maskCanvas.height - 1 - y) * maskCanvas.width + x] < count;
-				maskPixels.data[(y * maskCanvas.width + x) * 4 + 3] = revealed === incoming ? 255 : 0;
+
+		// Inline geometry changes in the same paint as the world; no per-frame image decoding.
+		const paths: string[] = [];
+		for (let y = 0; y < maskHeight; y++) {
+			let start = -1;
+			for (let x = 0; x <= maskWidth; x++) {
+				const visible =
+					x < maskWidth && order[(maskHeight - 1 - y) * maskWidth + x] < count === incoming;
+				if (visible && start < 0) start = x;
+				if (!visible && start >= 0) {
+					const run = x - start;
+					paths.push(`M${start} ${y}h${run}v1h-${run}z`);
+					start = -1;
+				}
 			}
-		maskContext.putImageData(maskPixels, 0, 0);
-		mask = maskCanvas.toDataURL();
+		}
+		mask = paths.join('');
 	});
 </script>
 
 <svg width="0" height="0" aria-hidden="true">
 	<defs>
+		<clipPath id={clipId} clipPathUnits="userSpaceOnUse"
+			><path d={mask} transform={`scale(${width / maskWidth} ${height / maskHeight})`} /></clipPath
+		>
 		<filter
 			{id}
 			x="0"
@@ -118,9 +128,10 @@
 </svg>
 <div
 	class="pixel-era-layer"
+	style:visibility={!revision || (journey.current !== journey.next && !mask) ? 'hidden' : 'visible'}
 	data-pixel-era={era}
 	data-pixel-scale={scale}
-	style:mask-image={mask ? `url(${mask})` : 'none'}
+	style:clip-path={journey.current !== journey.next ? `url(#${clipId})` : 'none'}
 >
 	<div class="pixel-content" style:--era-pixel-filter={grid ? `url(#${id})` : 'none'}>
 		{@render children()}

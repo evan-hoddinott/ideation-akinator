@@ -6,7 +6,7 @@ export function documentLayout(width: number, height: number) {
 	const top = Math.max(80, height * 0.14);
 	return {
 		width: paperWidth,
-		height: Math.max(100, height - top - 48),
+		height: Math.max(100, height - top - 100),
 		left: (width - paperWidth) / 2,
 		top
 	};
@@ -34,23 +34,7 @@ export function createPaperProp() {
 		);
 	}
 	geometry.computeVertexNormals();
-	const material = new THREE.MeshStandardMaterial({
-		color: 0xf1dfb7,
-		roughness: 1,
-		side: THREE.DoubleSide,
-		flatShading: true
-	});
-	let colorTexture: THREE.Texture | undefined;
-	let normalTexture: THREE.Texture | undefined;
-	if (typeof document !== 'undefined') {
-		const loader = new THREE.TextureLoader();
-		colorTexture = loader.load('/images/props/paper-color.jpg');
-		colorTexture.colorSpace = THREE.SRGBColorSpace;
-		normalTexture = loader.load('/images/props/paper-normalgl.jpg');
-		material.map = colorTexture;
-		material.normalMap = normalTexture;
-		material.normalScale.set(0.5, 0.5);
-	}
+	const material = new THREE.MeshBasicMaterial({ color: 0xf1dfb7, side: THREE.DoubleSide });
 	const sheet = new THREE.Mesh(geometry, material);
 	root.add(sheet);
 	const rimGeometry = geometry.clone();
@@ -102,7 +86,7 @@ export function createPaperProp() {
 	return {
 		root,
 		update(reading: boolean, scroll: boolean, opening = 1) {
-			material.color.setHex(scroll ? 0xf1dfb7 : 0xffffff);
+			material.color.setHex(0xf1dfb7);
 			ink.visible = !reading && !scroll;
 			sheet.visible = !reading;
 			rim.visible = reading;
@@ -121,8 +105,6 @@ export function createPaperProp() {
 			}
 		},
 		dispose() {
-			colorTexture?.dispose();
-			normalTexture?.dispose();
 			geometry.dispose();
 			rimGeometry.dispose();
 			window.geometry.dispose();

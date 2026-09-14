@@ -162,9 +162,8 @@
 					onJourneyFrame({ current: journey.current, next: journey.next, mix: journey.mix });
 					// Native media pages own their player and measured 3D bezel.
 					// Keep the journey clock, but do not render an opaque world behind them.
-					const nativeMedia = [8, 10, 11].includes(era) && journey.current === journey.next;
-					canvas.style.visibility = nativeMedia ? 'hidden' : 'visible';
-					if (nativeMedia) return;
+					canvas.style.visibility = 'visible';
+					if ([8, 10, 11].includes(era) && journey.current === journey.next) return;
 					const frameKey = `${innerWidth}:${innerHeight}:${journey.current}:${journey.next}:${journey.mix}`;
 					if (paused && pausedFrame === frameKey) return;
 					pausedFrame = paused ? frameKey : '';

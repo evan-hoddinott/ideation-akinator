@@ -1,4 +1,7 @@
 <script lang="ts">
+	import SageDialogue from './SageDialogue.svelte';
+	import MagicBallEncounter from './MagicBallEncounter.svelte';
+	import type { MagicBallFrame } from '$lib/magic-ball';
 	import ResearchWorkstation from './ResearchWorkstation.svelte';
 	import ProjectReportViewer from './ProjectReport.svelte';
 	import ScoreRoom from './ScoreRoom.svelte';
@@ -23,6 +26,9 @@
 		pdfBusy,
 		pdfMessage,
 		message,
+		onMagicFrame = () => {},
+		onSpeakCharacter = () => {},
+		onSpeakingChange = () => {},
 		onStartResearch,
 		onCancelResearch,
 		onSkipResearch,
@@ -50,6 +56,9 @@
 		pdfBusy: boolean;
 		pdfMessage: string;
 		message: string;
+		onMagicFrame?: (frame: MagicBallFrame | null) => void;
+		onSpeakCharacter?: (profile: import('$lib/rpg-dialogue').SageVoiceProfile) => void;
+		onSpeakingChange?: (speaking: boolean) => void;
 		onStartResearch: () => void;
 		onCancelResearch: () => void;
 		onSkipResearch: () => void;
@@ -66,6 +75,9 @@
 		workstationFallback?: boolean;
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
+	let ballDone = $state(false);
+	let ballFrame = $state<MagicBallFrame | null>(null);
+	let evidenceDialog = $state<HTMLDialogElement>();
 	let reportOpen = $state(false);
 	const result = $derived(finalization.research.result);
 	const plan = $derived(finalization.plan);
@@ -95,6 +107,22 @@
 	);
 </script>
 
+{#if !ballDone && !finalization.printPresented}
+	<MagicBallEncounter
+		pending={active}
+		found={!!result}
+		{paused}
+		calm={personality.calmMode || workstationFallback}
+		onFrame={(frame) => {
+			ballFrame = frame;
+			onMagicFrame(frame);
+		}}
+		onDone={() => {
+			ballDone = true;
+			onMagicFrame(null);
+		}}
+	/>
+{/if}
 {#if ready && finalization.printPresented}
 	<ScoreRoom
 		{project}
@@ -106,7 +134,7 @@
 		{onNewRun}
 		{onEffect}
 	/>
-{:else if ready && plan}
+{:else if ready && plan && ballDone}
 	<ResearchWorkstation
 		active={true}
 		{paused}
@@ -127,175 +155,242 @@
 		{onEffect}
 	/>
 {:else}
-	<section class="final-desktop" aria-label="Purl OS project workspace">
-		<div class="desktop-label" aria-hidden="true">PURL OS · PROJECT WORKSPACE</div>
-		<section class="project-window" aria-labelledby="finalization-heading">
-			<header class="window-title">
-				<span>▣ {input.selectedConcept.name} / Finalize</span><span aria-hidden="true">▱</span>
-			</header>
-			<div class="workspace-body">
-				<aside>
-					<small>CONFIRMED FIRST VERSION</small>
-					<h2>{input.selectedConcept.name}</h2>
-					<ul>
-						{#each input.includedFeatures as feature (feature.id)}<li>{feature.name}</li>{/each}
-					</ul>
-					{#if input.deferredFeatures?.length}<details>
-							<summary>Later roadmap ({input.deferredFeatures.length})</summary>
-							<ul>
-								{#each input.deferredFeatures as feature (feature.id)}<li>{feature.name}</li>{/each}
-							</ul>
-							<p>Excluded from prototype estimates.</p>
-						</details>{/if}
-					<div class="limit">
-						<small>PROTOTYPE LIMIT</small><b>{money(input.prototypeBudgetUsd)}</b>
-					</div>
-					{#if input.selectedConcept.isStretch}<p class="stretch">
-							Chosen stretch concept. Disclosed estimate: {money(
-								input.selectedConcept.prototypeBudget.minimumUsd
-							)}–{money(input.selectedConcept.prototypeBudget.maximumUsd)}.
-						</p>{/if}
-					<p class="saved">Your configuration and completed research are saved in this browser.</p>
-				</aside>
-				<main>
-					<ol class="steps" aria-label="Finalization progress">
-						<li class:done={!!result} class:current={!result}>
-							<b>{result ? '✓' : '1'}</b><span>Check evidence</span>
-						</li>
-						<li class:done={!!plan} class:current={!!result && !plan}>
-							<b>{plan ? '✓' : '2'}</b><span>Update plan & estimates</span>
-						</li>
-						<li><b>3</b><span>Print final plan</span></li>
-					</ol>
-					<h1 id="finalization-heading">{heading}</h1>
-					{#if conflicts.length}
-						<div class="conflicts" role="alert">
-							<p>
-								The evidence conflicts with the chosen build. Your features have stayed as you
-								selected them.
-							</p>
-							{#each conflicts as conflict (conflict.id)}<article>
-									<b>{conflict.kind}</b>
-									<p>{conflict.description}</p>
-									{#each conflict.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
-												href={item.url}
-												target="_blank"
-												rel="external noreferrer">{item.title}</a
-											>{/if}{/each}
-								</article>{/each}
-							<p>
-								Revise the first version, choose another concept, or explicitly edit your limits.
-								Updated choices will need a new check.
-							</p>
-						</div>
-					{:else if busy}
-						<p role="status">
-							{message ||
-								'The Sage is checking your chosen features and the assumptions behind them.'}
-						</p>
-						<div class="work-indicator" aria-hidden="true">
-							<i></i><span
-								>{planBusy
-									? 'Writing requirements, costs, risks and validation steps…'
-									: 'Checking sources, dependencies and constraints…'}</span
-							>
-						</div>
-					{:else if finalization.planStatus === 'failed'}
-						<p class="error" role="alert">
-							{message ||
-								'The final plan was interrupted. Your completed research is saved. Retry only the plan.'}
-						</p>
-					{:else if ['failed', 'cancelled'].includes(finalization.research.status)}
-						<p class="error" role="alert">
-							{message ||
-								'The research did not finish. Your concept and feature choices are saved.'}
-						</p>
-					{:else}<p role="status">{message || 'Starting the final check…'}</p>{/if}
-					{#if result}
-						<details class="evidence">
-							<summary>Evidence and open questions · {result.sources.length} sources</summary>
-							<p>{result.summary}</p>
-							<p><b>{result.verdict}:</b> {result.verdictRationale}</p>
-							{#each result.findings as finding (finding.id)}<article>
-									<h3>{finding.title}</h3>
-									<p>{finding.claim}</p>
-									{#if finding.interpretation}<p>
-											<b>What it changes:</b>
-											{finding.interpretation}
-										</p>{/if}{#each finding.sourceIds as id (id)}{@const item =
-											source(id)}{#if item}<a
-												href={item.url}
-												target="_blank"
-												rel="external noreferrer">{item.title}</a
-											>{/if}{/each}
-								</article>{/each}
-							<h3>Configured feature check</h3>
-							{#each result.featureOverlap as item (item.featureId)}<p>
-									<b
-										>{input.includedFeatures.find((feature) => feature.id === item.featureId)
-											?.name}</b
-									>
-									· {item.status}<br />{item.explanation}
-								</p>{/each}
-							<h3>Competitors and substitutes</h3>
-							{#each result.competitorMatrix as item (item.name)}<p>
-									<b>{item.name}</b> · {item.type}<br />{item.comparison}
-								</p>{/each}
-							<h3>Recommendations</h3>
-							<ul>
-								{#each result.recommendations as item (item)}<li>{item}</li>{/each}
-							</ul>
-							{#if result.gaps.length}<h3>Still uncertain</h3>
-								<ul>
-									{#each result.gaps as gap (`${gap.category}-${gap.reason}`)}<li>
-											<b>{gap.category}:</b>
-											{gap.reason}
-										</li>{/each}
-								</ul>{/if}
-							<h3>Source ledger</h3>
-							<ol>
-								{#each result.sources as item (item.id)}<li>
-										<a href={item.url} target="_blank" rel="external noreferrer">{item.title}</a>
-										<p>{item.evidenceSummary}</p>
-										<small>{item.publisher} · {item.publicationDate ?? 'Date unknown'}</small>
-									</li>{/each}
-							</ol>
-							<p>{result.disclaimer}</p>
-						</details>
-					{/if}
-				</main>
-			</div>
-			<footer>
-				<button type="button" disabled={busy} onclick={onBack}
-					>{conflicts.length
-						? 'Revise scope / choose another concept'
-						: 'Back to configuration'}</button
+	<SageDialogue
+		compactOnSmallScreen={false}
+		{personality}
+		altitude={11}
+		{paused}
+		label="THE FINAL CHECK"
+		dialogueId={`ball:${ballFrame?.phase ?? heading}:${ballFrame?.cycle ?? 0}`}
+		prompt={ballFrame?.phase === 'read'
+			? '“Ask again later.” Again? Fine.'
+			: ballFrame?.phase === 'shake'
+				? 'This thing has terrible reception.'
+				: ballFrame?.phase === 'throw' || ballFrame?.phase === 'chase'
+					? 'Actual evidence, so you are fired, ball.'
+					: conflicts.length
+						? 'The evidence found a snag. We need to settle it before I sign this.'
+						: result
+							? 'Evidence acquired. I am putting the final plan together.'
+							: heading}
+		{onSpeakCharacter}
+		{onSpeakingChange}
+	>
+		<div class="check-controls">
+			<p role="status">
+				{active
+					? 'Checking sources for your chosen build…'
+					: planBusy
+						? 'Writing your final plan and estimates…'
+						: message || heading}
+			</p>
+			{#if conflicts.length}<button
+					class="answer-button primary"
+					onclick={() => evidenceDialog?.showModal()}>Resolve the findings →</button
 				>
-				{#if conflicts.length}<button type="button" onclick={onEditLimits}>Edit limits</button>
-				{:else if active}<button type="button" onclick={onCancelResearch} disabled={researchBusy}
-						>Cancel research</button
-					>{#if project.id.startsWith('demo-')}<button type="button" onclick={onSkipResearch}
-							>Finish demo check</button
-						>{/if}
-				{:else if planBusy}<button type="button" onclick={onCancelPlan}
-						>Cancel plan generation</button
-					>
-				{:else if result && finalization.planStatus === 'failed'}<button
-						class="primary"
-						type="button"
-						onclick={onGeneratePlan}>Retry final plan · reuse research</button
-					>
-				{:else if !result && ['failed', 'cancelled'].includes(finalization.research.status)}<button
-						class="primary"
-						type="button"
-						onclick={onStartResearch}>Retry research</button
-					>{/if}
-			</footer>
-		</section>
-		<div class="taskbar" aria-hidden="true">
-			<b>✦ Purl</b><span>▣ {input.selectedConcept.name}</span><span>Saved locally</span>
+			{:else if ['failed', 'cancelled'].includes(finalization.research.status)}<button
+					class="answer-button primary"
+					onclick={onStartResearch}>Retry research</button
+				>
+			{:else if finalization.planStatus === 'failed'}<button
+					class="answer-button primary"
+					onclick={onGeneratePlan}>Retry final plan</button
+				>{/if}
+			{#if result && ballDone}<button
+					class="answer-button secondary"
+					onclick={() => evidenceDialog?.showModal()}>Read the evidence</button
+				>{/if}
+			{#if active}<button
+					class="answer-button secondary"
+					disabled={researchBusy}
+					onclick={onCancelResearch}>Cancel research</button
+				>{:else if planBusy}<button class="answer-button secondary" onclick={onCancelPlan}
+					>Cancel plan</button
+				>{/if}
 		</div>
-	</section>
+	</SageDialogue>
+	<dialog
+		bind:this={evidenceDialog}
+		class="evidence-dialog"
+		aria-label="Evidence and build decisions"
+	>
+		<button class="close-evidence" onclick={() => evidenceDialog?.close()}
+			>Return to the Sage</button
+		>
+		<section class="final-desktop" aria-label="Purl OS project workspace">
+			<div class="desktop-label" aria-hidden="true">PURL OS · PROJECT WORKSPACE</div>
+			<section class="project-window" aria-labelledby="finalization-heading">
+				<header class="window-title">
+					<span>▣ {input.selectedConcept.name} / Finalize</span><span aria-hidden="true">▱</span>
+				</header>
+				<div class="workspace-body">
+					<aside>
+						<small>CONFIRMED FIRST VERSION</small>
+						<h2>{input.selectedConcept.name}</h2>
+						<ul>
+							{#each input.includedFeatures as feature (feature.id)}<li>{feature.name}</li>{/each}
+						</ul>
+						{#if input.deferredFeatures?.length}<details>
+								<summary>Later roadmap ({input.deferredFeatures.length})</summary>
+								<ul>
+									{#each input.deferredFeatures as feature (feature.id)}<li>
+											{feature.name}
+										</li>{/each}
+								</ul>
+								<p>Excluded from prototype estimates.</p>
+							</details>{/if}
+						<div class="limit">
+							<small>PROTOTYPE LIMIT</small><b>{money(input.prototypeBudgetUsd)}</b>
+						</div>
+						{#if input.selectedConcept.isStretch}<p class="stretch">
+								Chosen stretch concept. Disclosed estimate: {money(
+									input.selectedConcept.prototypeBudget.minimumUsd
+								)}–{money(input.selectedConcept.prototypeBudget.maximumUsd)}.
+							</p>{/if}
+						<p class="saved">
+							Your configuration and completed research are saved in this browser.
+						</p>
+					</aside>
+					<main>
+						<ol class="steps" aria-label="Finalization progress">
+							<li class:done={!!result} class:current={!result}>
+								<b>{result ? '✓' : '1'}</b><span>Check evidence</span>
+							</li>
+							<li class:done={!!plan} class:current={!!result && !plan}>
+								<b>{plan ? '✓' : '2'}</b><span>Update plan & estimates</span>
+							</li>
+							<li><b>3</b><span>Print final plan</span></li>
+						</ol>
+						<h1 id="finalization-heading">{heading}</h1>
+						{#if conflicts.length}
+							<div class="conflicts" role="alert">
+								<p>
+									The evidence conflicts with the chosen build. Your features have stayed as you
+									selected them.
+								</p>
+								{#each conflicts as conflict (conflict.id)}<article>
+										<b>{conflict.kind}</b>
+										<p>{conflict.description}</p>
+										{#each conflict.sourceIds as id (id)}{@const item = source(id)}{#if item}<a
+													href={item.url}
+													target="_blank"
+													rel="external noreferrer">{item.title}</a
+												>{/if}{/each}
+									</article>{/each}
+								<p>
+									Revise the first version, choose another concept, or explicitly edit your limits.
+									Updated choices will need a new check.
+								</p>
+							</div>
+						{:else if busy}
+							<p role="status">
+								{message ||
+									'The Sage is checking your chosen features and the assumptions behind them.'}
+							</p>
+							<div class="work-indicator" aria-hidden="true">
+								<i></i><span
+									>{planBusy
+										? 'Writing requirements, costs, risks and validation steps…'
+										: 'Checking sources, dependencies and constraints…'}</span
+								>
+							</div>
+						{:else if finalization.planStatus === 'failed'}
+							<p class="error" role="alert">
+								{message ||
+									'The final plan was interrupted. Your completed research is saved. Retry only the plan.'}
+							</p>
+						{:else if ['failed', 'cancelled'].includes(finalization.research.status)}
+							<p class="error" role="alert">
+								{message ||
+									'The research did not finish. Your concept and feature choices are saved.'}
+							</p>
+						{:else}<p role="status">{message || 'Starting the final check…'}</p>{/if}
+						{#if result}
+							<details class="evidence">
+								<summary>Evidence and open questions · {result.sources.length} sources</summary>
+								<p>{result.summary}</p>
+								<p><b>{result.verdict}:</b> {result.verdictRationale}</p>
+								{#each result.findings as finding (finding.id)}<article>
+										<h3>{finding.title}</h3>
+										<p>{finding.claim}</p>
+										{#if finding.interpretation}<p>
+												<b>What it changes:</b>
+												{finding.interpretation}
+											</p>{/if}{#each finding.sourceIds as id (id)}{@const item =
+												source(id)}{#if item}<a
+													href={item.url}
+													target="_blank"
+													rel="external noreferrer">{item.title}</a
+												>{/if}{/each}
+									</article>{/each}
+								<h3>Configured feature check</h3>
+								{#each result.featureOverlap as item (item.featureId)}<p>
+										<b
+											>{input.includedFeatures.find((feature) => feature.id === item.featureId)
+												?.name}</b
+										>
+										· {item.status}<br />{item.explanation}
+									</p>{/each}
+								<h3>Competitors and substitutes</h3>
+								{#each result.competitorMatrix as item (item.name)}<p>
+										<b>{item.name}</b> · {item.type}<br />{item.comparison}
+									</p>{/each}
+								<h3>Recommendations</h3>
+								<ul>
+									{#each result.recommendations as item (item)}<li>{item}</li>{/each}
+								</ul>
+								{#if result.gaps.length}<h3>Still uncertain</h3>
+									<ul>
+										{#each result.gaps as gap (`${gap.category}-${gap.reason}`)}<li>
+												<b>{gap.category}:</b>
+												{gap.reason}
+											</li>{/each}
+									</ul>{/if}
+								<h3>Source ledger</h3>
+								<ol>
+									{#each result.sources as item (item.id)}<li>
+											<a href={item.url} target="_blank" rel="external noreferrer">{item.title}</a>
+											<p>{item.evidenceSummary}</p>
+											<small>{item.publisher} · {item.publicationDate ?? 'Date unknown'}</small>
+										</li>{/each}
+								</ol>
+								<p>{result.disclaimer}</p>
+							</details>
+						{/if}
+					</main>
+				</div>
+				<footer>
+					<button type="button" disabled={busy} onclick={onBack}
+						>{conflicts.length
+							? 'Revise scope / choose another concept'
+							: 'Back to configuration'}</button
+					>
+					{#if conflicts.length}<button type="button" onclick={onEditLimits}>Edit limits</button>
+					{:else if active}<button type="button" onclick={onCancelResearch} disabled={researchBusy}
+							>Cancel research</button
+						>{#if project.id.startsWith('demo-')}<button type="button" onclick={onSkipResearch}
+								>Finish demo check</button
+							>{/if}
+					{:else if planBusy}<button type="button" onclick={onCancelPlan}
+							>Cancel plan generation</button
+						>
+					{:else if result && finalization.planStatus === 'failed'}<button
+							class="primary"
+							type="button"
+							onclick={onGeneratePlan}>Retry final plan · reuse research</button
+						>
+					{:else if !result && ['failed', 'cancelled'].includes(finalization.research.status)}<button
+							class="primary"
+							type="button"
+							onclick={onStartResearch}>Retry research</button
+						>{/if}
+				</footer>
+			</section>
+			<div class="taskbar" aria-hidden="true">
+				<b>✦ Purl</b><span>▣ {input.selectedConcept.name}</span><span>Saved locally</span>
+			</div>
+		</section>
+	</dialog>
 {/if}
 {#if report && ready}<ProjectReportViewer
 		open={reportOpen}
@@ -308,6 +403,58 @@
 	/>{/if}
 
 <style>
+	:global(.sage-dialogue-stage:has(.check-controls)) {
+		height: 260px;
+	}
+	@media (max-width: 760px) {
+		:global(.sage-dialogue-stage:has(.check-controls)) {
+			height: 320px;
+		}
+	}
+
+	.check-controls {
+		display: grid;
+		gap: 8px;
+	}
+	.check-controls p {
+		font: 20px/1.25 var(--game-font);
+		margin: 0;
+	}
+	.evidence-dialog {
+		width: min(1000px, 95vw);
+		height: 85dvh;
+		max-width: 95vw;
+		padding: 10px;
+		background: #f1dfb7;
+		color: #40372c;
+		border: 4px solid #a99052;
+	}
+	.evidence-dialog .final-desktop {
+		position: relative;
+		inset: auto;
+		padding: 8px 0;
+		width: 100%;
+		height: auto;
+	}
+	.evidence-dialog .project-window {
+		height: auto;
+		max-height: none;
+		overflow: visible;
+	}
+	.evidence-dialog .desktop-label,
+	.evidence-dialog .taskbar {
+		display: none;
+	}
+	.close-evidence {
+		position: sticky;
+		top: 0;
+		z-index: 2;
+		padding: 12px;
+		font: 20px var(--game-font);
+		background: #d6e3b7;
+		border: 3px outset #a1b182;
+	}
+
 	.final-desktop {
 		position: fixed;
 		inset: 0;

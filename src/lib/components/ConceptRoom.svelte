@@ -88,9 +88,23 @@
 			untrack(onWorkshopOpen);
 	});
 	let performing = $state(false);
+	let desktopSurface = $state<HTMLDivElement>();
+	let expanding = $state(false);
+	let leaving = $state(false);
+	let leaveTimer: ReturnType<typeof setTimeout>;
+	function leaveComputer() {
+		if (leaving) return;
+		leaving = true;
+		leaveTimer = setTimeout(onContinue, 700);
+	}
 	let room = $state<HTMLElement>();
 	async function completePerformance() {
 		performing = false;
+		expanding = false;
+		if (desktopSurface) {
+			desktopSurface.style.transform = '';
+			desktopSurface.style.visibility = '';
+		}
 		await tick();
 		room
 			?.querySelector<HTMLButtonElement>('.client-tools button, .summoning-screen button')
@@ -176,6 +190,7 @@
 	});
 
 	onDestroy(() => {
+		clearTimeout(leaveTimer);
 		if (typeof window !== 'undefined') window.clearTimeout(downloadTimer);
 		if (typeof window !== 'undefined') window.clearTimeout(mailOpenTimer);
 		onPerformanceChange(null);
@@ -354,6 +369,7 @@
 	bind:this={room}
 	class="mail-stage"
 	class:storm
+	class:leaving
 	class:desktop={!!portfolio && !performing}
 	aria-labelledby="mail-stage-title"
 >
@@ -366,317 +382,333 @@
 			{calm}
 			{paused}
 			fallback={workstationFallback}
-			{onWorkstationChange}
+			onWorkstationChange={(view) => {
+				expanding = view?.phase === 'desktop-zoom';
+				if (view && portfolio && desktopSurface && view.phase !== 'composing') {
+					view.screen.style.visibility = 'hidden';
+					onWorkstationChange({ ...view, screen: desktopSurface });
+				} else onWorkstationChange(view);
+			}}
 			{onPerformanceChange}
 			{onEffect}
 			onDone={completePerformance}
 		/>
-	{:else if !portfolio}
-		<div class="summoning-screen" aria-live="polite">
-			<div class="crystal" class:busy aria-hidden="true">?</div>
-			<span>PROPHECY.EXE</span>
-			<h2>
-				{busy ? 'BUILDING FOUR PROJECT CONCEPTS...' : 'YOUR FOUR CONCEPTS ARE READY TO GENERATE'}
-			</h2>
-			<p>
-				{message ||
-					'I will use your problem, constraints, research, and answers to propose four different approaches.'}
-			</p>
-			{#if !busy}<button type="button" onclick={onGenerate}>GENERATE FOUR CONCEPTS ▶</button>{/if}
-		</div>
-	{:else if view === 'notification'}
-		<div class="mail-notification">
-			<div class="running-purl">
-				<PurlSprite action="walk" {calm} label="Purl delivers mail" /><span>🐈✉✉✉✉</span>
-			</div>
-			<div class="mail-toast">
-				<img src="/images/retro/windows93/mail.png" alt="" />
-				<div>
-					<small>FOUR PROJECT CONCEPTS READY</small><strong>YOU'VE GOT 4 MAIL</strong><span
-						>Open each attachment, then compare and configure one.</span
-					>
-				</div>
-				<button type="button" onclick={openMailClient}>OPEN CONCEPT INBOX</button>
-			</div>
-		</div>
-	{:else if view === 'features'}
-		<RpgFeatureWorkshop
-			{portfolio}
-			{workshop}
-			initialConceptId={activeConcept?.id}
-			onChange={onWorkshopChange}
-			onConceptChange={(id) =>
-				(activeIndex = portfolio.concepts.findIndex((item) => item.id === id))}
-			{onContinue}
-			onBack={() => (view = 'comparison')}
-		/>
-	{:else}
-		<div class="mail-client" class:stretch-mail={activeConcept?.isStretch}>
-			<header class="client-title">
-				<span
-					>{activeConcept?.isStretch
-						? 'PURL.EXE / QUARANTINED MAIL'
-						: 'CURSED ONLINE 4.20 / MAILBOX'}</span
-				>
-				<div>_ □ ×</div>
-			</header>
-			<nav class="client-tools" aria-label="Mail tools">
-				<button
-					type="button"
-					onclick={() => {
-						storm = false;
-						view = 'inbox';
-					}}>INBOX ({4 - trashIds.length})</button
-				>
-				<button
-					type="button"
-					onclick={() => {
-						storm = false;
-						view = 'comparison';
-					}}>COMPARE</button
-				>
-				<button
-					type="button"
-					onclick={() => {
-						storm = false;
-						view = 'features';
-					}}>PROJECT FILES</button
-				>
-				<span>PURL'S OUTBOX: 4</span>
-			</nav>
-			<div class="client-body" class:comparing={view === 'comparison'}>
-				<aside class="inbox-list" aria-label="Four messages">
-					{#each portfolio.concepts as concept, index (concept.id)}
-						<button
-							type="button"
-							class:active={activeIndex === index}
-							class:trashed={trashIds.includes(concept.id)}
-							class:corrupted={concept.isStretch}
-							onclick={() => openMessage(index)}
-						>
-							<i aria-hidden="true"
-								>{concept.isStretch ? '☣' : downloadedIds.includes(concept.id) ? '✉' : '●'}</i
-							>
-							<span>
-								<small
-									>{concept.isStretch
-										? 'Purl.exe · OVER BUDGET'
-										: index === 0
-											? 'Purl · MY BEST GUESS'
-											: 'Purl · ANOTHER IDEA'}</small
-								>
-								<b>{concept.name}</b>
-							</span>
-							{#if trashIds.includes(concept.id)}<em>TRASH</em>{/if}
-						</button>
-					{/each}
-				</aside>
-
-				{#if view === 'comparison'}
-					<section class="comparison-pane">
-						<header>
-							<span>FOUR ROUGH DIRECTIONS</span>
-							<h2>COMPARE THE FOUR CONCEPTS</h2>
-							<p>Select a concept to reread it, or open Project Files to choose features.</p>
-						</header>
-						<div class="comparison-grid">
-							<div class="dimension-column">
-								<b>COMPARE</b><span>Prototype estimate</span><span>Timeline</span
-								>{#each COMPARISON_DIMENSIONS as dimension (dimension)}<span
-										>{dimensionLabels[dimension]}</span
-									>{/each}
-							</div>
-							{#each portfolio.concepts as concept, index (concept.id)}
-								<button
-									type="button"
-									onclick={() => openMessage(index)}
-									class:trashed={trashIds.includes(concept.id)}
-								>
-									<b>{concept.name}</b><span
-										>{money(concept.prototypeBudget.minimumUsd)}–{money(
-											concept.prototypeBudget.maximumUsd
-										)}</span
-									><span>{concept.prototypeTimeline}</span
-									>{#each COMPARISON_DIMENSIONS as dimension (dimension)}{@const rating =
-											concept.comparison.find((item) => item.dimension === dimension)}<span
-											class={rating?.rating}>{rating?.rating}</span
-										>{/each}
-								</button>
-							{/each}
-						</div>
-						<button
-							class="configure-button"
-							type="button"
-							onclick={() => {
-								storm = false;
-								view = 'features';
-							}}>CHOOSE A CONCEPT AND FEATURES ▶</button
-						>
-					</section>
-				{:else if activeConcept}
-					{@const envelope = conceptMailEnvelope(activeConcept, activeIndex)}
-					<section class="message-pane">
-						<header>
-							<small>FROM: {envelope.from}</small><small>SUBJECT: {envelope.subject}</small>
-						</header>
-						{#if !downloadedIds.includes(activeConcept.id)}
-							<div class="message-copy">
-								{#if activeConcept.isStretch}<div class="royal-seal">♛</div>{/if}
-								<p>{envelope.preview}</p>
-								<p>
-									{activeConcept.isStretch
-										? 'This is the high-risk option. Open it anyway if you want the full comparison.'
-										: 'Open the attachment to read the concept, budget, timeline, features, and evidence.'}
-								</p>
-								<button
-									class="attachment"
-									type="button"
-									disabled={downloading}
-									onclick={downloadAttachment}
-								>
-									<img src="/images/retro/windows93/folder.png" alt="" /><span
-										><b
-											>{activeConcept.isStretch
-												? 'PROJECT_04.GLTCH'
-												: `PROJECT_0${activeIndex + 1}.ZIP`}</b
-										><small
-											>{downloading
-												? 'DOWNLOADING THROUGH 56K PORTAL...'
-												: 'OPEN THIS PROJECT CONCEPT'}</small
-										></span
-									>
-								</button>{#if downloading}<div class="download-track"><i></i></div>{/if}
-							</div>
-						{:else}
-							<div class="dossier-scroll">
-								<div class="dossier-head">
-									<div class="concept-portrait">
-										<img
-											src={`/images/sage-pixel/${conceptPortraits[activeIndex] ?? 'neutral'}.svg`}
-											alt={`The Sage's expression for ${activeConcept.name}`}
-										/>
-										<span>{iconGlyphs[activeConcept.icon]}</span>
-									</div>
-									<div>
-										<span
-											>{activeConcept.isRecommended
-												? 'PRIMARY GUESS'
-												: activeConcept.isStretch
-													? 'RARE // QUARANTINED'
-													: activeConcept.rarity}</span
-										>
-										<h2>{activeConcept.name}</h2>
-										<p>{activeConcept.pitch}</p>
-									</div>
-								</div>
-								<blockquote>“{activeConcept.sageReason}”</blockquote>
-								<div class="stat-row">
-									<span>FOR <b>{activeConcept.targetUser}</b></span><span
-										>BUDGET <b
-											>{money(activeConcept.prototypeBudget.minimumUsd)}–{money(
-												activeConcept.prototypeBudget.maximumUsd
-											)}</b
-										></span
-									><span>TIME <b>{activeConcept.prototypeTimeline}</b></span>
-								</div>
-								<p>{activeConcept.description}</p>
-								<h3>PROBLEM ADDRESSED</h3>
-								<ul>
-									{#each activeConcept.problemsAddressed as problem (problem)}<li>
-											{problem}
-										</li>{/each}
-								</ul>
-								<h3>REQUIRED TECHNOLOGIES</h3>
-								<ul>
-									{#each activeConcept.requiredTechnologies ?? ['Not recorded in this older concept. Finalization will establish the stack.'] as technology (technology)}<li
-										>
-											{technology}
-										</li>{/each}
-								</ul>
-								<h3>MAJOR COMPONENTS</h3>
-								<ul>
-									{#each activeConcept.majorComponents ?? activeConcept.implementationOutline as component (component)}<li
-										>
-											{component}
-										</li>{/each}
-								</ul>
-								<h3>UNIQUE VALUE</h3>
-								<p>{activeConcept.mainAdvantage}</p>
-								<h3>COST AND TIMELINE ASSUMPTIONS</h3>
-								<ul>
-									{#each [...activeConcept.prototypeBudget.assumptions, ...activeConcept.majorAssumptions] as assumption, i (i)}<li
-										>
-											{assumption}
-										</li>{/each}
-								</ul>
-								{#if activeConcept.isStretch}<p class="cost-exception">
-										<b>Intentional budget exception.</b> Your limit is {money(prototypeBudgetUsd)}.
-										This estimate reaches {money(
-											Math.max(0, activeConcept.prototypeBudget.maximumUsd - prototypeBudgetUsd)
-										)} over that limit. {activeConcept.distinctApproach}
-									</p>{/if}
-								<h3>MAIN CHALLENGES</h3>
-								<ul>
-									{#each activeConcept.majorRisks as risk (risk)}<li>{risk}</li>{/each}
-								</ul>
-								{#if activeConcept.evidenceGaps.length}<h3>STILL UNCERTAIN</h3>
-									<ul>
-										{#each activeConcept.evidenceGaps as gap (gap)}<li>{gap}</li>{/each}
-									</ul>{/if}
-
-								<p><b>WHY IT IS DIFFERENT:</b> {activeConcept.distinctApproach}</p>
-								<h3>FEATURE FILES</h3>
-								<ul>
-									{#each activeConcept.proposedFeatures as feature (feature)}<li>
-											{feature}
-										</li>{/each}
-								</ul>
-								<h3>COMPETITORS / SUBSTITUTES</h3>
-								{#each activeConcept.competitors as competitor (competitor.name)}<div
-										class="competitor"
-									>
-										<b>{competitor.name}</b>
-										<p>{competitor.comparison}</p>
-										{#each competitor.sourceIds as sourceId (sourceId)}{@const source =
-												sourceFor(sourceId)}{#if source}<a
-													href={source.url}
-													target="_blank"
-													rel="external noreferrer">{source.title}</a
-												>{/if}{/each}
-									</div>{/each}
-							</div>
-							<footer class="dossier-actions">
-								<button
-									type="button"
-									onclick={() => {
-										storm = false;
-										view = 'features';
-									}}>Configure this direction</button
-								>
-								<button type="button" onclick={() => trashConcept(activeConcept)}
-									>MOVE TO TRASH</button
-								><button class="next-mail" type="button" onclick={nextMessage}
-									>{allDownloaded ? 'COMPARE ALL FOUR ▶' : 'OPEN NEXT CONCEPT ▶'}</button
-								>
-							</footer>
-						{/if}
-					</section>
-				{/if}
-			</div>
-			{#if storm && activeConcept?.isStretch}<CursedAttachment
-					{calm}
-					{muted}
-					{onEffect}
-					onDismiss={() => (storm = false)}
-				/>{/if}
-			<footer class="status-bar">
-				<span>MAIL: {downloadedIds.length}/4 READ</span><span>TRASH: {trashIds.length}</span><span
-					>CONNECTED AT 56,000 BPS</span
-				>
-			</footer>
-		</div>
 	{/if}
+	<div
+		bind:this={desktopSurface}
+		class="desktop-surface"
+		class:projected={performing}
+		class:expanding
+		inert={performing}
+		data-desktop-expand={expanding}
+	>
+		{#if !portfolio}
+			<div class="summoning-screen" aria-live="polite">
+				<div class="crystal" class:busy aria-hidden="true">?</div>
+				<span>PROPHECY.EXE</span>
+				<h2>
+					{busy ? 'BUILDING FOUR PROJECT CONCEPTS...' : 'YOUR FOUR CONCEPTS ARE READY TO GENERATE'}
+				</h2>
+				<p>
+					{message ||
+						'I will use your problem, constraints, research, and answers to propose four different approaches.'}
+				</p>
+				{#if !busy}<button type="button" onclick={onGenerate}>GENERATE FOUR CONCEPTS ▶</button>{/if}
+			</div>
+		{:else if view === 'notification' && !performing}
+			<div class="mail-notification">
+				<div class="running-purl">
+					<PurlSprite action="walk" {calm} label="Purl delivers mail" /><span>🐈✉✉✉✉</span>
+				</div>
+				<div class="mail-toast">
+					<img src="/images/retro/windows93/mail.png" alt="" />
+					<div>
+						<small>FOUR PROJECT CONCEPTS READY</small><strong>YOU'VE GOT 4 MAIL</strong><span
+							>Open each attachment, then compare and configure one.</span
+						>
+					</div>
+					<button type="button" onclick={openMailClient}>OPEN CONCEPT INBOX</button>
+				</div>
+			</div>
+		{:else if view === 'features'}
+			<RpgFeatureWorkshop
+				{portfolio}
+				{workshop}
+				initialConceptId={activeConcept?.id}
+				onChange={onWorkshopChange}
+				onConceptChange={(id) =>
+					(activeIndex = portfolio.concepts.findIndex((item) => item.id === id))}
+				onContinue={leaveComputer}
+				onBack={() => (view = 'comparison')}
+			/>
+		{:else}
+			<div class="mail-client" class:stretch-mail={activeConcept?.isStretch}>
+				<header class="client-title">
+					<span
+						>{activeConcept?.isStretch
+							? 'PURL.EXE / QUARANTINED MAIL'
+							: 'CURSED ONLINE 4.20 / MAILBOX'}</span
+					>
+					<div>_ □ ×</div>
+				</header>
+				<nav class="client-tools" aria-label="Mail tools">
+					<button
+						type="button"
+						onclick={() => {
+							storm = false;
+							view = 'inbox';
+						}}>INBOX ({4 - trashIds.length})</button
+					>
+					<button
+						type="button"
+						onclick={() => {
+							storm = false;
+							view = 'comparison';
+						}}>COMPARE</button
+					>
+					<button
+						type="button"
+						onclick={() => {
+							storm = false;
+							view = 'features';
+						}}>PROJECT FILES</button
+					>
+					<span>PURL'S OUTBOX: 4</span>
+				</nav>
+				<div class="client-body" class:comparing={view === 'comparison'}>
+					<aside class="inbox-list" aria-label="Four messages">
+						{#each portfolio.concepts as concept, index (concept.id)}
+							<button
+								type="button"
+								class:active={activeIndex === index}
+								class:trashed={trashIds.includes(concept.id)}
+								class:corrupted={concept.isStretch}
+								onclick={() => openMessage(index)}
+							>
+								<i aria-hidden="true"
+									>{concept.isStretch ? '☣' : downloadedIds.includes(concept.id) ? '✉' : '●'}</i
+								>
+								<span>
+									<small
+										>{concept.isStretch
+											? 'Purl.exe · OVER BUDGET'
+											: index === 0
+												? 'Purl · MY BEST GUESS'
+												: 'Purl · ANOTHER IDEA'}</small
+									>
+									<b>{concept.name}</b>
+								</span>
+								{#if trashIds.includes(concept.id)}<em>TRASH</em>{/if}
+							</button>
+						{/each}
+					</aside>
 
+					{#if view === 'comparison'}
+						<section class="comparison-pane">
+							<header>
+								<span>FOUR ROUGH DIRECTIONS</span>
+								<h2>COMPARE THE FOUR CONCEPTS</h2>
+								<p>Select a concept to reread it, or open Project Files to choose features.</p>
+							</header>
+							<div class="comparison-grid">
+								<div class="dimension-column">
+									<b>COMPARE</b><span>Prototype estimate</span><span>Timeline</span
+									>{#each COMPARISON_DIMENSIONS as dimension (dimension)}<span
+											>{dimensionLabels[dimension]}</span
+										>{/each}
+								</div>
+								{#each portfolio.concepts as concept, index (concept.id)}
+									<button
+										type="button"
+										onclick={() => openMessage(index)}
+										class:trashed={trashIds.includes(concept.id)}
+									>
+										<b>{concept.name}</b><span
+											>{money(concept.prototypeBudget.minimumUsd)}–{money(
+												concept.prototypeBudget.maximumUsd
+											)}</span
+										><span>{concept.prototypeTimeline}</span
+										>{#each COMPARISON_DIMENSIONS as dimension (dimension)}{@const rating =
+												concept.comparison.find((item) => item.dimension === dimension)}<span
+												class={rating?.rating}>{rating?.rating}</span
+											>{/each}
+									</button>
+								{/each}
+							</div>
+							<button
+								class="configure-button"
+								type="button"
+								onclick={() => {
+									storm = false;
+									view = 'features';
+								}}>CHOOSE A CONCEPT AND FEATURES ▶</button
+							>
+						</section>
+					{:else if activeConcept}
+						{@const envelope = conceptMailEnvelope(activeConcept, activeIndex)}
+						<section class="message-pane">
+							<header>
+								<small>FROM: {envelope.from}</small><small>SUBJECT: {envelope.subject}</small>
+							</header>
+							{#if !downloadedIds.includes(activeConcept.id)}
+								<div class="message-copy">
+									{#if activeConcept.isStretch}<div class="royal-seal">♛</div>{/if}
+									<p>{envelope.preview}</p>
+									<p>
+										{activeConcept.isStretch
+											? 'This is the high-risk option. Open it anyway if you want the full comparison.'
+											: 'Open the attachment to read the concept, budget, timeline, features, and evidence.'}
+									</p>
+									<button
+										class="attachment"
+										type="button"
+										disabled={downloading}
+										onclick={downloadAttachment}
+									>
+										<img src="/images/retro/windows93/folder.png" alt="" /><span
+											><b
+												>{activeConcept.isStretch
+													? 'PROJECT_04.GLTCH'
+													: `PROJECT_0${activeIndex + 1}.ZIP`}</b
+											><small
+												>{downloading
+													? 'DOWNLOADING THROUGH 56K PORTAL...'
+													: 'OPEN THIS PROJECT CONCEPT'}</small
+											></span
+										>
+									</button>{#if downloading}<div class="download-track"><i></i></div>{/if}
+								</div>
+							{:else}
+								<div class="dossier-scroll">
+									<div class="dossier-head">
+										<div class="concept-portrait">
+											<img
+												src={`/images/sage-pixel/${conceptPortraits[activeIndex] ?? 'neutral'}.svg`}
+												alt={`The Sage's expression for ${activeConcept.name}`}
+											/>
+											<span>{iconGlyphs[activeConcept.icon]}</span>
+										</div>
+										<div>
+											<span
+												>{activeConcept.isRecommended
+													? 'PRIMARY GUESS'
+													: activeConcept.isStretch
+														? 'RARE // QUARANTINED'
+														: activeConcept.rarity}</span
+											>
+											<h2>{activeConcept.name}</h2>
+											<p>{activeConcept.pitch}</p>
+										</div>
+									</div>
+									<blockquote>“{activeConcept.sageReason}”</blockquote>
+									<div class="stat-row">
+										<span>FOR <b>{activeConcept.targetUser}</b></span><span
+											>BUDGET <b
+												>{money(activeConcept.prototypeBudget.minimumUsd)}–{money(
+													activeConcept.prototypeBudget.maximumUsd
+												)}</b
+											></span
+										><span>TIME <b>{activeConcept.prototypeTimeline}</b></span>
+									</div>
+									<p>{activeConcept.description}</p>
+									<h3>PROBLEM ADDRESSED</h3>
+									<ul>
+										{#each activeConcept.problemsAddressed as problem (problem)}<li>
+												{problem}
+											</li>{/each}
+									</ul>
+									<h3>REQUIRED TECHNOLOGIES</h3>
+									<ul>
+										{#each activeConcept.requiredTechnologies ?? ['Not recorded in this older concept. Finalization will establish the stack.'] as technology (technology)}<li
+											>
+												{technology}
+											</li>{/each}
+									</ul>
+									<h3>MAJOR COMPONENTS</h3>
+									<ul>
+										{#each activeConcept.majorComponents ?? activeConcept.implementationOutline as component (component)}<li
+											>
+												{component}
+											</li>{/each}
+									</ul>
+									<h3>UNIQUE VALUE</h3>
+									<p>{activeConcept.mainAdvantage}</p>
+									<h3>COST AND TIMELINE ASSUMPTIONS</h3>
+									<ul>
+										{#each [...activeConcept.prototypeBudget.assumptions, ...activeConcept.majorAssumptions] as assumption, i (i)}<li
+											>
+												{assumption}
+											</li>{/each}
+									</ul>
+									{#if activeConcept.isStretch}<p class="cost-exception">
+											<b>Intentional budget exception.</b> Your limit is {money(
+												prototypeBudgetUsd
+											)}. This estimate reaches {money(
+												Math.max(0, activeConcept.prototypeBudget.maximumUsd - prototypeBudgetUsd)
+											)} over that limit. {activeConcept.distinctApproach}
+										</p>{/if}
+									<h3>MAIN CHALLENGES</h3>
+									<ul>
+										{#each activeConcept.majorRisks as risk (risk)}<li>{risk}</li>{/each}
+									</ul>
+									{#if activeConcept.evidenceGaps.length}<h3>STILL UNCERTAIN</h3>
+										<ul>
+											{#each activeConcept.evidenceGaps as gap (gap)}<li>{gap}</li>{/each}
+										</ul>{/if}
+
+									<p><b>WHY IT IS DIFFERENT:</b> {activeConcept.distinctApproach}</p>
+									<h3>FEATURE FILES</h3>
+									<ul>
+										{#each activeConcept.proposedFeatures as feature (feature)}<li>
+												{feature}
+											</li>{/each}
+									</ul>
+									<h3>COMPETITORS / SUBSTITUTES</h3>
+									{#each activeConcept.competitors as competitor (competitor.name)}<div
+											class="competitor"
+										>
+											<b>{competitor.name}</b>
+											<p>{competitor.comparison}</p>
+											{#each competitor.sourceIds as sourceId (sourceId)}{@const source =
+													sourceFor(sourceId)}{#if source}<a
+														href={source.url}
+														target="_blank"
+														rel="external noreferrer">{source.title}</a
+													>{/if}{/each}
+										</div>{/each}
+								</div>
+								<footer class="dossier-actions">
+									<button
+										type="button"
+										onclick={() => {
+											storm = false;
+											view = 'features';
+										}}>Configure this direction</button
+									>
+									<button type="button" onclick={() => trashConcept(activeConcept)}
+										>MOVE TO TRASH</button
+									><button class="next-mail" type="button" onclick={nextMessage}
+										>{allDownloaded ? 'COMPARE ALL FOUR ▶' : 'OPEN NEXT CONCEPT ▶'}</button
+									>
+								</footer>
+							{/if}
+						</section>
+					{/if}
+				</div>
+				{#if storm && activeConcept?.isStretch}<CursedAttachment
+						{calm}
+						{muted}
+						{onEffect}
+						onDismiss={() => (storm = false)}
+					/>{/if}
+				<footer class="status-bar">
+					<span>MAIL: {downloadedIds.length}/4 READ</span><span>TRASH: {trashIds.length}</span><span
+						>CONNECTED AT 56,000 BPS</span
+					>
+				</footer>
+			</div>
+		{/if}
+	</div>
 	{#if message && portfolio && !performing}<p class="concept-error" role="alert">{message}</p>{/if}
 	{#if view !== 'features' && !performing}<div class="stage-actions">
 			<button type="button" disabled={busy} onclick={onBack}>← BACK TO QUESTIONS</button
@@ -704,6 +736,38 @@
 </dialog>
 
 <style>
+	.desktop-surface {
+		position: fixed;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		padding: 55px 20px 36px;
+		box-sizing: border-box;
+		background: #d6ceb8;
+		pointer-events: auto;
+		transform-origin: 0 0;
+	}
+	.desktop-surface.projected {
+		visibility: hidden;
+		width: 100vw;
+		height: 100dvh;
+		inset: 0;
+		z-index: 6;
+	}
+	.desktop-surface.projected.expanding {
+		visibility: visible !important;
+		transform: none !important;
+		transition: transform 1.8s cubic-bezier(0.3, 0.7, 0.2, 1);
+	}
+	.mail-stage.leaving {
+		opacity: 0;
+		transform: scale(0.82);
+		transition:
+			opacity 0.7s,
+			transform 0.7s;
+		pointer-events: none;
+	}
+
 	.sr-only {
 		position: absolute;
 		width: 1px;

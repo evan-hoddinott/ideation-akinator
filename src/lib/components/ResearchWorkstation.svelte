@@ -1,5 +1,4 @@
 <script lang="ts">
-	import PagedText from './PagedText.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { catPlaylist } from '$lib/cat-media';
 	import { researchClock, advanceResearchClock, researchFrame } from '$lib/research-choreography';
@@ -294,7 +293,7 @@
 					>See project results</button
 				>
 			{:else if complete && task === 'broad'}
-				<ResearchBrief {summary} {findings} {gaps} {sources} {disclaimer} {onContinue} />
+				<ResearchBrief {summary} {findings} {gaps} {sources} {disclaimer} />
 			{:else}
 				<strong>{complete ? summary : message || 'Consulting the web...'}</strong>
 				<small>{sourceCount} sources found</small>
@@ -304,6 +303,9 @@
 					</div>{:else}<button type="button" onclick={onCancel}>Cancel</button>{/if}
 			{/if}
 		</section>
+		{#if complete && task === 'broad' && !finalDocument}<div class="paper-controls">
+				<button type="button" onclick={onContinue}>Answer the Sage’s questions →</button>
+			</div>{/if}
 	{:else}
 		<section
 			class="research-performance"
@@ -476,7 +478,7 @@
 						tabindex="-1"
 						aria-label={finalDocument
 							? 'Final project plan'
-							: 'Research paper. Use the page buttons to read.'}
+							: 'Research paper. Scroll to read the whole sheet.'}
 					>
 						<div
 							class="paper-content"
@@ -487,13 +489,10 @@
 						>
 							{#if finalDocument}
 								<header><small>COMPLETED PROJECT</small><b>YOUR FINAL PLAN</b></header>
-								<PagedText text={summary} length={140} />
-								<div class="paper-actions">
-									<button type="button" onclick={onContinue}>See project results</button>
-								</div>
+								<p>{summary}</p>
 							{:else if task === 'broad'}
 								<header><small>THE SAGE'S FIELD NOTES</small><b>PRELIMINARY RESEARCH</b></header>
-								<ResearchBrief {summary} {findings} {gaps} {sources} {disclaimer} {onContinue} />
+								<ResearchBrief {summary} {findings} {gaps} {sources} {disclaimer} />
 							{:else}
 								<header>
 									<small>CONFIGURATION CHECK</small><b>RECOVERED INTERNET PAPER</b>
@@ -520,15 +519,14 @@
 								<small class="tracking-joke"
 									>•• yellow dots included at no additional charge ••</small
 								>
-								<div class="paper-actions">
-									<button type="button" onclick={onInspect}>Inspect recovered files</button><button
-										type="button"
-										onclick={onContinue}>Take the paper</button
-									>
-								</div>
 							{/if}
 						</div>
 					</article>
+					<div class="paper-controls">
+						<button type="button" onclick={onContinue}
+							>{finalDocument ? 'See project results' : 'Answer the Sage’s questions →'}</button
+						>
+					</div>
 				</div>
 			{/if}
 		</section>
@@ -536,6 +534,16 @@
 {/if}
 
 <style>
+	.research-calm.complete {
+		background: #f1dfb7 !important;
+		max-height: calc(100dvh - 180px) !important;
+		overflow: auto !important;
+		padding-bottom: 24px !important;
+	}
+	.paper-handoff article {
+		scrollbar-color: #a99052 #f1dfb7;
+	}
+
 	.research-performance {
 		position: static;
 		pointer-events: none;
@@ -886,18 +894,16 @@
 		left: 50%;
 		top: max(80px, 14dvh);
 		width: min(1120px, calc(100vw - 112px));
-		height: calc(100dvh - max(80px, 14dvh) - 48px);
+		height: calc(100dvh - max(80px, 14dvh) - 100px);
 		box-sizing: border-box;
 		pointer-events: auto;
 		overscroll-behavior: contain;
 		overflow: hidden;
 		padding: 38px 44px 34px;
 		border: 2px solid #a99052;
-		background:
-			url('/images/props/paper-color.jpg') center / 100% 100%,
-			#f1dfb7;
+		background: #f1dfb7;
 		background-attachment: scroll;
-		background-blend-mode: multiply;
+
 		box-shadow: 16px 18px 0 #030109aa;
 		color: #241b13;
 		font:
@@ -907,10 +913,11 @@
 	}
 
 	.paper-content {
+		overscroll-behavior: contain;
 		display: grid;
 		gap: 13px;
 		min-height: 0;
-		overflow: visible;
+		overflow: auto;
 		align-content: start;
 	}
 
@@ -954,14 +961,6 @@
 		color: #76651b;
 		text-align: center;
 	}
-	.paper-actions {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 10px;
-		align-items: center;
-	}
-	.paper-actions button,
 	.calm-result-actions button {
 		padding: 8px 11px;
 		border: 3px outset #d9d2b9;
@@ -975,9 +974,6 @@
 	.final-document {
 		align-content: start;
 		gap: 24px;
-	}
-	.final-document .paper-actions {
-		justify-content: flex-start;
 	}
 
 	.anchor-debug i {
@@ -1038,7 +1034,7 @@
 	.research-calm.complete {
 		inset: max(88px, 14dvh) max(24px, calc((100vw - 1120px) / 2)) 28px;
 		width: auto;
-		overflow: visible;
+		overflow: auto;
 		align-content: start;
 		padding: 16px;
 		background: #fff4d8;

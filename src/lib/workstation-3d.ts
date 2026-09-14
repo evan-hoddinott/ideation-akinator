@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createPurl } from './purl-3d';
 
 export type WorkstationPhase =
 	| 'exit'
@@ -21,7 +22,7 @@ export interface WorkstationView {
 }
 
 /** Physical props use the Sage's world units. The CRT faces the seated wizard. */
-export function createWorkstation(purlTexture = new THREE.Texture()) {
+export function createWorkstation() {
 	const root = new THREE.Group();
 	root.name = 'ResearchWorkstation';
 	const cream = new THREE.MeshStandardMaterial({ color: 0xd1c5ab, roughness: 0.83 });
@@ -191,22 +192,12 @@ export function createWorkstation(purlTexture = new THREE.Texture()) {
 	};
 	// Both hands grip the accessible side of the heavy CRT, at the bezel and rear case.
 	const monitorGrips = [monitorContact(0.12, 0.36), monitorContact(-0.24, -0.28)];
-	purlTexture.colorSpace = THREE.SRGBColorSpace;
-	purlTexture.magFilter = THREE.NearestFilter;
-	purlTexture.minFilter = THREE.NearestFilter;
-	purlTexture.generateMipmaps = false;
-	purlTexture.repeat.set(1 / 8, 1 / 4);
-	const purlMaterial = new THREE.MeshBasicMaterial({
-		map: purlTexture,
-		transparent: true,
-		alphaTest: 0.1,
-		side: THREE.DoubleSide
-	});
-	const purl = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), purlMaterial);
-	purl.position.set(0.06, 1.72, 1.03);
+	const cat = createPurl();
+	const purl = cat.root;
+	purl.scale.setScalar(0.65);
+	purl.position.set(0.05, 1.4, 0.85);
 	purl.rotation.y = 1.05;
 	purl.visible = false;
-	purl.name = 'PurlKeyboardIntern';
 	root.add(purl);
 	return {
 		root,
@@ -225,18 +216,14 @@ export function createWorkstation(purlTexture = new THREE.Texture()) {
 			].includes(phase);
 			purl.visible = conceptPhase;
 			const pawing = phase === 'composing' && Math.floor(phaseTime / 3) % 3 === 1;
-			const cell = pawing
-				? [2, 2 + (Math.floor(time * 5.5) % 2)]
-				: phase === 'mail-arrival'
-					? [7, 3]
-					: [3, 3];
-			purlTexture.offset.set(cell[0] / 8, (3 - cell[1]) / 4);
+			cat.update(time, pawing ? 'paw' : phase === 'mail-arrival' ? 'alert' : 'sit');
 			const turn =
 				phase === 'desktop-zoom'
 					? 1
 					: phase === 'monitor-turn'
 						? THREE.MathUtils.smoothstep(phaseTime, 0, 2.2)
 						: 0;
+			monitor.position.y = 2.13;
 			monitor.rotation.y = THREE.MathUtils.lerp(conceptPhase ? 0 : 0.35, 1.05, turn);
 			paper.visible = phase === 'printing';
 			paper.scale.y = THREE.MathUtils.clamp(phaseTime / 2.4, 0.01, 1);
@@ -259,11 +246,10 @@ export function createWorkstation(purlTexture = new THREE.Texture()) {
 				purple,
 				green,
 				paperMaterial,
-				screenMaterial,
-				purlMaterial
+				screenMaterial
 			])
 				material.dispose();
-			purlTexture.dispose();
+			cat.dispose();
 		}
 	};
 }
@@ -276,12 +262,12 @@ export function projectDisplay(
 	rect: DOMRect
 ) {
 	const local = new THREE.Matrix4().set(
-		1.32 / 320,
+		1.32 / (element.clientWidth || 320),
 		0,
 		0,
 		-0.66,
 		0,
-		-0.88 / 240,
+		-0.88 / (element.clientHeight || 240),
 		0,
 		0.44,
 		0,
@@ -318,6 +304,7 @@ export function projectDisplay(
 	const matrix = viewport.multiply(clip);
 	// CSS requires a positive homogeneous scale, normalized to the display's origin.
 	const divisor = matrix.elements[15];
+	if (element.dataset?.desktopExpand === 'true') return;
 	element.style.transform = `matrix3d(${matrix.elements.map((value) => value / divisor).join(',')})`;
 }
 

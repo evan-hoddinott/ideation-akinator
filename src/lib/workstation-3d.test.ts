@@ -53,3 +53,16 @@ describe('3D workstation', () => {
 		expect(hand.parent).toBe(forearm);
 	});
 });
+
+it('keeps the CRT case above the cart throughout the turn', () => {
+	const computer = createWorkstation();
+	const desktop = computer.root.getObjectByName('CartDesktop')!;
+	for (let t = 0; t <= 2.2; t += 0.1) {
+		computer.update('monitor-turn', t, t);
+		computer.root.updateMatrixWorld(true);
+		const caseBounds = new THREE.Box3().setFromObject(computer.monitor);
+		const deskBounds = new THREE.Box3().setFromObject(desktop);
+		expect(caseBounds.min.y).toBeGreaterThan(deskBounds.max.y);
+	}
+	computer.dispose();
+});

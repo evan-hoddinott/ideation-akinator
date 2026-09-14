@@ -13,7 +13,7 @@ describe('held document props', () => {
 			expect(layout.left).toBeGreaterThan(0);
 			expect(layout.left + layout.width).toBeLessThan(width);
 			expect(layout.top + layout.height).toBeLessThan(height);
-			expect(layout.height).toBeGreaterThan(height * 0.65);
+			expect(layout.height).toBeGreaterThan(height * 0.5);
 		}
 	});
 	it('holds poses between beats and clamps the beginning and end', () => {
