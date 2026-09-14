@@ -34,7 +34,11 @@ export function createPaperProp() {
 		);
 	}
 	geometry.computeVertexNormals();
-	const material = new THREE.MeshBasicMaterial({ color: 0xf1dfb7, side: THREE.DoubleSide });
+	const material = new THREE.MeshBasicMaterial({
+		color: 0xf1dfb7,
+		side: THREE.DoubleSide,
+		toneMapped: false
+	});
 	const sheet = new THREE.Mesh(geometry, material);
 	root.add(sheet);
 	const rimGeometry = geometry.clone();
