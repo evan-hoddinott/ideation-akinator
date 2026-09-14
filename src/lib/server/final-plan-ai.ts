@@ -142,9 +142,19 @@ const FINAL_PLAN_SCHEMA = {
 				properties: {
 					name: { type: 'string', maxLength: 120 },
 					goal: { type: 'string', maxLength: 500 },
-					deliverables: STRING_ARRAY(10, 300, 1)
+					deliverables: STRING_ARRAY(10, 300, 1),
+					implementationSteps: STRING_ARRAY(10, 500, 1),
+					doneWhen: { type: 'string', maxLength: 600 },
+					estimatedEffort: { type: 'string', maxLength: 160 }
 				},
-				required: ['name', 'goal', 'deliverables']
+				required: [
+					'name',
+					'goal',
+					'deliverables',
+					'implementationSteps',
+					'doneWhen',
+					'estimatedEffort'
+				]
 			}
 		},
 		materialWarning: { type: ['string', 'null'], maxLength: 800 }
@@ -255,6 +265,7 @@ export function buildFinalPlanParameters(
 
 const FINAL_PLAN_INSTRUCTIONS = `You recalculate one user-selected product after a cited focused research pass. Return only the required JSON.
 Keep the selected concept and every confirmed feature. Never silently rename, remove, add, or replace them. Recalculate the prototype and optional production cost ranges, prototype timeline, functional and measurable nonfunctional requirements, technology or hardware recommendations, dependencies, technical difficulty, competitor positioning, risks, validation steps, and ordered development phases.
+Provide a practical idea-to-build plan. Order developmentPhases as validate the idea, prototype, build and test, then production only if requested. Each phase must contain ordered implementationSteps specific to this product, concrete deliverables, a measurable doneWhen exit condition and an estimatedEffort with staffing assumptions. Explain prerequisite decisions in the steps. Describe components, data flow, storage and integration boundaries in technologyRecommendations. Production steps cover deployment, monitoring, backups and ongoing ownership as appropriate to the product; keep production effort and spending separate from the prototype. Validation must test the riskiest assumption before expensive implementation. Avoid generic advice such as "build the frontend" without describing the behavior or data involved.
 Keep prototypeTimeline to a short complete estimate, such as "4–6 weeks". Put the phase breakdown in developmentPhases; never cut a sentence or word to meet a field limit.
 Only includedFeatures belong in the prototype scope, estimates, requirements and development phases. Their descriptions are the user's confirmed scope, including any edits that supersede the original concept blueprint. deferredFeatures are a later roadmap, excluded from prototype costs and timeline. Never pull a deferred feature into the initial build. The application preserves that roadmap separately.
 Use cost ranges with concrete assumptions. Keep the prototype range honest even when it exceeds the user's budget. If production planning is disabled, productionBudget must be null. If it is enabled, productionBudget must be present.

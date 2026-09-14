@@ -406,15 +406,13 @@ export function createDemoFinalPlan(
 	return {
 		selectedConceptId: request.selectedConcept.id,
 		productName: request.selectedConcept.name,
-		oneLineSummary:
-			'A campus notice desk that turns one staff update into clear information for affected riders.',
-		executiveSummary:
-			'This recalculated demo plan keeps the confirmed notice workflow small. It tests staff publishing and rider comprehension before adding live tracking or prediction.',
+		oneLineSummary: request.selectedConcept.pitch,
+		executiveSummary: `${request.selectedConcept.description} This illustrative plan implements ${features.map((f) => f.name).join(', ')}. Deferred features remain outside the prototype.`,
 		confirmedFeatures: features,
 		...(request.deferredFeatures ? { deferredFeatures: request.deferredFeatures } : {}),
 		prototypeBudget: {
-			minimumUsd: 450,
-			maximumUsd: 1_200,
+			minimumUsd: request.selectedConcept.prototypeBudget.minimumUsd,
+			maximumUsd: request.selectedConcept.prototypeBudget.maximumUsd,
 			assumptions: [
 				'One student builds the prototype with hosted web services.',
 				'The first test uses sample transit data and manual notices.'
@@ -491,15 +489,84 @@ export function createDemoFinalPlan(
 		],
 		developmentPhases: [
 			{
-				name: 'Notice loop prototype',
-				goal: 'Prove the staff-to-rider workflow.',
-				deliverables: ['Staff notice form', 'Rider notice page', 'Sample campus route data']
+				name: 'Validate the idea',
+				goal: 'Check that the selected workflow solves a real campus problem.',
+				estimatedEffort: '2 days, one builder with two staff members and five riders',
+				implementationSteps: [
+					'Walk through one recent route disruption with staff and record every place they had to update.',
+					'Sketch the selected features: ' +
+						features
+							.map((f) => f.name)
+							.join(', ')
+							.slice(0, 350),
+					'Ask riders to find the affected route and next action without coaching.'
+				],
+				deliverables: [
+					'Observed publishing workflow and baseline time',
+					'Annotated screen sketch and a list of unproven assumptions'
+				],
+				doneWhen:
+					'At least four of five riders identify the affected route and action within 30 seconds; staff confirm who owns publishing.'
 			},
 			{
-				name: 'Small campus test',
-				goal: 'Measure comprehension and staff effort.',
-				deliverables: ['Usability notes', 'Timing measurements', 'Revised requirements']
-			}
+				name: 'Prototype the confirmed scope',
+				goal: 'Demonstrate the chosen features using sample data before integrating external systems.',
+				estimatedEffort: '1 to 2 weeks, one student developer',
+				implementationSteps: [
+					'Create route, notice and editor records with stable IDs, timestamps and notice expiry.',
+					'Implement the confirmed scope: ' +
+						features
+							.map((f) => f.name)
+							.join(', ')
+							.slice(0, 350),
+					'Connect the editing flow to a preview using seeded records. Follow the confirmed feature dependency order.',
+					'Show empty, invalid, loading and unavailable-data states; label sample data clearly.'
+				],
+				deliverables: [
+					'Runnable prototype and seeded dataset',
+					'A demonstration script covering every confirmed feature'
+				],
+				doneWhen:
+					'Each confirmed feature passes its acceptance criteria with sample data. Deferred features are absent from prototype scope.'
+			},
+			{
+				name: 'Build and test the pilot',
+				goal: 'Replace prototype shortcuts with a small, testable implementation.',
+				estimatedEffort: '3 to 4 weeks, one developer and a staff reviewer',
+				implementationSteps: [
+					'Add server-side validation and editor authentication; riders only receive published records.',
+					'Persist changes in a relational database and expose the selected workflow through typed endpoints.',
+					'Test expiry, stale data, unauthorized edits and mobile keyboard access. Integrate a real feed only when the confirmed scope requires it.',
+					'Run a supervised pilot and compare task completion and publishing time with the baseline.'
+				],
+				deliverables: [
+					'Pilot build with automated checks for the main workflow',
+					'Pilot findings, defect list and revised cost assumptions'
+				],
+				doneWhen:
+					'Staff complete the core workflow without assistance; access-control checks pass and no critical pilot defects remain.'
+			},
+			...(request.includeProductionPlanning
+				? [
+						{
+							name: 'Production rollout',
+							goal: 'Operate the confirmed build for one campus, separately from the prototype estimate.',
+							estimatedEffort: '1 to 2 additional weeks plus recurring operational ownership',
+							implementationSteps: [
+								'Assign an operational owner and verify permission to use any external data feed.',
+								'Deploy over HTTPS with secrets outside source control; configure error monitoring and database backups.',
+								'Restore a backup in staging and rehearse rollback before a limited campus release.',
+								'Review hosting costs, stale notices and user feedback weekly. Estimate deferred features separately before scheduling them.'
+							],
+							deliverables: [
+								'Deployment and rollback runbook',
+								'Tested backup restoration and named maintenance owner'
+							],
+							doneWhen:
+								'The owner can deploy, restore and roll back the service; a limited release completes one week without a critical incident.'
+						}
+					]
+				: [])
 		],
 		materialWarning: null,
 		generatedAt: now.toISOString()

@@ -736,3 +736,52 @@ input:disabled {
 		gap: 8px;
 	}
 }
+
+/* Desktop encounters leave room for the full Sage above the existing frame. */
+@media (min-width: 1101px) {
+	.app-frame.dialogue-layout .sage-dialogue-stage {
+		width: min(1520px, calc(100vw - 64px));
+		height: 330px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage .dialogue-column {
+		display: grid;
+		grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.6fr);
+		gap: 24px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage .rpg-panel {
+		grid-template-columns: 96px minmax(0, 1fr);
+		padding: 12px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage .sage-portrait,
+	.app-frame.dialogue-layout .sage-dialogue-stage .sage-portrait img {
+		width: 96px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage .sage-portrait img {
+		height: 96px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage.journal {
+		height: 430px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage.journal:has(.long-note) {
+		height: 510px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage .speech-area {
+		min-height: 0;
+	}
+}
+@media (min-width: 1101px) {
+	.app-frame.dialogue-layout .sage-dialogue-stage:has(.budget-meter) {
+		height: 480px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage:has(.game-choice-list.multiple),
+	.app-frame.dialogue-layout .sage-dialogue-stage:has(textarea) {
+		height: 430px;
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage .game-choice-list.multiple {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+	.app-frame.dialogue-layout .sage-dialogue-stage .game-choice-list.multiple button {
+		font-size: 20px;
+		padding: 8px;
+	}
+}

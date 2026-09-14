@@ -51,7 +51,8 @@ describe('finished project report', () => {
 		expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
 		expect(pdf.byteLength).toBeGreaterThan(10_000);
 		expect(pdf.toString('latin1')).toContain('https://example.com/demo/configured-competitor');
-		expect(pageCount).toBe(8);
+		expect(pageCount).toBeGreaterThanOrEqual(8);
+		expect(pageCount).toBeLessThanOrEqual(12);
 	});
 });
 

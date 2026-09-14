@@ -209,7 +209,7 @@ export async function renderProjectPdf(report: ProjectReport): Promise<Buffer> {
 		paragraph(doc, `Success signal: ${step.successSignal}`, 9.5);
 	}
 
-	section(context, 'High-level development phases');
+	section(context, 'Implementation plan');
 	for (const [index, phase] of report.plan.developmentPhases.entries()) {
 		keep(doc, 80);
 		doc
@@ -218,7 +218,19 @@ export async function renderProjectPdf(report: ProjectReport): Promise<Buffer> {
 			.fillColor(COLORS.ink)
 			.text(`${String(index + 1).padStart(2, '0')}  ${phase.name}`);
 		paragraph(doc, phase.goal, 9.5);
-		bullets(doc, phase.deliverables, 9);
+		if (phase.estimatedEffort) paragraph(doc, `Effort: ${phase.estimatedEffort}`, 9);
+		if (phase.implementationSteps?.length)
+			bullets(
+				doc,
+				phase.implementationSteps.map((step, i) => `${i + 1}. ${step}`),
+				9
+			);
+		bullets(
+			doc,
+			phase.deliverables.map((item) => `Deliverable: ${item}`),
+			9
+		);
+		if (phase.doneWhen) paragraph(doc, `Ready to advance when: ${phase.doneWhen}`, 9);
 	}
 
 	section(context, 'Sources and citations');

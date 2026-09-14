@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import type { MagicBallFrame } from '$lib/magic-ball';
 	import type { AnimationAction, Object3D } from 'three';
 	import type { WorkstationView } from '$lib/workstation-3d';
@@ -71,7 +71,7 @@
 	let popupPhase = $state<PopupPhase>('hidden');
 	let popupTimers: number[] = [];
 	let resetting = $state(false);
-	let lastResetSignal = 0;
+	let lastResetSignal = untrack(() => resetSignal);
 	let playClip: ((clip: SageClip, returnToIdle?: boolean) => void) | null = null;
 	let lastReactionCounter = -1;
 	let lastPerformance: SageClip | null = null;
@@ -965,7 +965,8 @@
 						workstation.screen,
 						computer.screen,
 						camera,
-						renderCanvas.getBoundingClientRect()
+						renderCanvas.getBoundingClientRect(),
+						phase === 'desktop-zoom' ? THREE.MathUtils.smoothstep(phaseElapsed, 0, 1.8) : 0
 					);
 				}
 

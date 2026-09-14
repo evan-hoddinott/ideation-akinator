@@ -178,6 +178,9 @@ export interface FinalValidationStep {
 }
 
 export interface FinalDevelopmentPhase {
+	implementationSteps?: string[];
+	doneWhen?: string;
+	estimatedEffort?: string;
 	name: string;
 	goal: string;
 	deliverables: string[];
@@ -858,10 +861,30 @@ function parseValidationStep(value: unknown): FinalValidationStep | null {
 
 function parseDevelopmentPhase(value: unknown): FinalDevelopmentPhase | null {
 	if (!isRecord(value)) return null;
-	const deliverables = parseStringArray(value.deliverables, 1, 10, 300, 1_500);
-	return isBoundedString(value.name, 1, 120) && isBoundedString(value.goal, 1, 500) && deliverables
-		? { name: value.name.trim(), goal: value.goal.trim(), deliverables }
-		: null;
+	const deliverables = parseStringArray(value.deliverables, 1, 10, 300, 1500);
+	const steps =
+		value.implementationSteps === undefined
+			? undefined
+			: parseStringArray(value.implementationSteps, 1, 10, 500, 3500);
+	if (
+		!isBoundedString(value.name, 1, 120) ||
+		!isBoundedString(value.goal, 1, 500) ||
+		!deliverables ||
+		steps === null ||
+		(value.doneWhen !== undefined && !isBoundedString(value.doneWhen, 1, 600)) ||
+		(value.estimatedEffort !== undefined && !isBoundedString(value.estimatedEffort, 1, 160))
+	)
+		return null;
+	return {
+		name: value.name.trim(),
+		goal: value.goal.trim(),
+		deliverables,
+		...(steps ? { implementationSteps: steps } : {}),
+		...(typeof value.doneWhen === 'string' ? { doneWhen: value.doneWhen.trim() } : {}),
+		...(typeof value.estimatedEffort === 'string'
+			? { estimatedEffort: value.estimatedEffort.trim() }
+			: {})
+	};
 }
 
 function parseMoneyRange(value: unknown): MoneyRange | null {

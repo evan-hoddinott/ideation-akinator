@@ -66,3 +66,29 @@ it('keeps the CRT case above the cart throughout the turn', () => {
 	}
 	computer.dispose();
 });
+
+it('expands the browser plane without reversing its orientation', () => {
+	const computer = createWorkstation();
+	const camera = new THREE.PerspectiveCamera(31, 1.6, 0.1, 60);
+	camera.position.set(0.7, 2.1, 8.4);
+	camera.lookAt(0.7, 1.7, 0);
+	camera.updateMatrixWorld();
+	computer.update('desktop-zoom', 12, 0);
+	computer.root.updateMatrixWorld(true);
+	const style = { transform: '' };
+	for (let t = 0; t <= 1; t += 0.05) {
+		projectDisplay(
+			{ style } as unknown as HTMLElement,
+			computer.screen,
+			camera,
+			{ left: 0, top: 0, width: 1440, height: 900 } as DOMRect,
+			t
+		);
+		const m = new THREE.Matrix4().fromArray(style.transform.slice(9, -1).split(',').map(Number));
+		const a = new THREE.Vector3(0, 0, 0).applyMatrix4(m),
+			b = new THREE.Vector3(320, 0, 0).applyMatrix4(m),
+			c = new THREE.Vector3(0, 240, 0).applyMatrix4(m);
+		expect((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)).toBeGreaterThan(0);
+	}
+	computer.dispose();
+});

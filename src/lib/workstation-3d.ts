@@ -223,7 +223,12 @@ export function createWorkstation() {
 					: phase === 'monitor-turn'
 						? THREE.MathUtils.smoothstep(phaseTime, 0, 2.2)
 						: 0;
-			monitor.position.y = 2.13;
+			const lift = ['monitor-turn', 'desktop-zoom'].includes(phase)
+				? 1
+				: phase === 'monitor-grip'
+					? THREE.MathUtils.smoothstep(phaseTime, 0, 0.8)
+					: 0;
+			monitor.position.set(-0.32, 2.13 + lift * 0.28, -0.22 + lift * 0.32);
 			monitor.rotation.y = THREE.MathUtils.lerp(conceptPhase ? 0 : 0.35, 1.05, turn);
 			paper.visible = phase === 'printing';
 			paper.scale.y = THREE.MathUtils.clamp(phaseTime / 2.4, 0.01, 1);
@@ -259,7 +264,8 @@ export function projectDisplay(
 	element: HTMLElement,
 	screen: THREE.Object3D,
 	camera: THREE.Camera,
-	rect: DOMRect
+	rect: DOMRect,
+	expand = 0
 ) {
 	const local = new THREE.Matrix4().set(
 		1.32 / (element.clientWidth || 320),
@@ -304,8 +310,14 @@ export function projectDisplay(
 	const matrix = viewport.multiply(clip);
 	// CSS requires a positive homogeneous scale, normalized to the display's origin.
 	const divisor = matrix.elements[15];
-	if (element.dataset?.desktopExpand === 'true') return;
-	element.style.transform = `matrix3d(${matrix.elements.map((value) => value / divisor).join(',')})`;
+	if (Math.abs(divisor) < 0.00001) return;
+	// Interpolate the planar projection directly. CSS matrix decomposition can
+	// interpret the screen's inverted Y axis as a half-turn during expansion.
+	const values = matrix.elements.map((value) => value / divisor);
+	for (const index of [2, 6, 8, 9, 11, 14]) values[index] = 0;
+	values[10] = 1;
+	const identity = new THREE.Matrix4().elements;
+	element.style.transform = `matrix3d(${values.map((value, index) => THREE.MathUtils.lerp(value, identity[index], expand)).join(',')})`;
 }
 
 /** CCD keeps the original articulated sleeves and hands attached to fixed prop contacts. */

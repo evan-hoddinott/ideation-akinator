@@ -601,7 +601,7 @@
 		position: fixed;
 		inset: 0;
 		z-index: 13;
-		padding: 140px 28px 20px;
+		padding: 66px 28px 20px;
 		pointer-events: auto;
 		background: transparent;
 		color: #382f40;
@@ -679,10 +679,10 @@
 	}
 	.tally-panel {
 		padding: 20px;
-		background: #40334a;
-		color: #f6ebd3;
-		border: 4px solid #756580;
-		outline: 2px solid #4a3d50;
+		background: #d4dec2;
+		color: #384332;
+		border: 4px solid #889b75;
+		outline: 2px solid #667455;
 		box-shadow: 4px 4px 0 #d2c4b1;
 	}
 	.panel-title {
@@ -701,7 +701,7 @@
 			monospace;
 	}
 	.tally-panel h2 {
-		color: #f0d48e;
+		color: #4c5941;
 	}
 	.panel-title > span {
 		background: transparent;
@@ -712,7 +712,7 @@
 		color: #756746;
 	}
 	.score-explanation {
-		color: #d0c0d6;
+		color: #526049;
 		font-size: 12px;
 		margin: 10px 0 20px;
 		max-width: 600px;
@@ -733,17 +733,17 @@
 		padding: 10px 0 12px;
 		position: relative;
 		font-size: 24px;
-		color: #c4b4cb;
+		color: #59634f;
 	}
 	.factor-row.active,
 	.factor-row.counted {
-		color: #fff3d7;
+		color: #303c2c;
 	}
 	.factor-row.active {
 		background: #ffffff09;
 	}
 	.row-icon {
-		color: #c4a5cf;
+		color: #756583;
 		font-size: 19px;
 		text-align: center;
 	}
@@ -751,11 +751,11 @@
 		font:
 			bold 18px 'Courier New',
 			monospace;
-		color: #d9ebc1;
+		color: #3c5630;
 	}
 	.factor-row small {
 		font-size: 12px;
-		color: #b2a1bd;
+		color: #5d6657;
 	}
 	.factor-track {
 		position: absolute;
@@ -763,7 +763,7 @@
 		left: 29px;
 		right: 0;
 		height: 3px;
-		background: #5b4c67;
+		background: #b0c29c;
 	}
 	.factor-track i {
 		display: block;
@@ -777,7 +777,7 @@
 		justify-content: space-between;
 		padding: 14px 0 0 29px;
 		font-size: 12px;
-		color: #e9d7b4;
+		color: #526049;
 	}
 	.total-card {
 		position: relative;
@@ -787,7 +787,7 @@
 		align-items: center;
 		text-align: center;
 		border: 3px double #9e875c;
-		background: radial-gradient(ellipse, #79604155, #2e2538 75%);
+		background: linear-gradient(#e4dbec, #cdc0d8);
 		padding: 18px 12px;
 		overflow: hidden;
 	}
@@ -795,19 +795,19 @@
 		font:
 			12px 'Silkscreen',
 			monospace;
-		color: #dcc596;
+		color: #5b4968;
 	}
 	.total-card strong {
 		font:
 			clamp(76px, 8.3vw, 130px)/1.25 'Silkscreen',
 			monospace;
-		color: #f5d782;
-		text-shadow: 5px 5px 0 #835b4e;
+		color: #5d486f;
+		text-shadow: 5px 5px 0 #b09dbf;
 		font-variant-numeric: tabular-nums;
 	}
 	.total-card > small {
 		font-size: 10px;
-		color: #c9bba9;
+		color: #655570;
 		max-width: 170px;
 	}
 	.stamp {
@@ -818,7 +818,7 @@
 		margin-top: 22px;
 		padding: 8px;
 		border: 3px double #d7ae91;
-		color: #f0c49a;
+		color: #79553d;
 		font:
 			11px/1.5 'Silkscreen',
 			monospace;
@@ -850,7 +850,7 @@
 		justify-content: space-between;
 		gap: 12px;
 		align-items: center;
-		color: #efd092;
+		color: #55463d;
 	}
 	.modifier-section h3 {
 		margin: 0;
@@ -886,7 +886,7 @@
 		white-space: nowrap;
 	}
 	.modifier-list > p {
-		color: #c8b6ce;
+		color: #57634c;
 		font-size: 12px;
 		margin: 0;
 	}
@@ -905,7 +905,7 @@
 		padding-left: 12px;
 		margin: 18px 0 0;
 		font-size: 24px;
-		color: #dfd1e4;
+		color: #51435b;
 	}
 	.project-panel {
 		padding: 20px;
@@ -1109,7 +1109,7 @@
 		font:
 			80px/1 'Silkscreen',
 			monospace;
-		color: #f2cf83;
+		color: #554468;
 	}
 	.score-unavailable h3 {
 		margin: 6px 0;
@@ -1117,7 +1117,7 @@
 	}
 	.score-unavailable p {
 		max-width: 430px;
-		color: #d6c3df;
+		color: #62536b;
 	}
 	.counting-glyph {
 		animation: counting 1.8s steps(8) infinite;

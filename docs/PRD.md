@@ -1450,3 +1450,14 @@ None of these decisions may change the approved user flow without updating this 
 
 - [OpenAI Responses API reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)
 - [OpenAI model guidance](https://developers.openai.com/api/docs/guides/latest-model)
+
+
+## Presentation finish and implementation plan, September 14, 2026
+
+The approved presentation uses wide desktop RPG frames with dialogue beside controls and room above for the seated Sage. Dense budget and multi-select screens may use a taller frame to preserve readable controls. Ordinary answer events must never replay the reset fall. Purl uses rounded low-poly proportions and relaxed eyes. The real inbox remains on the CRT during the swivel, then expands without changing orientation; the fourth concept triggers its contained virus reveal.
+
+Finalization returns to the world. The Sage repeats the magic-ball check until focused research completes, throws the ball and Purl follows. The application prepares the final plan, delivers one mandatory closing line and reveals the score. There is no final printer or blank paper handoff. Earlier research field notes remain a scrollable paper.
+
+The generated PRD must explain validation, prototype implementation, building and testing, and production when requested. Every phase records ordered implementation steps, deliverables, estimated effort with staffing assumptions and a measurable completion condition. Architecture recommendations explain components, data flow and integration boundaries. Confirmed features define prototype scope; deferred features remain separate. Production effort and operating costs must not be folded into prototype estimates. The on-screen report and exported PDF contain the same plan. Previously saved reports without the new fields remain readable.
+
+The token-free demo follows the same interface and output contract using illustrative evidence. It includes detailed milestones and respects selected features, deferred features and the production-planning preference. Its music is an original MIDI-style pond theme, with separate music volume and reduced level under speech.

@@ -695,12 +695,7 @@
 						</section>
 					{/if}
 				</div>
-				{#if storm && activeConcept?.isStretch}<CursedAttachment
-						{calm}
-						{muted}
-						{onEffect}
-						onDismiss={() => (storm = false)}
-					/>{/if}
+
 				<footer class="status-bar">
 					<span>MAIL: {downloadedIds.length}/4 READ</span><span>TRASH: {trashIds.length}</span><span
 						>CONNECTED AT 56,000 BPS</span
@@ -709,6 +704,12 @@
 			</div>
 		{/if}
 	</div>
+	{#if storm && activeConcept?.isStretch}<CursedAttachment
+			{calm}
+			{muted}
+			{onEffect}
+			onDismiss={() => (storm = false)}
+		/>{/if}
 	{#if message && portfolio && !performing}<p class="concept-error" role="alert">{message}</p>{/if}
 	{#if view !== 'features' && !performing}<div class="stage-actions">
 			<button type="button" disabled={busy} onclick={onBack}>← BACK TO QUESTIONS</button
@@ -756,8 +757,7 @@
 	}
 	.desktop-surface.projected.expanding {
 		visibility: visible !important;
-		transform: none !important;
-		transition: transform 1.8s cubic-bezier(0.3, 0.7, 0.2, 1);
+		transition: none;
 	}
 	.mail-stage.leaving {
 		opacity: 0;

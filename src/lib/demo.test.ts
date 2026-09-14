@@ -100,3 +100,22 @@ function demoFocusedRequest(): FocusedResearchRequest {
 		broadResearch: createDemoResearchResult(new Date('2026-09-01T10:00:00Z'))
 	};
 }
+
+it('provides actionable phases and omits production when it was not requested', () => {
+	const input = demoFocusedRequest();
+	const request = {
+		...input,
+		includeProductionPlanning: false,
+		productionBudgetUsd: null,
+		focusedResearch: createDemoFocusedResearchResult(input)
+	};
+	const plan = createDemoFinalPlan(request);
+	expect(plan.developmentPhases).toHaveLength(3);
+	expect(plan.productionBudget).toBeNull();
+	expect(
+		plan.developmentPhases.every(
+			(phase) => phase.implementationSteps?.length && phase.doneWhen && phase.estimatedEffort
+		)
+	).toBe(true);
+	expect(parseFinalProjectPlan(plan, request)?.developmentPhases).toEqual(plan.developmentPhases);
+});

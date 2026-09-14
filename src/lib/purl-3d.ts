@@ -21,22 +21,23 @@ export function createPurl() {
 		return m;
 	};
 	const body = mesh(new THREE.IcosahedronGeometry(0.4, 1), fur, root, 0, 0.48, 0);
-	body.scale.set(0.8, 1, 1.3);
+	body.scale.set(1, 1.02, 1.25);
 	const head = new THREE.Group();
 	head.position.set(0, 0.91, 0.31);
 	root.add(head);
-	mesh(new THREE.IcosahedronGeometry(0.3, 1), fur, head, 0, 0, 0).scale.set(1.1, 0.95, 0.9);
+	mesh(new THREE.IcosahedronGeometry(0.34, 1), fur, head, 0, 0, 0).scale.set(1.12, 1, 0.98);
 	const ears = [-1, 1].map((side) => {
-		const ear = mesh(new THREE.ConeGeometry(0.145, 0.29, 3), fur, head, side * 0.2, 0.28, 0);
+		const ear = mesh(new THREE.ConeGeometry(0.145, 0.23, 4), fur, head, side * 0.2, 0.28, 0);
 		ear.rotation.z = side * -0.2;
-		mesh(new THREE.ConeGeometry(0.083, 0.19, 3), pink, ear, 0, 0, 0.055);
+		mesh(new THREE.ConeGeometry(0.083, 0.14, 4), pink, ear, 0, 0, 0.055);
 		return ear;
 	});
 	for (const side of [-1, 1]) {
-		mesh(new THREE.BoxGeometry(0.065, 0.085, 0.025), dark, head, side * 0.125, 0.015, 0.259);
-		mesh(new THREE.IcosahedronGeometry(0.1, 0), fur, head, side * 0.08, -0.12, 0.25);
+		const eye = mesh(new THREE.SphereGeometry(0.035, 6, 4), dark, head, side * 0.14, 0.015, 0.318);
+		eye.name = 'eye';
+		mesh(new THREE.IcosahedronGeometry(0.12, 1), fur, head, side * 0.085, -0.095, 0.29);
 	}
-	mesh(new THREE.ConeGeometry(0.042, 0.055, 3), pink, head, 0, -0.09, 0.34).rotation.z = Math.PI;
+	mesh(new THREE.ConeGeometry(0.042, 0.055, 3), pink, head, 0, -0.075, 0.405).rotation.z = Math.PI;
 	const legs = [
 		[-0.23, 0.28],
 		[0.23, 0.28],
@@ -58,12 +59,17 @@ export function createPurl() {
 	tail.position.set(0, 0.52, -0.42);
 	tail.rotation.x = -0.7;
 	root.add(tail);
-	mesh(new THREE.CylinderGeometry(0.065, 0.09, 0.5, 5), fur, tail, 0, 0.2, 0);
-	mesh(new THREE.IcosahedronGeometry(0.075, 0), dark, tail, 0, 0.48, 0);
+	mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.5, 6), fur, tail, 0, 0.2, 0);
+	mesh(new THREE.IcosahedronGeometry(0.105, 1), dark, tail, 0, 0.48, 0);
 	return {
 		root,
 		update(time: number, action: PurlAction = 'sit', calm = false) {
 			const t = calm ? 0 : time;
+			head.children
+				.filter((child) => child.name === 'eye')
+				.forEach((eye) => {
+					eye.scale.y = action === 'sleep' || Math.sin(t * 0.85) > 0.992 ? 0.15 : 1;
+				});
 			const moving = action === 'walk' || action === 'run';
 			const pace = action === 'run' ? 15 : 7;
 			body.position.y =

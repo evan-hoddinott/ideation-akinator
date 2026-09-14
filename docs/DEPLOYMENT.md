@@ -124,3 +124,9 @@ Fresh authenticated public checks confirmed that two 500-character notes fit at 
 The old running image could not be retagged because Docker no longer had that image available. Rollback was rebuilt from previous committed version `d7aeef3` before deployment: `ideation-akinator:before-paper-purl-20260914`, image `sha256:ae666e9800993711bcaa4fa92a4d430e074201b49aecbe280551a95419cf1fe8`.
 
 See [paper and Purl encounters](PAPER-PURL-ENCOUNTERS.md) for implementation scope, local evidence and test limits.
+
+## September 14 presentation finish
+
+Deployed the approved presentation correction with the original pond MIDI, wider RPG frames, reset-event fix, rounded Purl, continuous monitor projection, restored virus entrance and direct ball-to-results ending. Generated reports and the token-free demo now include implementation steps and phase completion conditions.
+
+Image: `sha256:cb70a076c8cac7b3cb1da00336144585bf640f0686948b09dd0d0f29dd94b51b`. Previous image is preserved as `ideation-akinator:before-presentation-finish-20260914` (`sha256:e5775912a269d52619555a106e2ad2746b70115242eeaaa01e441ca9f9284253`). Build, container health and live deployment verification passed. The public browser replay observed shake/read/throw/chase, no premature throw, no final printer, and zero dialogue overflow. Public PDF export returned 23,720 bytes. See `docs/PRESENTATION-FINISH.md` for scope and evidence limits.

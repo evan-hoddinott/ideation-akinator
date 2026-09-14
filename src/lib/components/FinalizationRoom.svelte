@@ -2,7 +2,6 @@
 	import SageDialogue from './SageDialogue.svelte';
 	import MagicBallEncounter from './MagicBallEncounter.svelte';
 	import type { MagicBallFrame } from '$lib/magic-ball';
-	import ResearchWorkstation from './ResearchWorkstation.svelte';
 	import ProjectReportViewer from './ProjectReport.svelte';
 	import ScoreRoom from './ScoreRoom.svelte';
 	import { finalizationConflicts } from '$lib/finalization-flow';
@@ -11,8 +10,6 @@
 	import type { ProjectReport } from '$lib/report';
 	import type { ProjectSession } from '$lib/project-state';
 	import type { OracleEffect } from '$lib/oracle-audio';
-	import type { SageClip, SageScreenAnchors } from '$lib/sage-stage';
-	import type { WorkstationView } from '$lib/workstation-3d';
 
 	let {
 		project,
@@ -39,9 +36,6 @@
 		onEditLimits,
 		onPrintComplete,
 		onNewRun,
-		anchors = null,
-		onPerformanceChange = () => {},
-		onWorkstationChange = () => {},
 		workstationFallback = false,
 		onEffect = () => {}
 	}: {
@@ -69,13 +63,11 @@
 		onEditLimits: () => void;
 		onPrintComplete: () => void;
 		onNewRun: () => void;
-		anchors?: SageScreenAnchors | null;
-		onPerformanceChange?: (performance: SageClip | null) => void;
-		onWorkstationChange?: (view: WorkstationView | null) => void;
 		workstationFallback?: boolean;
 		onEffect?: (effect: OracleEffect, volume?: number) => void;
 	} = $props();
 	let ballDone = $state(false);
+	let completionSent = $state(false);
 	let ballFrame = $state<MagicBallFrame | null>(null);
 	let evidenceDialog = $state<HTMLDialogElement>();
 	let reportOpen = $state(false);
@@ -105,6 +97,12 @@
 						? 'Evidence checked. Preparing your plan.'
 						: 'Checking your chosen build'
 	);
+	$effect(() => {
+		if (ready && ballDone && !paused && !finalization.printPresented && !completionSent) {
+			completionSent = true;
+			onPrintComplete();
+		}
+	});
 </script>
 
 {#if !ballDone && !finalization.printPresented}
@@ -132,26 +130,6 @@
 		onInspect={() => (reportOpen = true)}
 		onDownload={onDownloadPdf}
 		{onNewRun}
-		{onEffect}
-	/>
-{:else if ready && plan && ballDone}
-	<ResearchWorkstation
-		active={true}
-		{paused}
-		calm={personality.calmMode || workstationFallback}
-		projectId={project.id}
-		task="focused"
-		finalDocument={true}
-		complete={true}
-		message="Your final plan is saved. Printing the finished document."
-		summary={`${plan.productName}: ${plan.oneLineSummary}`}
-		sourceCount={result?.sources.length ?? 0}
-		onCancel={onPrintComplete}
-		onContinue={onPrintComplete}
-		onSkip={onPrintComplete}
-		{anchors}
-		{onPerformanceChange}
-		{onWorkstationChange}
 		{onEffect}
 	/>
 {:else}

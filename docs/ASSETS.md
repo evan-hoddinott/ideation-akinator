@@ -251,3 +251,7 @@ The active internet-history renderer uses `webpage-backdrop.ts` and `webpage-wor
 - Four archived GeoCities animations: greeting, globe, star, and email artwork embedded in the homemade homepage. Their original rights remain unknown; these are recorded as demo-only, with replacement required before broader redistribution.
 
 The five sprite atlases are local derivatives of the recorded GIF sources, not five additional downloaded artworks. Frame zero is used in Calm mode and reduced motion. The remaining dimensional controls and webpage layouts are original project geometry and canvas artwork. No WEBFISHING, Mario, or Animal Crossing game assets were copied.
+
+## Purl at the pond
+
+`static/audio/purl-at-the-pond.mid` is an original 32-second melody created for this project. It replaces the previous theme in active playback. Web Audio adds soft sine bells, a triangle bass and a quiet counter melody. It contains no sampled game audio or borrowed game melody. Music starts only after sound is enabled; the pause menu offers separate off, soft and full music settings. Dialogue lowers the music level. The prior CC0 track remains in the asset history.

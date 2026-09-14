@@ -335,18 +335,27 @@
 
 					<section id="report-phases">
 						<p class="section-number">11 // BUILD ORDER</p>
-						<h2>High-level development phases</h2>
+						<h2>Your implementation plan</h2>
 						<div class="phase-list">
 							{#each report.plan.developmentPhases as phase, index (phase.name)}<article>
 									<span>{String(index + 1).padStart(2, '0')}</span>
 									<div>
 										<h3>{phase.name}</h3>
 										<p>{phase.goal}</p>
+										{#if phase.estimatedEffort}<p><b>Effort:</b> {phase.estimatedEffort}</p>{/if}
+										{#if phase.implementationSteps?.length}<h4>Implementation steps</h4>
+											<ol>
+												{#each phase.implementationSteps as step, stepIndex (stepIndex)}<li>
+														{step}
+													</li>{/each}
+											</ol>{/if}
+										<h4>Deliverables</h4>
 										<ul>
 											{#each phase.deliverables as deliverable (deliverable)}<li>
 													{deliverable}
 												</li>{/each}
 										</ul>
+										{#if phase.doneWhen}<p><b>Ready to advance when:</b> {phase.doneWhen}</p>{/if}
 									</div>
 								</article>{/each}
 						</div>

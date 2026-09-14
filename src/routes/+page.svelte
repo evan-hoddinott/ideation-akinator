@@ -180,6 +180,7 @@
 	let workstationView = $state<WorkstationView | null>(null);
 	let sageAnchors = $state<SageScreenAnchors | null>(null);
 	let previewMuted = $state(true);
+	let musicVolume = $state(0.5);
 	let previewCalm = $state(false);
 	let resetWorldSignal = $state(0);
 	let mainMenuOpen = $state(true);
@@ -218,7 +219,7 @@
 			if (isWorkshopChapter(project))
 				return {
 					id: `features:${project.concepts.portfolio?.generationNumber}`,
-					text: 'Put the essentials in Build now. Later is a shelf, not a blood oath. I will check the finished scope before printing.',
+					text: 'Put the essentials in Build now. Later is a shelf, not a blood oath. I will check the finished scope before we call it done.',
 					action: 'Choose my features →'
 				};
 			if (project.concepts.portfolio && conceptPresentationReady)
@@ -768,6 +769,7 @@
 		if (!project || project.personality.muted) return;
 		oracleAudio ??= new OracleAudio();
 		oracleAudio.setEra(worldEraIndex);
+		oracleAudio.setMusicVolume(musicVolume);
 		void oracleAudio.setEnabled(true);
 	}
 
@@ -850,6 +852,7 @@
 		if (!project || project.personality.muted) return;
 		oracleAudio ??= new OracleAudio();
 		oracleAudio.setEra(worldEraIndex);
+		oracleAudio.setMusicVolume(musicVolume);
 		oracleAudio.playCue(cue);
 	}
 
@@ -857,6 +860,7 @@
 		if (visualProject.personality.muted || visualProject.personality.calmMode) return;
 		oracleAudio ??= new OracleAudio();
 		oracleAudio.setEra(worldEraIndex);
+		oracleAudio.setMusicVolume(musicVolume);
 		oracleAudio.playEffect(effect, volume);
 	}
 
@@ -866,11 +870,13 @@
 		if (visualProject.personality.muted) return;
 		oracleAudio ??= new OracleAudio();
 		oracleAudio.setEra(worldEraIndex);
+		oracleAudio.setMusicVolume(musicVolume);
 		oracleAudio.playVoice(profile);
 	}
 
 	function setSageSpeaking(speaking: boolean) {
 		sageSpeaking = speaking;
+		oracleAudio?.setSpeaking(speaking);
 	}
 
 	function toggleSageAudio() {
@@ -878,6 +884,7 @@
 			previewMuted = !previewMuted;
 			oracleAudio ??= new OracleAudio();
 			oracleAudio.setEra(worldEraIndex);
+			oracleAudio.setMusicVolume(musicVolume);
 			void oracleAudio.setEnabled(!previewMuted);
 			if (!previewMuted) oracleAudio.playCue('reveal');
 			return;
@@ -889,6 +896,7 @@
 		});
 		oracleAudio ??= new OracleAudio();
 		oracleAudio.setEra(worldEraIndex);
+		oracleAudio.setMusicVolume(musicVolume);
 		void oracleAudio.setEnabled(!muted);
 		if (!muted) oracleAudio.playCue('reveal');
 	}
@@ -2662,6 +2670,13 @@
 					<button type="button" onclick={toggleSageAudio}>
 						{visualProject.personality.muted ? 'Sound: off' : 'Sound: on'}
 					</button>
+					<button
+						type="button"
+						onclick={() => {
+							musicVolume = musicVolume === 0 ? 0.5 : musicVolume === 0.5 ? 1 : 0;
+							oracleAudio?.setMusicVolume(musicVolume);
+						}}>Music: {musicVolume === 0 ? 'off' : musicVolume === 0.5 ? 'soft' : 'full'}</button
+					>
 					<button type="button" onclick={toggleCalmMode}>
 						{visualProject.personality.calmMode ? 'Chaos: restrained' : 'Chaos: enabled'}
 					</button>
@@ -3327,9 +3342,6 @@
 								onEditLimits={goToPreferences}
 								onDownloadPdf={downloadFinalPdf}
 								onBack={returnToWorkshop}
-								anchors={sageAnchors}
-								onWorkstationChange={(view) => (workstationView = view)}
-								onPerformanceChange={(performance) => (sagePerformance = performance)}
 								onEffect={playOracleEffect}
 							/>
 						{:else}
