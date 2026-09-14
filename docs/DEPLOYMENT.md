@@ -106,3 +106,11 @@ After any rollback, check local health first, then the public hostname, then a f
 Application commit `e1abd08` restores Sage conversations, late-stage era travel and pixel rendering/transitions for the media backgrounds. Deployed image: `sha256:4b63b550282ed0f0cabaebe8b8d8259aa914b1bf3a8cd608bc2f8349d33975fd`. Container health and `npm run deploy:verify` passed. Fresh public browser checks passed for results, Chat and the short-video background. See [presentation restoration](PRESENTATION-RESTORATION.md) for evidence and limits.
 
 Rollback tag: `ideation-akinator:before-sage-restoration-20260914`, image `sha256:873d49ae3405d0845f52351b76045d0f465a77a7b5e2c563f7a3c2bbadb2f41e`.
+
+## September 14 RPG encounter correction
+
+Application commit `d7d55fb` restores mandatory Sage handoffs, milestone-based era progression and paged RPG prompts while retaining the existing frame. Image `sha256:a81676e4119d6dfd495a850d462ef30e145db9740c73447c39ac7e1b7132511e` is healthy and the deployment verifier passed at `https://idea.battery.rip`.
+
+Fifty-one targeted tests, Svelte check, changed-file ESLint and the production container build passed. Local desktop and phone checks covered the revised prompts and a complete canned research-to-results journey. Public authenticated checks covered welcome, the closing 404 encounter, results controls and the final long-note paging correction. These used a short-lived signed session, not a fresh password-entry test. A reused browser session timed out on reload; a fresh session successfully verified the ending. See [the encounter record](RPG-ENCOUNTER-PLAN.md) for evidence and test limits.
+
+Rollback: `ideation-akinator:before-rpg-encounter-20260914`, image `sha256:4b63b550282ed0f0cabaebe8b8d8259aa914b1bf3a8cd608bc2f8349d33975fd`.

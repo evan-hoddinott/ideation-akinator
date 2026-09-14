@@ -24,7 +24,7 @@ Use the user-local sandboxed agent-browser for fresh desktop and mobile screensh
 
 ## Implementation record
 
-Implemented and locally verified. Evidence is under ignored `artifacts/encounter-progression/`. Earlier presentation-restoration screenshots describe the superseded design.
+Implemented, deployed and publicly verified. Evidence is under ignored `artifacts/encounter-progression/`. Earlier presentation-restoration screenshots describe the superseded design.
 
 - Fresh 1440×900 browser start reached BBS at welcome and personal web at problem entry, with the existing RPG frame and portrait. Required late handoffs retain full dialogue on small screens too.
 - All preference pages were measured at 375×667, including production enabled. Long tag collections, search paging, feature paging and representative interview choices were checked at that size; 390×844 problem and tool screens were also inspected. Detailed source documents and dedicated editors retain document scrolling.
@@ -34,4 +34,4 @@ Implemented and locally verified. Evidence is under ignored `artifacts/encounter
 - Svelte check passed with zero errors or warnings. Fifty-one targeted tests passed across seven files. Changed-file ESLint and the production build passed. Successful local browser page-error logs were empty.
 - This was not a fresh paid-model end-to-end generation, physical mobile-keyboard test or a new PDF content audit. Early intake inspection exercised the existing live understanding endpoint; the research-to-results walkthrough used canned demo data.
 
-Deployment verification is recorded separately after release.
+Final application commit `d7d55fb` is deployed. The deployment verifier passed. Fresh authenticated public browsers checked the desktop welcome, mobile closing encounter and results. A 500-character problem note also fit the 375×667 review panel with explicit pages and visible next actions. Screenshots and measurements are in the evidence directory. One reused browser session timed out during a saved-ending reload; a fresh session completed the same check successfully. Public page-error logs were empty. See [deployment](DEPLOYMENT.md) for the image and rollback tag.
