@@ -1053,6 +1053,7 @@
 		const target = index + direction;
 		if (target < 0 || target >= project.problemInput.cards.length) return;
 		const cards = [...project.problemInput.cards];
+		activeProblemId = cards[index].id;
 		[cards[index], cards[target]] = [cards[target], cards[index]];
 		persist({
 			...project,
@@ -2786,6 +2787,7 @@
 									>
 								{:else}
 									<PagedText
+										length={100}
 										text={activeProblemCard?.text || 'This note is empty. Edit it or remove it.'}
 									/>
 									{#if project.problemInput.topicCoherenceWarning}<p class="dialogue-warning">
@@ -2830,12 +2832,31 @@
 												setEncounter({ problemReview: false });
 											}}>+ Related problem</button
 										>
-										<button
-											class="quiet-game-action"
-											disabled={project.problemInput.cards.length === 1}
-											onclick={() => activeProblemCard && removeProblem(activeProblemCard.id)}
-											>Remove</button
-										>
+										<details class="note-actions">
+											<summary>More</summary>
+											<div>
+												<button
+													disabled={project.problemInput.cards.indexOf(activeProblemCard!) <= 0}
+													onclick={() =>
+														moveProblem(
+															project!.problemInput.cards.indexOf(activeProblemCard!),
+															-1
+														)}>Move note earlier</button
+												>
+												<button
+													disabled={project.problemInput.cards.indexOf(activeProblemCard!) >=
+														project.problemInput.cards.length - 1}
+													onclick={() =>
+														moveProblem(project!.problemInput.cards.indexOf(activeProblemCard!), 1)}
+													>Move note later</button
+												>
+												<button
+													disabled={project.problemInput.cards.length === 1}
+													onclick={() => activeProblemCard && removeProblem(activeProblemCard.id)}
+													>Remove note</button
+												>
+											</div>
+										</details>
 									</div>
 									<button
 										class="answer-button primary"
