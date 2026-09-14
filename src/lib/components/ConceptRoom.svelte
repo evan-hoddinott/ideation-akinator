@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import PurlSprite from './PurlSprite.svelte';
 	import ConceptPerformance from './ConceptPerformance.svelte';
 	import type { WorkstationView } from '$lib/workstation-3d';
@@ -36,6 +36,8 @@
 		paused = false,
 		workstationFallback = false,
 		onWorkstationChange = () => {},
+		onWorkshopOpen = () => {},
+		onPresentationReady = () => {},
 		onGenerate,
 		onRegenerate,
 		onBack,
@@ -61,6 +63,8 @@
 		paused?: boolean;
 		workstationFallback?: boolean;
 		onWorkstationChange?: (view: WorkstationView | null) => void;
+		onWorkshopOpen?: () => void;
+		onPresentationReady?: (ready: boolean) => void;
 		onGenerate: () => void;
 		onRegenerate: () => void;
 		onBack: () => void;
@@ -79,6 +83,10 @@
 
 	type MailView = 'notification' | 'inbox' | 'dossier' | 'comparison' | 'features';
 	let view = $state<MailView>('inbox');
+	$effect(() => {
+		if (view === 'features' && mailReady && loadedGeneration === mailStorageKey())
+			untrack(onWorkshopOpen);
+	});
 	let performing = $state(false);
 	let room = $state<HTMLElement>();
 	async function completePerformance() {
@@ -103,6 +111,9 @@
 	let defeatDialog = $state<HTMLDialogElement>();
 	let downloadTimer = 0;
 	let mailOpenTimer = 0;
+	$effect(() => {
+		onPresentationReady(!!portfolio && !performing && mailReady);
+	});
 	const allDownloaded = $derived(
 		!!portfolio && allConceptMailDownloaded(portfolio.concepts.length, downloadedIds)
 	);

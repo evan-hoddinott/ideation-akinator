@@ -48,21 +48,13 @@
 				></i>{/each}
 		</div>
 		{#if heat !== 'quiet'}<span class="budget-flame" aria-hidden="true"></span>{/if}
-		<input
-			class="budget-slider"
-			type="range"
-			min="0"
-			max="100"
-			step="1"
-			value={position}
-			aria-label={`${label} slider`}
-			aria-valuetext={value === null ? 'Not set' : money(value)}
-			oninput={(event) =>
-				choose(Math.round(100001 ** (event.currentTarget.valueAsNumber / 100) - 1))}
-		/>
 	</div>
 	<div class="budget-entry">
-		<span aria-hidden="true">$</span><input
+		<button
+			type="button"
+			aria-label={`Decrease ${label} by 100 dollars`}
+			onclick={() => choose(Math.max(0, (value ?? 0) - 100))}>−</button
+		><span aria-hidden="true">$</span><input
 			{id}
 			type="number"
 			min="0"
@@ -73,7 +65,11 @@
 			aria-invalid={invalid}
 			aria-describedby={invalid ? `${id}-error` : undefined}
 			oninput={(event) => setNumber(event.currentTarget)}
-		/><small>USD</small>
+		/><small>USD</small><button
+			type="button"
+			aria-label={`Increase ${label} by 100 dollars`}
+			onclick={() => choose(Math.min(1000000000, (value ?? 0) + 100))}>+</button
+		>
 	</div>
 	{#if invalid}<p id={`${id}-error`} role="alert">
 			Enter $0 to $1 billion, using no more than two decimal places.
@@ -91,11 +87,26 @@
 </div>
 
 <style>
+	.budget-help {
+		font-size: 14px;
+	}
+	.budget-presets {
+		display: grid !important;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+	}
+	.budget-presets button {
+		font-size: 16px !important;
+		padding: 5px 2px !important;
+	}
+	.budget-entry button {
+		min-width: 32px;
+		min-height: 38px;
+	}
 	.budget-meter {
 		min-width: 0;
 		display: grid;
-		gap: 10px;
-		padding: 16px;
+		gap: 6px;
+		padding: 10px;
 		background: #e7d5b6;
 		border: 2px solid #b49a74;
 		color: #4b3f2f;
@@ -105,15 +116,15 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		font: 24px/1.25 var(--game-font);
+		font: 18px/1.2 var(--game-font);
 	}
 	header span {
 		font-variant-numeric: tabular-nums;
 	}
 	.budget-scale {
 		position: relative;
-		height: 62px;
-		padding-top: 28px;
+		height: 44px;
+		padding-top: 14px;
 	}
 	.budget-segments {
 		height: 20px;
@@ -136,36 +147,9 @@
 		background: #d89442;
 		box-shadow: inset 0 3px #ffe78b;
 	}
-	.budget-slider {
-		position: absolute;
-		left: 0;
-		top: 26px;
-		width: 100%;
-		height: 24px;
-		margin: 0;
-		appearance: none;
-		background: transparent;
-	}
-	.budget-slider::-webkit-slider-thumb {
-		appearance: none;
-		width: 16px;
-		height: 28px;
-		border: 3px solid #4d422f;
-		background: #ffedaa;
-		box-shadow:
-			inset 0 0 0 2px #fff8db,
-			2px 2px #6b533e;
-	}
-	.budget-slider::-moz-range-thumb {
-		width: 12px;
-		height: 24px;
-		border: 3px solid #4d422f;
-		border-radius: 0;
-		background: #ffedaa;
-	}
 	.budget-flame {
 		position: absolute;
-		bottom: 22px;
+		bottom: 16px;
 		left: clamp(0px, calc(var(--budget-position) - 32px), calc(100% - 64px));
 		width: 64px;
 		height: 64px;
@@ -181,7 +165,7 @@
 	.budget-entry {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 6px;
 	}
 	.budget-entry input {
 		width: 100%;
@@ -192,12 +176,13 @@
 		flex-wrap: wrap;
 		gap: 6px;
 	}
+	.budget-entry button,
 	.budget-presets button {
 		padding: 5px 8px;
 		border: 1px solid #a58e6d;
 		color: #534430;
 		background: #f3e6c7;
-		font: 24px/1.25 var(--game-font);
+		font: 18px/1.2 var(--game-font);
 	}
 	.budget-presets button[aria-pressed='true'] {
 		background: #c5d5a7;
@@ -205,7 +190,7 @@
 	}
 	small {
 		color: #6e5b42;
-		font: 24px/1.25 var(--game-font);
+		font: 18px/1.2 var(--game-font);
 	}
 	@keyframes budget-fire {
 		to {

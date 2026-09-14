@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PagedText from './PagedText.svelte';
 	import type { ConceptPortfolio } from '$lib/concepts';
 	import {
 		addCustomFeature,
@@ -31,6 +32,10 @@
 		onConceptChange?: (id: string) => void;
 	} = $props();
 	let activeId = $state('');
+	let featurePage = $state(0);
+	let summaryOpen = $state(false);
+	let conceptsOpen = $state(false);
+	let customOpen = $state(false);
 	let message = $state(
 		'Start with the suggested build, then decide what belongs in your first version.'
 	);
@@ -52,6 +57,7 @@
 	const configuration = $derived(
 		workshop.configurations.find((item) => item.conceptId === concept.id)!
 	);
+	const currentFeaturePage = $derived(Math.min(featurePage, configuration.features.length - 1));
 	const suggested = $derived(
 		createFeatureWorkshop(portfolio).configurations.find((item) => item.conceptId === concept.id)!
 	);
@@ -80,6 +86,9 @@
 			activeId = initialConceptId || workshop.selectedConceptId || portfolio.concepts[0].id;
 	});
 	function choose(id: string) {
+		featurePage = 0;
+		customOpen = false;
+		conceptsOpen = false;
 		editingId = '';
 		activeId = id;
 		onConceptChange(id);
@@ -165,14 +174,17 @@
 		</div>
 		<button type="button" onclick={onBack}>Back to comparison</button>
 	</header>
-	<nav aria-label="Concept drafts">
+	<button class="concept-toggle" onclick={() => (conceptsOpen = !conceptsOpen)}
+		>{conceptsOpen ? 'Close concept choices' : `Change concept · ${concept.name}`}</button
+	>
+	<nav aria-label="Concept drafts" class:expanded={conceptsOpen}>
 		{#each portfolio.concepts as item (item.id)}<button
 				type="button"
 				aria-pressed={item.id === concept.id}
 				onclick={() => choose(item.id)}>{item.name}</button
 			>{/each}
 	</nav>
-	<div class="workshop-body">
+	<div class="workshop-body" class:summary-open={summaryOpen}>
 		<aside>
 			<small>{concept.isStretch ? 'OVER-BUDGET EXPERIMENT' : 'SELECTED DIRECTION'}</small>
 			<h3>{concept.name}</h3>
@@ -211,6 +223,19 @@
 				</div>{/if}
 		</aside>
 		<div class="feature-editor">
+			<nav class="feature-pages" aria-label="Feature pages">
+				<button
+					disabled={currentFeaturePage === 0 || !!editingId || !!pending}
+					onclick={() => (featurePage = currentFeaturePage - 1)}>←</button
+				><span>Feature {currentFeaturePage + 1}/{configuration.features.length}</span><button
+					disabled={currentFeaturePage === configuration.features.length - 1 ||
+						!!editingId ||
+						!!pending}
+					onclick={() => (featurePage = currentFeaturePage + 1)}>→</button
+				><button class="summary-toggle" onclick={() => (summaryOpen = !summaryOpen)}
+					>{summaryOpen ? 'Back to features' : 'Build summary'}</button
+				>
+			</nav>
 			{#if pending}<div class="decision" role="alert">
 					<h3>These features belong together</h3>
 					<p>
@@ -222,7 +247,7 @@
 						>Include required features</button
 					><button type="button" onclick={() => (pending = null)}>Cancel</button>
 				</div>{/if}
-			{#each configuration.features as feature (feature.id)}
+			{#each configuration.features.slice(currentFeaturePage, currentFeaturePage + 1) as feature (feature.id)}
 				<article class="feature-card" data-placement={featurePlacement(feature)}>
 					<div class="feature-heading">
 						<h3>{feature.name}</h3>
@@ -230,9 +255,19 @@
 							>{feature.dependencyOnly ? 'SUPPORTING COMPONENT' : feature.tier.toUpperCase()}</small
 						>
 					</div>
-					<p>{feature.description}</p>
+					<PagedText text={feature.description} length={100} />
 					{#if editingId === feature.id}
 						<form onsubmit={saveDescription}>
+							{#if feature.scopeImpact}<p class="scope-impact">{feature.scopeImpact}</p>{/if}
+							{#if feature.dependencies.length}<p class="dependencies">
+									Needs: {feature.dependencies
+										.map(
+											(id) =>
+												configuration.features.find((item) => item.id === id)?.name ??
+												'Unavailable dependency'
+										)
+										.join(', ')}
+								</p>{/if}
 							<label
 								>What should {feature.name} do?<textarea
 									required
@@ -252,19 +287,10 @@
 							onclick={() => {
 								editingId = feature.id;
 								editedDescription = feature.description;
-							}}>Edit details</button
+							}}>Details & dependencies</button
 						>
 					{/if}
-					{#if feature.scopeImpact}<p class="scope-impact">{feature.scopeImpact}</p>{/if}
-					{#if feature.dependencies.length}<p class="dependencies">
-							Needs: {feature.dependencies
-								.map(
-									(id) =>
-										configuration.features.find((item) => item.id === id)?.name ??
-										'Unavailable dependency'
-								)
-								.join(', ')}
-						</p>{/if}
+
 					<div class="placements" role="group" aria-label={`Schedule ${feature.name}`}>
 						{#each placements as placement (placement.value)}<button
 								type="button"
@@ -280,7 +306,7 @@
 					</div>
 				</article>
 			{/each}
-			<details class="custom-feature">
+			<details class="custom-feature" bind:open={customOpen}>
 				<summary>Add a feature of your own</summary>
 				<form onsubmit={custom}>
 					<label>Feature name<input required maxlength="100" bind:value={customName} /></label
@@ -326,9 +352,54 @@
 </section>
 
 <style>
+	.concept-toggle {
+		display: none;
+	}
+	.feature-card form {
+		position: fixed;
+		inset: 100px 5vw 25px;
+		z-index: 46;
+		overflow: auto;
+		padding: 20px;
+		background: #f3e7cc;
+		box-shadow: 0 0 0 100vmax #29221e88;
+	}
+
+	.feature-pages {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		padding: 0 0 10px;
+	}
+	.summary-toggle {
+		display: none;
+	}
+	.custom-feature[open] {
+		position: fixed;
+		inset: 100px 5vw 25px;
+		z-index: 45;
+		overflow: auto;
+		background: #f3e7cc;
+		padding: 20px;
+		box-shadow: 0 0 0 100vmax #29221e88;
+	}
+	@media (max-width: 600px) {
+		.summary-toggle {
+			display: block;
+		}
+		.workshop-body:not(.summary-open) > aside {
+			display: none;
+		}
+		.workshop-body.summary-open .feature-card,
+		.workshop-body.summary-open .custom-feature {
+			display: none;
+		}
+	}
+
 	.rpg-workshop {
 		position: absolute;
-		inset: 140px 28px 28px;
+		inset: 85px 28px 28px;
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
@@ -435,7 +506,7 @@
 	}
 	.feature-editor {
 		padding: 16px;
-		overflow: auto;
+		overflow: visible;
 		min-width: 0;
 	}
 	.feature-card {
@@ -549,7 +620,7 @@
 	}
 	@media (max-width: 600px) {
 		.rpg-workshop {
-			inset: 165px 10px 12px;
+			inset: 85px 10px 12px;
 		}
 		header {
 			padding: 10px;
@@ -581,6 +652,109 @@
 		}
 		.feature-heading {
 			align-items: start;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.rpg-workshop {
+			inset: 70px 8px 8px;
+		}
+		.rpg-workshop > header {
+			padding: 8px;
+			min-height: 0;
+		}
+		.rpg-workshop > header small {
+			display: none;
+		}
+		.rpg-workshop > header h2 {
+			font: 16px/1.2 var(--game-font);
+			margin: 0;
+		}
+		.rpg-workshop > header button {
+			font: 14px/1.2 var(--game-font);
+			padding: 6px;
+			max-width: 110px;
+		}
+		.concept-toggle {
+			display: block;
+			font: 16px/1.2 var(--game-font);
+			padding: 6px;
+			text-align: left;
+		}
+		.rpg-workshop > nav:not(.expanded) {
+			display: none;
+		}
+		.workshop-body {
+			overflow: visible;
+			min-height: 0;
+			flex: 1;
+		}
+		.workshop-body.summary-open {
+			overflow: auto;
+		}
+		.feature-editor {
+			padding: 8px;
+		}
+		.feature-pages {
+			display: grid;
+			grid-template-columns: 36px 1fr 36px;
+			gap: 4px;
+			padding: 0 0 6px;
+		}
+		.feature-pages > span {
+			font: 18px/1.2 var(--game-font);
+			text-align: center;
+		}
+		.feature-pages button {
+			font: 16px/1.2 var(--game-font);
+			min-width: 0;
+			padding: 4px;
+		}
+		.feature-pages .summary-toggle {
+			grid-column: 1/-1;
+			min-height: 26px;
+		}
+		.feature-card {
+			padding: 8px;
+			margin-bottom: 6px;
+		}
+		.feature-heading h3 {
+			font: 20px/1.2 var(--game-font);
+			margin: 0;
+		}
+		.feature-heading small {
+			font-size: 10px;
+		}
+		.feature-card > button {
+			font: 16px/1.2 var(--game-font);
+			padding: 5px;
+		}
+		.placements {
+			gap: 4px;
+			margin-top: 8px;
+		}
+		.placements button {
+			font: 16px/1.2 var(--game-font);
+			padding: 5px;
+		}
+		.custom-feature {
+			padding: 6px;
+			font: 16px/1.2 var(--game-font);
+		}
+		footer {
+			padding: 8px;
+			gap: 6px;
+		}
+		footer small {
+			display: none;
+		}
+		footer p {
+			font: 14px/1.2 var(--game-font);
+			margin: 0;
+		}
+		footer button {
+			font: 20px/1.2 var(--game-font);
+			padding: 7px;
 		}
 	}
 </style>

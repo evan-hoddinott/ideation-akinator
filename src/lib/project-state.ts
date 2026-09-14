@@ -82,6 +82,14 @@ export interface ProjectResearch {
 }
 
 export interface ProjectSession {
+	/** Optional presentation checkpoint; older saves derive it from workflow state. */
+	encounter?: {
+		preferencePage: number;
+		problemReview: boolean;
+		workshopOpened?: boolean;
+		workshopGeneration?: number;
+		seen: string[];
+	};
 	schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	id: string;
 	createdAt: string;
@@ -538,6 +546,12 @@ function isCurrentProject(value: unknown): value is ProjectSession {
 	const featureWorkshop = parseFeatureWorkshopState(project.featureWorkshop);
 	const finalization = parseProjectFinalization(project.finalization);
 	return (
+		(project.encounter === undefined ||
+			(Number.isInteger(project.encounter.preferencePage) &&
+				project.encounter.preferencePage >= 0 &&
+				project.encounter.preferencePage <= 10 &&
+				typeof project.encounter.problemReview === 'boolean' &&
+				isStringArray(project.encounter.seen))) &&
 		project.schemaVersion === PROJECT_SCHEMA_VERSION &&
 		typeof project.id === 'string' &&
 		project.id.length > 0 &&

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PagedText from './PagedText.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { catPlaylist } from '$lib/cat-media';
 	import { researchClock, advanceResearchClock, researchFrame } from '$lib/research-choreography';
@@ -473,7 +474,9 @@
 						bind:this={paperElement}
 						role="document"
 						tabindex="-1"
-						aria-label={finalDocument ? 'Final project plan' : 'Research paper. Scroll to read.'}
+						aria-label={finalDocument
+							? 'Final project plan'
+							: 'Research paper. Use the page buttons to read.'}
 					>
 						<div
 							class="paper-content"
@@ -484,7 +487,7 @@
 						>
 							{#if finalDocument}
 								<header><small>COMPLETED PROJECT</small><b>YOUR FINAL PLAN</b></header>
-								<p>{summary}</p>
+								<PagedText text={summary} length={140} />
 								<div class="paper-actions">
 									<button type="button" onclick={onContinue}>See project results</button>
 								</div>
@@ -907,8 +910,8 @@
 		display: grid;
 		gap: 13px;
 		min-height: 0;
-		overflow: auto;
-		overscroll-behavior: contain;
+		overflow: visible;
+		align-content: start;
 	}
 
 	.paper-handoff header {
@@ -1035,8 +1038,9 @@
 	.research-calm.complete {
 		inset: max(88px, 14dvh) max(24px, calc((100vw - 1120px) / 2)) 28px;
 		width: auto;
-		overflow: auto;
-		padding: 24px;
+		overflow: visible;
+		align-content: start;
+		padding: 16px;
 		background: #fff4d8;
 		color: #4b4031;
 		border: 4px ridge #b4a080;

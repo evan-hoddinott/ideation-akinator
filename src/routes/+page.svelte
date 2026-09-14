@@ -1,7 +1,5 @@
 <script lang="ts">
 	import '$lib/workflow.css';
-	import TagPicker from '$lib/components/TagPicker.svelte';
-	import BudgetMeter from '$lib/components/BudgetMeter.svelte';
 	import type { WorkstationView } from '$lib/workstation-3d';
 	import { resolve } from '$app/paths';
 	import ConceptRoom from '$lib/components/ConceptRoom.svelte';
@@ -12,7 +10,8 @@
 	import ResearchWorkstation from '$lib/components/ResearchWorkstation.svelte';
 	import ResearchBrief from '$lib/components/ResearchBrief.svelte';
 	import SageDialogue from '$lib/components/SageDialogue.svelte';
-	import SageBanter from '$lib/components/SageBanter.svelte';
+	import PagedText from '$lib/components/PagedText.svelte';
+	import PreferenceEncounter from '$lib/components/PreferenceEncounter.svelte';
 	import SageStage from '$lib/components/SageStage.svelte';
 	import VerticalWorld from '$lib/components/VerticalWorld.svelte';
 	import { OracleAudio, type OracleEffect } from '$lib/oracle-audio';
@@ -94,8 +93,8 @@
 	import { clearTokenUsage, recordResponseTokenUsage, recordTokenUsage } from '$lib/token-usage';
 	import { DEMO_RESEARCH_DURATION_MS, startVisibleTimer } from '$lib/research-performance';
 	import { INTERNET_ERAS } from '$lib/internet-era';
-	import { projectSceneryAltitude } from '$lib/era-journey';
-	import { projectAltitude, type SageClip, type SageScreenAnchors } from '$lib/sage-stage';
+	import { projectSceneryAltitude, isWorkshopChapter } from '$lib/era-journey';
+	import { type SageClip, type SageScreenAnchors } from '$lib/sage-stage';
 	import {
 		RESEARCH_CATEGORIES,
 		parseResearchJobView,
@@ -129,6 +128,7 @@
 	let interviewMessage = $state('');
 	let interviewDialog = $state<HTMLDialogElement>();
 	let conceptBusy = $state(false);
+	let conceptPresentationReady = $state(false);
 	let conceptMessage = $state('');
 	let focusedResearchBusy = $state(false);
 	let focusedStartSequence = 0;
@@ -144,6 +144,8 @@
 	let yesNoAnswer = $state<boolean | null>(null);
 	let customAnswer = $state('');
 	let customAnswerOpen = $state(false);
+	let inspectedOption = $state<{ id: string; label: string } | null>(null);
+	let questionHelp = $state<HTMLDialogElement>();
 	let loadedAnswerSignature = '';
 	let playerNameDraft = $state('');
 	let projectNameDraft = $state('');
@@ -152,10 +154,23 @@
 	let confirmedAnswer = $state('');
 	let broadResearchPerformanceOpen = $state(false);
 	let broadResearchSkipped = $state(false);
-	let preferenceStep = $state(0);
+	const preferenceStep = $derived(project?.encounter?.preferencePage ?? 0);
+	const problemReview = $derived(project?.encounter?.problemReview ?? false);
+	function setEncounter(change: Partial<NonNullable<ProjectSession['encounter']>>) {
+		if (!project) return;
+		persist({
+			...project,
+			encounter: {
+				preferencePage: 0,
+				problemReview: false,
+				seen: [],
+				...project.encounter,
+				...change
+			}
+		});
+	}
 	let pauseMenuOpen = $state(false);
 	let sageSpeaking = $state(false);
-	let banterSpeaking = $state(false);
 	let sageVoicePulse = $state(0);
 	let sageVoiceEnergy = $state(0.5);
 	let sagePerformance = $state<SageClip | null>(null);
@@ -191,10 +206,56 @@
 	const sceneryAltitude = $derived(
 		debugAltitude ?? (project ? projectSceneryAltitude(project) : 0.5 / 14)
 	);
-	const sageAltitude = $derived(debugAltitude ?? (project ? projectAltitude(project) : 0.04));
+	const sageAltitude = $derived(sceneryAltitude);
 	let sceneryEraIndex = $state(0);
 	const worldEra = $derived(INTERNET_ERAS[sceneryEraIndex]);
 	const worldEraIndex = $derived(sceneryEraIndex);
+	const encounterBeat = $derived.by(() => {
+		if (!project) return null;
+		if (project.stage === 'concepts') {
+			if (isWorkshopChapter(project))
+				return {
+					id: `features:${project.concepts.portfolio?.generationNumber}`,
+					text: 'Put the essentials in Build now. Later is a shelf, not a blood oath. I will check the finished scope before printing.',
+					action: 'Choose my features →'
+				};
+			if (project.concepts.portfolio && conceptPresentationReady)
+				return {
+					id: `concepts:${project.concepts.portfolio?.generationNumber}`,
+					text: 'Purl sent four approaches. I asked for three sensible ideas. She interpreted that creatively. Open an email to compare them.',
+					action: 'Open Purl’s inbox →'
+				};
+		}
+		if (project.stage === 'focused') {
+			if (project.finalization.printPresented)
+				return {
+					id: `finished:${project.finalization.plan?.generatedAt}`,
+					text: '404. We have run out of internet. Fortunately, your project is finished. A real plan, and only minor damage to my reputation.',
+					action: 'Reveal my results →'
+				};
+			if (!project.finalization.plan)
+				return {
+					id: `focused:${project.finalization.configurationFingerprint}`,
+					text: 'One chosen build. One final document. I have negotiated this down from an irresponsible number of scrolls. Let me check the evidence.',
+					action: 'Check my chosen build →'
+				};
+		}
+		return null;
+	});
+	let activeEncounterBeat = $state<{ id: string; text: string; action: string } | null>(null);
+	$effect(() => {
+		const beat = encounterBeat;
+		const seen = project?.encounter?.seen ?? [];
+		if (!mainMenuOpen && !activeEncounterBeat && beat && !seen.includes(beat.id))
+			activeEncounterBeat = beat;
+	});
+	function finishEncounterBeat() {
+		if (!project || !activeEncounterBeat) return;
+		setEncounter({
+			seen: [...new Set([...(project.encounter?.seen ?? []), activeEncounterBeat.id])]
+		});
+		activeEncounterBeat = null;
+	}
 	const finalReport = $derived(project ? buildProjectReport(project) : null);
 
 	const insightSignature = $derived(
@@ -234,6 +295,27 @@
 	const currentQuestion = $derived(
 		project?.interview.questions[project.interview.currentQuestionIndex] ?? null
 	);
+	const extendedChoices = $derived(
+		!!currentQuestion &&
+			(currentQuestion.options.length > 4 ||
+				currentQuestion.options.some((option) => option.label.length > 48))
+	);
+	$effect(() => {
+		const id = currentQuestion?.id;
+		if (id !== inspectedQuestionId) {
+			inspectedQuestionId = id;
+			inspectedOption = null;
+		}
+	});
+	let inspectedQuestionId: string | undefined;
+	function acceptInspectedOption() {
+		if (!inspectedOption || !currentQuestion) return;
+		const option = inspectedOption;
+		inspectedOption = null;
+		if (currentQuestion.type === 'multiple-choice')
+			toggleMultipleAnswer(option.id, !multipleAnswer.includes(option.id));
+		else void submitInterviewAnswer('answered', option.id);
+	}
 	const currentAnswer = $derived(
 		currentQuestion
 			? (project?.interview.answers.find((answer) => answer.questionId === currentQuestion.id) ??
@@ -307,6 +389,15 @@
 		'regulations-standards': 'Regulations and standards',
 		'technical-building-blocks': 'Technical building blocks'
 	};
+	const preferencePrompts = [
+		'Choose your tools. Or leave it to me. I have only set fire to two frameworks.',
+		'Anything forbidden? Purl is no longer allowed near robotics. You may have different limits.',
+		'We bought a domain. The business plan is coming later. What should I investigate?',
+		'How strange should the ideas get? My personality remains unfortunately fixed.',
+		'A budget! My ancient nemesis. What can we spend on the first working prototype?',
+		'A prototype is one thing. A factory is several more things. Should I plan production too?',
+		'Almost packed. Tell me any practical limits, or leave these blank. I travel light. Except for the printer.'
+	];
 	const constraintFields: Array<{
 		key: keyof ProjectConstraints;
 		label: string;
@@ -697,7 +788,11 @@
 	function newFromMenu() {
 		if (project) startOver();
 		mainMenuOpen = false;
-		beginProject();
+		const fresh = createProject();
+		project = saveProject(window.localStorage, {
+			...fresh,
+			personality: { ...fresh.personality, muted: previewMuted, calmMode: previewCalm }
+		});
 	}
 
 	function demoFromMenu() {
@@ -1077,7 +1172,7 @@
 			completedStages: Array.from(new Set([...project.completedStages, 'problem']))
 		});
 		stateNotice = 'Problem notes saved. Preferences are up next.';
-		preferenceStep = 0;
+		setEncounter({ preferencePage: 0 });
 		performSageEvent('preferences-opened', project);
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
@@ -1091,16 +1186,24 @@
 
 	function nextPreferenceStep() {
 		if (!project) return;
+		if (preferenceStep === 0 && !project.preferences.technologyTags.length)
+			addTag('technology', 'Open to anything');
+		if (preferenceStep === 2 && !project.preferences.selectedIndustryTags.length)
+			addTag('industry', 'General');
+		if (preferenceStep === 4 && project.preferences.prototypeBudgetUsd === null) {
+			preferenceError = 'Choose a prototype budget. Zero is allowed.';
+			return;
+		}
 		if (
-			!project.preferences.technologyTags.length ||
-			!project.preferences.selectedIndustryTags.length
+			preferenceStep === 5 &&
+			project.preferences.includeProductionPlanning &&
+			project.preferences.productionBudgetUsd === null
 		) {
-			preferenceError =
-				'Choose a technology preference and at least one research topic. Open to anything is a valid preference.';
+			preferenceError = 'Choose a production budget or turn off production planning.';
 			return;
 		}
 		preferenceError = '';
-		preferenceStep = 1;
+		setEncounter({ preferencePage: Math.min(10, preferenceStep + 1) });
 	}
 
 	function previousPreferenceStep() {
@@ -1109,7 +1212,7 @@
 			return;
 		}
 		preferenceError = '';
-		preferenceStep -= 1;
+		setEncounter({ preferencePage: preferenceStep - 1 });
 	}
 
 	function addTag(kind: 'technology' | 'industry', value?: string) {
@@ -2359,6 +2462,7 @@
 		}
 		clearProject(window.localStorage);
 		project = null;
+		activeEncounterBeat = null;
 		stateNotice = 'The active project was cleared. The oracle is ready for a new one.';
 		technologyTagDraft = '';
 		industryTagDraft = '';
@@ -2383,7 +2487,7 @@
 		projectNameDraft = '';
 		customAnswer = '';
 		customAnswerOpen = false;
-		preferenceStep = 0;
+		setEncounter({ preferencePage: 0 });
 		pauseMenuOpen = false;
 		sageSpeaking = false;
 		previewMuted = retainedMuted;
@@ -2456,8 +2560,8 @@
 				onFallbackChange={(fallback) => (sageModelFallback = fallback)}
 				paused={mainMenuOpen ||
 					pauseMenuOpen ||
-					(project?.stage === 'focused' && !finalPrintActive)}
-				speaking={sageSpeaking || banterSpeaking}
+					(project?.stage === 'focused' && !finalPrintActive && !activeEncounterBeat)}
+				speaking={sageSpeaking}
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
 				performance={sagePerformance}
@@ -2579,23 +2683,36 @@
 			{/if}
 		</header>
 
-		<div class="workspace" class:has-companion={project && project.stage !== 'welcome'}>
-			{#if stateReady && project && !mainMenuOpen}
-				{#key project.id}<SageBanter
-						personality={project.personality}
-						stage={project.stage}
-						phase={project.finalization.printPresented
-							? 'results'
-							: finalPlanBusy
-								? 'plan'
-								: project.stage}
-						era={sceneryEraIndex}
-						paused={pauseMenuOpen}
-						primarySpeaking={sageSpeaking}
-						onSpeakingChange={(speaking) => (banterSpeaking = speaking)}
-						onVoice={playSageVoice}
-					/>{/key}
-			{/if}
+		{#if activeEncounterBeat && project && !mainMenuOpen && !pauseMenuOpen}
+			<div class="encounter-handoff">
+				<SageDialogue
+					compactOnSmallScreen={false}
+					paused={mainMenuOpen || pauseMenuOpen}
+					readIds={project?.encounter?.seen ?? []}
+					onRead={(id) => {
+						if (project && !project.encounter?.seen.includes(id))
+							setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+					}}
+					altitude={sageAltitude}
+					personality={project.personality}
+					label="SIGNAL SAGE"
+					dialogueId={`${project.id}:handoff:${activeEncounterBeat.id}`}
+					prompt={activeEncounterBeat.text}
+					onSpeakCharacter={playSageVoice}
+					onSpeakingChange={setSageSpeaking}
+				>
+					<button class="answer-button primary" onclick={finishEncounterBeat}
+						>{activeEncounterBeat.action}</button
+					>
+				</SageDialogue>
+			</div>
+		{/if}
+
+		<div
+			class="workspace"
+			inert={!!activeEncounterBeat}
+			class:has-companion={project && project.stage !== 'welcome'}
+		>
 			{#if visualProject.stage !== 'concepts'}
 				<main class="dialogue-workbench">
 					{#if stateNotice && project?.stage !== 'focused' && project?.stage !== 'concepts'}
@@ -2604,6 +2721,12 @@
 
 					{#if !stateReady}
 						<SageDialogue
+							paused={mainMenuOpen || pauseMenuOpen}
+							readIds={project?.encounter?.seen ?? []}
+							onRead={(id) => {
+								if (project && !project.encounter?.seen.includes(id))
+									setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+							}}
 							altitude={sageAltitude}
 							personality={visualProject.personality}
 							mode="wait"
@@ -2616,301 +2739,160 @@
 						</SageDialogue>
 					{:else if project?.stage === 'problem'}
 						<SageDialogue
+							paused={mainMenuOpen || pauseMenuOpen}
+							readIds={project?.encounter?.seen ?? []}
+							onRead={(id) => {
+								if (project && !project.encounter?.seen.includes(id))
+									setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+							}}
 							altitude={sageAltitude}
 							personality={project.personality}
 							layout="journal"
-							dialogueId={`${project.id}:problem`}
+							dialogueId={`${project.id}:problem:${problemReview ? 'review' : 'write'}`}
 							label="YOUR QUEST JOURNAL"
 							meta={`${filledProblemCount} related problem${filledProblemCount === 1 ? '' : 's'}`}
-							prompt="What keeps going wrong? Tell me who it affects and why it matters. Rough notes are enough."
+							prompt={problemReview
+								? 'Let me check my notes. Even wizards misread their own handwriting. Does this describe the problem?'
+								: 'Give me the messy version. My crystal ball has enough polished nonsense. What keeps going wrong?'}
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
-							<div class="problem-journal">
-								<aside class="journal-notes" aria-label="Your related problems">
-									<h2>Problem notes</h2>
-									{#each project.problemInput.cards as card, index (card.id)}
-										<div class="journal-note" class:active={activeProblemCard?.id === card.id}>
-											<button
-												type="button"
-												class="note-select"
-												aria-pressed={activeProblemCard?.id === card.id}
-												onclick={() => (activeProblemId = card.id)}
-											>
-												<b>NOTE {index + 1}</b><span>{card.text || 'An unwritten problem...'}</span>
-											</button>
-											<div class="note-tools">
-												<button
-													type="button"
-													aria-label={`Move note ${index + 1} up`}
-													disabled={index === 0}
-													onclick={() => moveProblem(index, -1)}>↑</button
-												>
-												<button
-													type="button"
-													aria-label={`Move note ${index + 1} down`}
-													disabled={index === project.problemInput.cards.length - 1}
-													onclick={() => moveProblem(index, 1)}>↓</button
-												>
-												<button type="button" onclick={() => removeProblem(card.id)}>Remove</button>
-											</div>
-										</div>
-									{/each}
-									<button
-										type="button"
-										class="answer-button secondary"
-										disabled={!activeProblemCard?.text.trim()}
-										onclick={addProblem}>+ Related problem</button
-									>
-								</aside>
-								<div class="journal-editor">
+							<div class="encounter-problem">
+								{#if !problemReview}
 									<label class="compact-field"
-										><span>Topic <small>optional</small></span>
-										<input
+										><span>Topic <small>optional</small></span><input
 											type="text"
 											maxlength="120"
 											value={project.problemInput.topic}
 											placeholder="Campus transit, meal planning..."
 											oninput={(event) => setTopic(event.currentTarget.value)}
-										/>
-									</label>
-									{#if activeProblemCard}<label class="compact-field">
-											<span>What happens, who is affected, and why does it matter?</span>
-											<textarea
-												rows="5"
+										/></label
+									>
+									{#if activeProblemCard}<label class="compact-field"
+											><span>What happens, who is affected, and why?</span><textarea
+												rows="4"
 												maxlength="500"
 												value={activeProblemCard.text}
-												placeholder="Students miss the last bus because schedule changes are buried in PDF notices."
+												placeholder="Students miss the bus because schedule changes are buried in PDF notices."
 												oninput={(event) =>
 													setProblemText(activeProblemCard.id, event.currentTarget.value)}
-											></textarea>
-										</label>{/if}
-									<div class="journal-reading" aria-live="polite">
-										<b>{project.problemInput.clarityLabel ?? 'Waiting for a clue'}</b><span
-											>{insightStatus === 'idle'
-												? 'The Sage reads while you write.'
-												: insightMessage}</span
-										>
-									</div>
+											></textarea></label
+										>{/if}
+									<button
+										class="answer-button primary"
+										disabled={!activeProblemCard?.text.trim()}
+										onclick={() => setEncounter({ problemReview: true })}
+										>Review my problem →</button
+									>
+								{:else}
+									<PagedText
+										text={activeProblemCard?.text || 'This note is empty. Edit it or remove it.'}
+									/>
 									{#if project.problemInput.topicCoherenceWarning}<p class="dialogue-warning">
 											{project.problemInput.topicCoherenceWarning}
 										</p>{/if}
+									<nav class="encounter-note-nav" aria-label="Problem notes">
+										<button
+											class="answer-button secondary"
+											disabled={project.problemInput.cards.indexOf(activeProblemCard!) <= 0}
+											onclick={() => {
+												activeProblemId =
+													project!.problemInput.cards[
+														project!.problemInput.cards.indexOf(activeProblemCard!) - 1
+													].id;
+											}}>←</button
+										>
+										<span
+											>Note {project.problemInput.cards.indexOf(activeProblemCard!) + 1} of {project
+												.problemInput.cards.length}</span
+										>
+										<button
+											class="answer-button secondary"
+											disabled={project.problemInput.cards.indexOf(activeProblemCard!) >=
+												project.problemInput.cards.length - 1}
+											onclick={() => {
+												activeProblemId =
+													project!.problemInput.cards[
+														project!.problemInput.cards.indexOf(activeProblemCard!) + 1
+													].id;
+											}}>→</button
+										>
+									</nav>
+									<div class="encounter-note-nav">
+										<button
+											class="answer-button secondary"
+											onclick={() => setEncounter({ problemReview: false })}>Edit note</button
+										>
+										<button
+											class="answer-button secondary"
+											onclick={() => {
+												addProblem();
+												setEncounter({ problemReview: false });
+											}}>+ Related problem</button
+										>
+										<button
+											class="quiet-game-action"
+											disabled={project.problemInput.cards.length === 1}
+											onclick={() => activeProblemCard && removeProblem(activeProblemCard.id)}
+											>Remove</button
+										>
+									</div>
 									<button
-										type="button"
 										class="answer-button primary"
 										disabled={filledProblemCount === 0}
-										onclick={goToPreferences}>Set preferences and limits →</button
+										onclick={goToPreferences}>These are my problems →</button
 									>
-								</div>
+								{/if}
 							</div>
 						</SageDialogue>
 					{:else if project?.stage === 'preferences'}
 						<SageDialogue
+							paused={mainMenuOpen || pauseMenuOpen}
+							readIds={project?.encounter?.seen ?? []}
+							onRead={(id) => {
+								if (project && !project.encounter?.seen.includes(id))
+									setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+							}}
 							altitude={sageAltitude}
 							personality={project.personality}
 							layout="journal"
 							dialogueId={`${project.id}:preferences:${preferenceStep}`}
-							label={preferenceStep === 0 ? 'DIRECTION · 1 OF 2' : 'LIMITS · 2 OF 2'}
-							meta="Your project brief"
-							prompt={preferenceStep === 0
-								? 'Choose the territory and tools. I have made a few suggestions from your notes.'
-								: 'Set the limits of this quest. Big ideas still have to fit the wallet.'}
+							label="QUEST PREFERENCES"
+							prompt={preferencePrompts[Math.min(preferenceStep, 6)]}
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
-							<div class="dialogue-form preference-response">
-								{#if preferenceStep === 0}<div class="preferences-columns">
-										<section>
-											<TagPicker
-												id="preferred-technologies"
-												label="Preferred technology"
-												selected={project.preferences.technologyTags}
-												suggestions={project.preferences.suggestedTechnologyTags ?? []}
-												dismissed={project.preferences.dismissedTechnologyTags ?? []}
-												catalog={[
-													'Open to anything',
-													'TypeScript',
-													'Python',
-													'JavaScript',
-													'Arduino',
-													'Raspberry Pi',
-													'Web app',
-													'Mobile app',
-													'3D printing',
-													'Bluetooth',
-													'OpenStreetMap',
-													'Computer vision',
-													'Robotics'
-												]}
-												onAdd={(tag) => addTag('technology', tag)}
-												onRemove={(tag) => removeTag('technology', tag)}
-												onDismiss={(tag) => removeTag('technology', tag)}
-											/>
-											<button
-												class="answer-button secondary"
-												type="button"
-												onclick={() => addTag('technology', 'Open to anything')}
-												>I'm open to suggestions</button
-											>
-											<details class="technology-exclusions">
-												<summary>Technologies to avoid</summary>
-												<p>
-													These are hard exclusions for all four ideas. Removing a preferred tag
-													above only removes the preference.
-												</p>
-												<TagPicker
-													id="excluded-technologies"
-													maxTags={10}
-													maxCharacters={480}
-													label="Never require these technologies"
-													selected={(project?.preferences.constraints.excludedTechnologies ?? '')
-														.split(',')
-														.map((tag) => tag.trim())
-														.filter(Boolean)}
-													catalog={[
-														'Robotics',
-														'Computer vision',
-														'Cloud services',
-														'Bluetooth',
-														'Arduino',
-														'Raspberry Pi'
-													]}
-													onAdd={(tag) =>
-														setConstraint(
-															'excludedTechnologies',
-															[
-																...(project?.preferences.constraints.excludedTechnologies ?? '')
-																	.split(',')
-																	.filter(Boolean),
-																tag
-															].join(',')
-														)}
-													onRemove={(tag) =>
-														setConstraint(
-															'excludedTechnologies',
-															(project?.preferences.constraints.excludedTechnologies ?? '')
-																.split(',')
-																.filter((entry) => entry !== tag)
-																.join(',')
-														)}
-												/>
-											</details>
-										</section>
-										<section>
-											<TagPicker
-												id="research-topics"
-												label="Industries and research topics"
-												selected={project.preferences.selectedIndustryTags}
-												suggestions={project.preferences.suggestedIndustryTags}
-												dismissed={project.preferences.dismissedIndustryTags}
-												catalog={[
-													'Higher Education',
-													'Transportation',
-													'Healthcare',
-													'Manufacturing',
-													'Consumer Software',
-													'Accessibility',
-													'Sustainability',
-													'Logistics',
-													'Food',
-													'Entertainment'
-												]}
-												onAdd={(tag) => addTag('industry', tag)}
-												onRemove={(tag) => removeTag('industry', tag)}
-											/>
-										</section>
-									</div>{:else}
-									<div class="rpg-meter innovation-meter">
-										<header>
-											<b>{project.preferences.innovationLevel}</b>
-											<span>{innovationLabels[project.preferences.innovationLevel - 1]}</span>
-										</header>
-										<input
-											type="range"
-											min="1"
-											max="5"
-											step="1"
-											value={project.preferences.innovationLevel}
-											oninput={(event) => setInnovationLevel(event.currentTarget.valueAsNumber)}
-											aria-label="Innovation level"
-										/>
-										<div class="originality-labels">
-											<span>Proven approach</span><span>Strange but buildable</span>
-										</div>
-									</div>
-
-									<div class="budget-workbench">
-										<BudgetMeter
-											id="prototype-budget"
-											label="Prototype budget"
-											value={project.preferences.prototypeBudgetUsd}
-											calm={project.personality.calmMode}
-											onChange={(value) => updateBudget('prototype', value)}
-										/>
-										<div class="production-budget">
-											<label class="production-check"
-												><input
-													type="checkbox"
-													checked={project.preferences.includeProductionPlanning}
-													onchange={(event) => setProductionPlanning(event.currentTarget.checked)}
-												/><span>Also plan production costs</span></label
-											>
-											{#if project.preferences.includeProductionPlanning}<BudgetMeter
-													id="production-budget"
-													label="Production budget"
-													value={project.preferences.productionBudgetUsd}
-													calm={project.personality.calmMode}
-													onChange={(value) => updateBudget('production', value)}
-												/>{:else}<p>Only the first working prototype will be budgeted.</p>{/if}
-										</div>
-									</div>
-									<details class="extra-limits">
-										<summary>Deadline, team, and other limits</summary>
-										<div class="practical-constraints">
-											{#each constraintFields as field (field.key)}
-												<label class:wide={field.wide}>
-													<span>{field.label} <small>optional</small></span>
-													<input
-														type="text"
-														maxlength="500"
-														value={project.preferences.constraints[field.key] ?? ''}
-														placeholder={field.placeholder}
-														oninput={(event) => setConstraint(field.key, event.currentTarget.value)}
-													/>
-												</label>
-											{/each}
-										</div>
-									</details>{/if}
-
-								{#if preferenceError}<p class="dialogue-warning" role="alert">
-										{preferenceError}
-									</p>{/if}
-								<div class="dialogue-primary-actions split">
-									<button
-										class="answer-button secondary"
-										type="button"
-										onclick={previousPreferenceStep}>Back</button
-									>
-									{#if preferenceStep < 1}
-										<button class="answer-button primary" type="button" onclick={nextPreferenceStep}
-											>Save and continue</button
-										>
-									{:else}
-										<button class="answer-button primary" type="button" onclick={sealPreferences}
-											>Research these problems</button
-										>
-									{/if}
-								</div>
-							</div>
+							<PreferenceEncounter
+								preferences={project.preferences}
+								page={preferenceStep}
+								calm={project.personality.calmMode}
+								{constraintFields}
+								error={preferenceError}
+								onAdd={addTag}
+								onRemove={removeTag}
+								onConstraint={setConstraint}
+								onInnovation={setInnovationLevel}
+								onBudget={updateBudget}
+								onProduction={setProductionPlanning}
+								onBack={previousPreferenceStep}
+								onNext={nextPreferenceStep}
+								onFinish={sealPreferences}
+							/>
 						</SageDialogue>
 					{:else if project?.stage === 'research'}
 						{#if project.research.status === 'idle'}
 							<SageDialogue
+								paused={mainMenuOpen || pauseMenuOpen}
+								readIds={project?.encounter?.seen ?? []}
+								onRead={(id) => {
+									if (project && !project.encounter?.seen.includes(id))
+										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+								}}
 								altitude={sageAltitude}
 								personality={project.personality}
 								label="RESEARCH THE PROBLEM"
 								meta="usually one to two minutes"
-								prompt="Ready for me to check what already exists and where the gaps are?"
+								prompt="Off to consult the archives. If anyone asks, the cat tab is peer review. Ready to check what exists and where the gaps are?"
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
@@ -2946,13 +2928,19 @@
 							<!-- The performance is a sibling of the Sage so its rear and foreground layers can straddle him. -->
 						{:else if project.research.result}
 							<SageDialogue
+								paused={mainMenuOpen || pauseMenuOpen}
+								readIds={project?.encounter?.seen ?? []}
+								onRead={(id) => {
+									if (project && !project.encounter?.seen.includes(id))
+										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+								}}
 								altitude={sageAltitude}
 								personality={project.personality}
 								layout="journal"
 								dialogueId={`${project.id}:research-brief`}
 								label="PRELIMINARY RESEARCH"
 								meta={`${project.research.result.sources.length} sources`}
-								prompt="Here is what I found. These notes will help us choose a useful direction."
+								prompt="Fact-checking ruined several excellent rumors. Here is what survived. These findings will guide my questions."
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
@@ -2967,6 +2955,12 @@
 							</SageDialogue>
 						{:else}
 							<SageDialogue
+								paused={mainMenuOpen || pauseMenuOpen}
+								readIds={project?.encounter?.seen ?? []}
+								onRead={(id) => {
+									if (project && !project.encounter?.seen.includes(id))
+										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+								}}
 								altitude={sageAltitude}
 								personality={project.personality}
 								mode="announce"
@@ -2992,6 +2986,12 @@
 					{:else if project?.stage === 'questions'}
 						{#if project.interview.status === 'completed' || project.interview.status === 'ended-early'}
 							<SageDialogue
+								paused={mainMenuOpen || pauseMenuOpen}
+								readIds={project?.encounter?.seen ?? []}
+								onRead={(id) => {
+									if (project && !project.encounter?.seen.includes(id))
+										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+								}}
 								altitude={sageAltitude}
 								personality={project.personality}
 								mode="announce"
@@ -3018,6 +3018,12 @@
 							</SageDialogue>
 						{:else if !currentQuestion}
 							<SageDialogue
+								paused={mainMenuOpen || pauseMenuOpen}
+								readIds={project?.encounter?.seen ?? []}
+								onRead={(id) => {
+									if (project && !project.encounter?.seen.includes(id))
+										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+								}}
 								altitude={sageAltitude}
 								personality={project.personality}
 								mode="wait"
@@ -3040,12 +3046,18 @@
 							</SageDialogue>
 						{:else}
 							<SageDialogue
+								paused={mainMenuOpen || pauseMenuOpen}
+								readIds={project?.encounter?.seen ?? []}
+								onRead={(id) => {
+									if (project && !project.encounter?.seen.includes(id))
+										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+								}}
 								altitude={sageAltitude}
 								personality={project.personality}
 								dialogueId={`${project.id}:question:${currentQuestion.id}`}
 								label={`INQUIRY ${project.interview.currentQuestionIndex + 1}`}
 								meta={`${answeredQuestionCount} answered`}
-								prompt={currentQuestion.prompt}
+								prompt={`${answeredQuestionCount === 0 ? 'A few things the internet cannot tell me. You, inconveniently, know things. ' : answeredQuestionCount % 3 === 0 ? 'Another assumption defeated. My hat grows wiser. ' : ''}${currentQuestion.prompt}`}
 								onSpeakCharacter={playSageVoice}
 								onSpeakingChange={setSageSpeaking}
 							>
@@ -3053,11 +3065,36 @@
 									class="dialogue-form interview-response"
 									aria-busy={interviewBusy || answerConfirming}
 								>
-									<details class="why-whisper">
-										<summary>Why are you asking?</summary>
-										<p>{currentQuestion.whyItMatters}</p>
-									</details>
-									{#if currentQuestion.type === 'text'}
+									<button class="quiet-game-action" onclick={() => questionHelp?.showModal()}
+										>Why are you asking?</button
+									>
+									<dialog
+										bind:this={questionHelp}
+										class="question-help"
+										aria-label="Why the Sage asks"
+									>
+										<PagedText text={currentQuestion.whyItMatters} /><button
+											autofocus
+											class="answer-button primary"
+											onclick={() => questionHelp?.close()}>Back to my answer</button
+										>
+									</dialog>
+									{#if inspectedOption}<PagedText
+											text={inspectedOption.label}
+											length={140}
+										/><button class="answer-button primary" onclick={acceptInspectedOption}
+											>{currentQuestion.type === 'multiple-choice'
+												? 'Toggle this choice'
+												: 'Use this answer'}</button
+										><button
+											class="answer-button secondary"
+											onclick={() => (inspectedOption = null)}>← Back to all choices</button
+										>
+									{:else if customAnswerOpen}<button
+											class="answer-button secondary"
+											onclick={() => (customAnswerOpen = false)}>← Back to choices</button
+										>
+									{:else if currentQuestion.type === 'text'}
 										<label class="compact-field main-response"
 											><span>Your answer</span><textarea
 												rows="4"
@@ -3067,7 +3104,7 @@
 												placeholder="A rough answer is enough..."></textarea></label
 										>
 									{:else if currentQuestion.type === 'single-choice'}
-										<div class="game-choice-list">
+										<div class="game-choice-list" class:extended-choices={extendedChoices}>
 											{#each currentQuestion.options as option (option.id)}<button
 													type="button"
 													disabled={interviewBusy || answerConfirming}
@@ -3075,8 +3112,11 @@
 														confirmedAnswer === JSON.stringify(option.id)}
 													onclick={() => {
 														customAnswerOpen = false;
-														submitInterviewAnswer('answered', option.id);
-													}}>{option.label}</button
+														if (extendedChoices) inspectedOption = option;
+														else submitInterviewAnswer('answered', option.id);
+													}}
+													><span class="option-label">{option.label}</span
+													>{#if extendedChoices}<small>Read choice →</small>{/if}</button
 												>{/each}<button
 												class:chosen={customAnswerOpen}
 												disabled={interviewBusy || answerConfirming}
@@ -3085,15 +3125,21 @@
 											>
 										</div>
 									{:else if currentQuestion.type === 'multiple-choice'}
-										<div class="game-choice-list multiple">
+										<div class="game-choice-list multiple" class:extended-choices={extendedChoices}>
 											{#each currentQuestion.options as option (option.id)}<button
 													class:chosen={multipleAnswer.includes(option.id)}
 													disabled={interviewBusy || answerConfirming}
 													type="button"
 													onclick={() =>
-														toggleMultipleAnswer(option.id, !multipleAnswer.includes(option.id))}
-													><span>{multipleAnswer.includes(option.id) ? '✓' : '+'}</span
-													>{option.label}</button
+														extendedChoices
+															? (inspectedOption = option)
+															: toggleMultipleAnswer(
+																	option.id,
+																	!multipleAnswer.includes(option.id)
+																)}
+													><span>{multipleAnswer.includes(option.id) ? '✓' : '+'}</span><span
+														class="option-label">{option.label}</span
+													>{#if extendedChoices}<small>Read choice →</small>{/if}</button
 												>{/each}<button
 												class:chosen={customAnswerOpen}
 												disabled={interviewBusy || answerConfirming}
@@ -3153,7 +3199,7 @@
 									{#if interviewMessage}<p class="dialogue-warning" role="alert">
 											{interviewMessage}
 										</p>{/if}
-									{#if currentQuestion.type === 'text' || currentQuestion.type === 'number' || currentQuestion.type === 'budget' || currentQuestion.type === 'multiple-choice'}<button
+									{#if !inspectedOption && !customAnswerOpen && (currentQuestion.type === 'text' || currentQuestion.type === 'number' || currentQuestion.type === 'budget' || currentQuestion.type === 'multiple-choice')}<button
 											class="answer-button primary full"
 											type="button"
 											disabled={interviewBusy || answerConfirming}
@@ -3188,7 +3234,7 @@
 						{@const focusedInput = focusedResearchRequest(project)}
 						{#if focusedInput}
 							<FinalizationRoom
-								paused={pauseMenuOpen || mainMenuOpen}
+								paused={pauseMenuOpen || mainMenuOpen || !!activeEncounterBeat}
 								workstationFallback={sageModelFallback}
 								{project}
 								input={focusedInput}
@@ -3217,6 +3263,12 @@
 							/>
 						{:else}
 							<SageDialogue
+								paused={mainMenuOpen || pauseMenuOpen}
+								readIds={project?.encounter?.seen ?? []}
+								onRead={(id) => {
+									if (project && !project.encounter?.seen.includes(id))
+										setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+								}}
 								altitude={sageAltitude}
 								personality={project.personality}
 								mode="announce"
@@ -3232,45 +3284,34 @@
 						{/if}
 					{:else}
 						<SageDialogue
+							paused={mainMenuOpen || pauseMenuOpen}
+							readIds={project?.encounter?.seen ?? []}
+							onRead={(id) => {
+								if (project && !project.encounter?.seen.includes(id))
+									setEncounter({ seen: [...(project.encounter?.seen ?? []), id] });
+							}}
 							altitude={sageAltitude}
 							personality={visualProject.personality}
 							label="WELCOME TO IDEATION AKINATOR"
-							prompt="Give me a problem. I will turn it into researched, buildable project options."
+							prompt="Come in. Mind the cable. It is holding the internet together. Tell me a problem; we will research four ideas and turn your choice into a plan."
 							onSpeakCharacter={playSageVoice}
 							onSpeakingChange={setSageSpeaking}
 						>
 							<div class="dialogue-form welcome-response">
-								<p>
-									First, describe the problem and your constraints. I will research what already
-									exists, ask a short set of follow-up questions, and generate four concepts. You
-									will choose the concept and features before I produce the final plan.
-								</p>
-								<div class="welcome-name-grid game-name-grid">
-									<label
-										><span>What should I call you? <small>optional</small></span><input
-											maxlength="50"
-											bind:value={playerNameDraft}
-											placeholder="Mortal, Evan, Captain..."
-										/></label
-									><label
-										><span>Working project name <small>probably wrong</small></span><input
-											maxlength="50"
-											bind:value={projectNameDraft}
-											placeholder="Operation Mystery Box"
-										/></label
-									>
-								</div>
-								<button class="answer-button primary full" type="button" onclick={beginProject}
-									>Start with my problem</button
+								<label class="compact-field"
+									><span>Your name <small>optional</small></span><input
+										maxlength="50"
+										bind:value={playerNameDraft}
+										placeholder="What should the Sage call you?"
+									/></label
 								>
-								<div class="demo-launch-divider"><span>or inspect the machinery</span></div>
-								<button class="answer-button demo-launch full" type="button" onclick={beginDemo}>
-									Run the token-free visual demo
-								</button>
-								<small class="demo-launch-note">
-									Uses canned research, questions, and ideas. Every screen still works.
-								</small>
-								<small>No account. This project stays in this browser.</small>
+								<button class="answer-button primary full" onclick={beginProject}
+									>Tell the Sage my problem →</button
+								>
+								<small
+									>Problem → research → four ideas → your finished plan. Progress saves in this
+									browser.</small
+								>
 							</div>
 						</SageDialogue>
 					{/if}
@@ -4018,6 +4059,19 @@
 					</section>
 				{:else if project?.stage === 'concepts'}
 					<ConceptRoom
+						onPresentationReady={(ready) => (conceptPresentationReady = ready)}
+						onWorkshopOpen={() => {
+							if (
+								project &&
+								(!project.encounter?.workshopOpened ||
+									project.encounter.workshopGeneration !==
+										project.concepts.portfolio?.generationNumber)
+							)
+								setEncounter({
+									workshopOpened: true,
+									workshopGeneration: project.concepts.portfolio?.generationNumber
+								});
+						}}
 						projectId={project.id}
 						initialView={project.featureWorkshop.status === 'confirmed' ? 'features' : 'inbox'}
 						prototypeBudgetUsd={project.preferences.prototypeBudgetUsd ?? 0}
@@ -4027,7 +4081,7 @@
 						muted={project.personality.muted}
 						calm={project.personality.calmMode}
 						busy={conceptBusy}
-						paused={mainMenuOpen || pauseMenuOpen}
+						paused={mainMenuOpen || pauseMenuOpen || !!activeEncounterBeat}
 						workstationFallback={sageModelFallback}
 						onWorkstationChange={(view) => (workstationView = view)}
 						message={conceptMessage}

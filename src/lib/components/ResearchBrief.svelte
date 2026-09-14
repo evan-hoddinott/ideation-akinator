@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PagedText from './PagedText.svelte';
 	import type { ResearchSource } from '$lib/research';
 	let {
 		summary,
@@ -25,75 +26,84 @@
 		onContinue: () => void;
 		continueLabel?: string;
 	} = $props();
+	let page = $state(0);
+	let sourceDialog = $state<HTMLDialogElement>();
+	const pages = $derived([
+		{ title: 'What the Sage found', text: summary },
+		...findings.map((f) => ({
+			title: f.title,
+			text: [f.claim, f.interpretation].filter(Boolean).join(' ')
+		})),
+		...gaps.map((g) => ({ title: 'Still uncertain', text: g.reason })),
+		...(disclaimer ? [{ title: 'Research limits', text: disclaimer }] : [])
+	]);
+	const current = $derived(pages[Math.min(page, pages.length - 1)]);
 </script>
 
 <div class="preliminary-brief">
-	<p class="brief-summary">{summary}</p>
-	<p class="brief-note">
-		Preliminary research. These findings guide the interview and possible projects.
-	</p>
-	{#snippet findingCard(finding: (typeof findings)[number])}
-		<section class="brief-finding">
-			<h3>{finding.title}</h3>
-			<p>{finding.claim}</p>
-			{#if finding.interpretation}<p>
-					<b>What this could mean for your project:</b>
-					{finding.interpretation}
-				</p>{/if}
-			{#if finding.sourceIds?.length}<details>
-					<summary>Evidence for this finding</summary>
-					<ul>
-						{#each finding.sourceIds as id (id)}
-							{@const source = sources.find((item) => item.id === id)}
-							{#if source}<li>
-									<a href={source.url} target="_blank" rel="external noreferrer">{source.title}</a>
-								</li>{/if}
-						{/each}
-					</ul>
-				</details>{/if}
-		</section>
-	{/snippet}
-	{#each findings.slice(0, 3) as finding, index (index)}{@render findingCard(finding)}{/each}
-	{#if findings.length > 3}<details>
-			<summary>More findings ({findings.length - 3})</summary>
-			{#each findings.slice(3) as finding, index (index)}{@render findingCard(finding)}{/each}
-		</details>{/if}
-	{#if gaps.length}<section class="brief-gaps">
-			<h3>Questions still open</h3>
-			<ul>
-				{#each gaps as gap, index (index)}<li>{gap.reason}</li>{/each}
-			</ul>
-		</section>{/if}
-	{#if sources.length}<details>
-			<summary>All sources ({sources.length})</summary>
-			<ol>
-				{#each sources as source (source.id)}<li>
-						<a href={source.url} target="_blank" rel="external noreferrer">{source.title}</a>
-						<small
-							>{source.publisher} · {source.publicationDate ?? 'Publication date unknown'}</small
-						>
-						<p>{source.evidenceSummary}</p>
-					</li>{/each}
-			</ol>
-		</details>{/if}
-	{#if disclaimer}<p class="brief-note">{disclaimer}</p>{/if}
-	<div class="brief-actions">
-		<button type="button" onclick={onContinue}>{continueLabel}</button>
-	</div>
+	<small>Preliminary research · {page + 1} of {pages.length}</small>
+	<h3>
+		{page === 0
+			? 'What the Sage found'
+			: page <= findings.length
+				? `Finding ${page}`
+				: 'Questions and limits'}
+	</h3>
+	<PagedText text={page === 0 ? current.text : `${current.title}. ${current.text}`} length={140} />
+	<nav aria-label="Research findings">
+		<button disabled={page === 0} onclick={() => page--}>← Previous</button><button
+			disabled={page === pages.length - 1}
+			onclick={() => page++}>Next finding →</button
+		><button onclick={() => sourceDialog?.showModal()}>Sources ({sources.length})</button>
+	</nav>
+	<div class="brief-actions"><button onclick={onContinue}>{continueLabel} →</button></div>
 </div>
+<dialog bind:this={sourceDialog} aria-label="Research sources">
+	<button autofocus onclick={() => sourceDialog?.close()}>Close sources</button>
+	{#each sources as source (source.id)}<article>
+			<a href={source.url} target="_blank" rel="external noreferrer">{source.title}</a>
+			<p>{source.evidenceSummary}</p>
+		</article>{/each}
+	{#if !sources.length}<p>No sources were recovered. Treat these findings as unverified.</p>{/if}
+</dialog>
 
 <style>
+	.preliminary-brief {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		min-height: 0;
+	}
+	.brief-actions {
+		margin-top: auto;
+	}
+	nav button,
+	.brief-actions button {
+		font: 18px/1.2 var(--game-font);
+		padding: 8px;
+	}
+	nav {
+		display: flex;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+	dialog {
+		max-width: min(700px, 90vw);
+		max-height: 80dvh;
+		overflow: auto;
+		background: #f3e7cc;
+		color: #493e2f;
+	}
+	dialog > button {
+		position: sticky;
+		top: 0;
+	}
 	.preliminary-brief {
 		color: #463d31;
 		font:
 			17px/1.6 Georgia,
 			serif;
 	}
-	.brief-summary {
-		font-size: 16px;
-		line-height: 1.65;
-	}
-	.brief-note,
 	small {
 		color: #70624f;
 		font-size: 12px;
@@ -106,34 +116,17 @@
 	p {
 		margin: 8px 0 12px;
 	}
-	.brief-finding {
-		border-top: 1px solid #b5a389;
-		padding: 16px 0;
-	}
-	details {
-		margin: 12px 0;
-		padding: 10px 12px;
-		border: 1px solid #b5a389;
-		background: #f6ecd7;
-	}
-	summary {
-		font-weight: 600;
-	}
 	a {
 		color: #355b79;
 		text-decoration: underline;
 		overflow-wrap: anywhere;
 	}
-	li {
-		margin: 10px 0;
-	}
 	small {
 		display: block;
 	}
 	.brief-actions {
-		position: sticky;
-		bottom: -1px;
-		padding: 12px 0;
+		position: static;
+		padding: 4px 0;
 		background: #fff4d8;
 	}
 	button {
@@ -150,7 +143,7 @@
 	button:active {
 		border-style: inset;
 	}
-	:is(button, summary, a):focus-visible {
+	:is(button, a):focus-visible {
 		outline: 3px solid #755c94;
 		outline-offset: 3px;
 	}

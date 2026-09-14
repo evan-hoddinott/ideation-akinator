@@ -18,6 +18,10 @@
 		prompt,
 		meta = '',
 		dialogueId = '',
+		readIds = [],
+		onRead = () => {},
+		paused = false,
+		compactOnSmallScreen = true,
 		layout = 'dialogue',
 		children,
 		footer,
@@ -31,6 +35,10 @@
 		prompt: string;
 		meta?: string;
 		dialogueId?: string;
+		readIds?: string[];
+		onRead?: (id: string) => void;
+		paused?: boolean;
+		compactOnSmallScreen?: boolean;
 		layout?: 'dialogue' | 'journal';
 		children: Snippet;
 		footer?: Snippet;
@@ -39,6 +47,7 @@
 	} = $props();
 
 	let displayedText = $state('');
+	let revisit = $state(false);
 	let segments = $state<string[]>([]);
 	let segmentIndex = $state(0);
 	let typing = $state(false);
@@ -48,7 +57,7 @@
 	let signature = '';
 	let lastAdvanceAt = 0;
 	const portraitSource = $derived(`/images/sage-pixel/${personality.mood}.svg`);
-	const showControls = $derived(layout === 'journal' || responsesReady);
+	const showControls = $derived(responsesReady);
 
 	$effect(() => {
 		// Explicit turn IDs keep edits and background reactions from restarting speech.
@@ -58,9 +67,17 @@
 		untrack(() => {
 			segments = segmentDialogue(prompt);
 			segmentIndex = 0;
+			revisit = false;
 			responsesReady = false;
 			lastAdvanceAt = 0;
-			startTyping(segments[0] ?? '');
+			if (dialogueId && readIds.includes(dialogueId)) {
+				segmentIndex = segments.length - 1;
+				displayedText = segments[segmentIndex];
+				typing = false;
+				responsesReady = true;
+				clearTypingTimer();
+				onSpeakingChange(false);
+			} else startTyping(segments[0] ?? '');
 		});
 	});
 
@@ -77,7 +94,10 @@
 		displayedText = segments[segmentIndex] ?? '';
 		typing = false;
 		onSpeakingChange(false);
-		if (segmentIndex === segments.length - 1) responsesReady = true;
+		if (segmentIndex === segments.length - 1) {
+			responsesReady = true;
+			if (dialogueId && !readIds.includes(dialogueId)) onRead(dialogueId);
+		}
 	}
 	function startTyping(text: string) {
 		clearTypingTimer();
@@ -86,6 +106,12 @@
 		onSpeakingChange(true);
 		let index = 0;
 		const reveal = () => {
+			if (paused) {
+				onSpeakingChange(false);
+				typingTimer = window.setTimeout(reveal, 100);
+				return;
+			}
+			onSpeakingChange(true);
 			if (index >= text.length) {
 				finishLine();
 				return;
@@ -148,6 +174,8 @@
 <section
 	class="sage-dialogue-stage"
 	class:journal={layout === 'journal'}
+	class:responding={responsesReady && compactOnSmallScreen}
+	class:revisit
 	data-mode={mode}
 	data-mood={personality.mood}
 	data-altitude={altitude.toFixed(2)}
@@ -165,6 +193,9 @@
 			</figure>
 			<div class="dialogue-column">
 				<div class="speech-area">
+					{#if responsesReady}<button class="speech-revisit" onclick={() => (revisit = !revisit)}
+							>{revisit ? 'Back to my answer ↓' : 'Read the Sage’s question ↶'}</button
+						>{/if}
 					<button
 						class="dialogue-copy"
 						type="button"
@@ -205,19 +236,51 @@
 </section>
 
 <style>
+	.speech-revisit {
+		display: none;
+	}
+	@media (max-height: 740px) {
+		.responding:not(.revisit) .sage-portrait {
+			display: none;
+		}
+		.responding .rpg-panel {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.responding:not(.revisit) .speech-area {
+			min-height: 0 !important;
+			padding-left: 0 !important;
+		}
+		.responding:not(.revisit) .dialogue-copy,
+		.responding:not(.revisit) .dialogue-instruction {
+			display: none;
+		}
+		.responding .speech-revisit {
+			display: block;
+			background: transparent;
+			border: 0;
+			color: #65573d;
+			padding: 0;
+			min-height: 28px;
+			font: 18px/1.2 var(--game-font);
+		}
+		.revisit .dialogue-responses {
+			display: none;
+		}
+	}
+
 	.sage-dialogue-stage {
 		position: fixed;
 		z-index: 13;
 		left: 50%;
 		bottom: 20px;
 		width: min(1180px, calc(100vw - 64px));
-		height: min(480px, calc(100dvh - 180px));
+		height: min(480px, calc(100dvh - 110px));
 		transform: translateX(-50%);
 		pointer-events: none;
 		color: #443a32;
 	}
 	.sage-dialogue-stage.journal {
-		height: min(600px, calc(100dvh - 180px));
+		height: min(610px, calc(100dvh - 110px));
 	}
 	.sage-speech-window {
 		height: 100%;
@@ -319,10 +382,8 @@
 	.dialogue-responses {
 		flex: 1;
 		min-height: 0;
-		overflow: auto;
+		overflow: visible;
 		visibility: hidden;
-		scrollbar-color: #827455 #ead8b6;
-		scrollbar-gutter: stable;
 		padding: 2px 8px 8px 2px;
 	}
 	.dialogue-responses.ready {
@@ -360,7 +421,7 @@
 		.sage-dialogue-stage.journal {
 			bottom: 8px;
 			width: calc(100vw - 16px);
-			height: min(640px, calc(100dvh - 155px));
+			height: min(730px, calc(100dvh - 95px));
 		}
 		.rpg-panel {
 			grid-template-columns: minmax(0, 1fr);

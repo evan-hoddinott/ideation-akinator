@@ -1,5 +1,7 @@
 # Workflow and interaction redesign proposal
 
+September 14 correction: [RPG encounter and milestone progression](RPG-ENCOUNTER-PLAN.md) supersedes the scrolling allowances and optional Sage dialogue presentation below. The current RPG frame appearance is retained.
+
 Date: 2026-09-13
 
 Status: Approved through the user-submitted goal on 2026-09-13. Implemented; acceptance and deployment recorded in WORKFLOW-IMPLEMENTATION-STATUS.md.

@@ -1,8 +1,8 @@
 import { internetEraIndex } from './internet-era';
 
 export const ERA_HEIGHT = 48;
-export const ERA_DWELL_SECONDS = 12;
-export const ERA_MERGE_SECONDS = 12;
+export const ERA_DWELL_SECONDS = 0;
+export const ERA_MERGE_SECONDS = 1;
 export const eraExhibits = [
 	[
 		'1980s–1991',
@@ -97,20 +97,19 @@ export const eraExhibits = [
 	],
 	[
 		'BEYOND THE FEED',
-		'BEYOND THE LAST WEBPAGE',
+		'404 · END OF THE INTERNET',
 		'DEEP SPACE • QUIET SIGNALS • WHAT COMES NEXT',
-		'A SIGNAL FROM FAR AWAY',
+		'404 · NO MORE QUESTS FOUND',
 		'No ads out here. Just you, the stars, and one very lost modem.'
 	]
 ] as const;
 
-/** Travel visits adjacent eras and gives each a settled view, even after a large workflow jump. */
+/** Workflow authorizes a destination. This clock only animates that one crossing. */
 export class EraJourney {
 	current: number;
 	next: number;
 	mix = 0;
 	private elapsed = 0;
-	private traveling = false;
 	constructor(altitude: number) {
 		this.current = this.next = internetEraIndex(altitude);
 	}
@@ -119,26 +118,31 @@ export class EraJourney {
 		if (instant) {
 			this.current = this.next = target;
 			this.mix = this.elapsed = 0;
-			this.traveling = false;
 			return;
 		}
-		this.elapsed += Math.min(delta, 0.1);
-		if (!this.traveling) {
-			if (target !== this.current && this.elapsed >= ERA_DWELL_SECONDS) {
-				this.next = this.current + Math.sign(target - this.current);
-				this.elapsed = 0;
-				this.traveling = true;
-			}
-			return;
+		if (target !== this.next) {
+			// A new milestone supersedes any unfinished visual crossing, without a backlog.
+			this.current = this.mix >= 0.5 ? this.next : this.current;
+			this.next = target;
+			this.mix = this.elapsed = 0;
 		}
+		if (this.current === this.next) return;
+		this.elapsed += Math.min(Math.max(delta, 0), 0.1);
 		const t = Math.min(1, this.elapsed / ERA_MERGE_SECONDS);
 		this.mix = t * t * (3 - 2 * t);
 		if (t === 1) {
 			this.current = this.next;
 			this.mix = this.elapsed = 0;
-			this.traveling = false;
 		}
 	}
+}
+
+export function isWorkshopChapter(project: import('./project-state').ProjectSession): boolean {
+	return (
+		!!project.featureWorkshop.selectedConceptId ||
+		(!!project.encounter?.workshopOpened &&
+			project.encounter.workshopGeneration === project.concepts.portfolio?.generationNumber)
+	);
 }
 
 /** Scenery advances at workflow milestones, never from word counts, budget edits or tag counts. */
@@ -149,22 +153,32 @@ export function projectSceneryAltitude(project: import('./project-state').Projec
 			era = 0;
 			break;
 		case 'problem':
-			era = 1;
+			era = project.encounter?.problemReview ? 2 : 1;
 			break;
 		case 'preferences':
-			era = 3;
+			era =
+				(project.encounter?.preferencePage ?? 0) < 2
+					? 3
+					: (project.encounter?.preferencePage ?? 0) === 2
+						? 4
+						: 5;
 			break;
 		case 'research':
-			era = 5;
+			era = project.research.result ? 7 : 6;
 			break;
 		case 'questions':
-			era = 6 + Math.min(2, Math.floor(project.interview.answers.length / 3));
+			era = 8;
 			break;
 		case 'concepts':
-			era = project.featureWorkshop.status === 'confirmed' ? 10 : 9;
+			era = isWorkshopChapter(project) ? 10 : 9;
 			break;
 		case 'focused':
-			era = project.finalization.plan ? 13 : project.finalization.research.result ? 12 : 11;
+			era =
+				project.finalization.plan && project.finalization.printPresented
+					? 13
+					: project.finalization.research.result || project.finalization.plan
+						? 12
+						: 11;
 			break;
 	}
 	return (era + 0.5) / 14;

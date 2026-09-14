@@ -30,19 +30,32 @@
 	let error = $state('');
 	let expanded = $state(false);
 	let cursor = $state(0);
+	let selectedPage = $state(0);
+	let matchPage = $state(0);
+	let tab = $state<'selected' | 'suggested' | null>(null);
+	const visibleSelectedPage = $derived(
+		Math.min(selectedPage, Math.max(0, Math.ceil(selected.length / 2) - 1))
+	);
+	const visibleSelected = $derived(
+		selected.slice(visibleSelectedPage * 2, visibleSelectedPage * 2 + 2)
+	);
 	const key = (tag: string) => tag.trim().toLowerCase();
 	const selectedKeys = $derived(new Set(selected.map(key)));
 	const dismissedKeys = $derived(new Set(dismissed.map(key)));
 	const recommendations = $derived(
 		suggestions
 			.filter((tag) => !selectedKeys.has(key(tag)) && !dismissedKeys.has(key(tag)))
-			.slice(0, 5)
+			.slice(0, 2)
 	);
-	const matches = $derived(
-		[...new Set([...suggestions, ...catalog])]
-			.filter((tag) => !selectedKeys.has(key(tag)) && key(tag).includes(key(draft)))
-			.slice(0, 6)
+	const suggestedView = $derived(
+		tab === 'suggested' || (tab === null && selected.length === 0 && recommendations.length > 0)
 	);
+	const allMatches = $derived(
+		[...new Set([...suggestions, ...catalog])].filter(
+			(tag) => !selectedKeys.has(key(tag)) && key(tag).includes(key(draft))
+		)
+	);
+	const matches = $derived(allMatches.slice(matchPage * 3, matchPage * 3 + 3));
 	function add(tag: string) {
 		const cleaned = tag.trim().replace(/\s+/g, ' ').slice(0, 48);
 		if (cleaned && !selectedKeys.has(key(cleaned))) {
@@ -54,6 +67,8 @@
 				return;
 			}
 			onAdd(cleaned);
+			tab = 'selected';
+			selectedPage = Math.floor(selected.length / 2);
 		}
 		error = '';
 		draft = '';
@@ -83,8 +98,19 @@
 
 <div class="tag-picker">
 	<label for={id}>{label}</label>
-	<div class="picked-tags" aria-label={`Selected ${label.toLowerCase()}`}>
-		{#each selected as tag (tag)}<span class="picked-tag"
+	{#if !expanded}<nav aria-label="Tag collection">
+			<button type="button" aria-pressed={!suggestedView} onclick={() => (tab = 'selected')}
+				>Chosen ({selected.length})</button
+			><button type="button" aria-pressed={suggestedView} onclick={() => (tab = 'suggested')}
+				>Sage suggests</button
+			>
+		</nav>{/if}
+	<div
+		class="picked-tags"
+		hidden={expanded || suggestedView}
+		aria-label={`Selected ${label.toLowerCase()}`}
+	>
+		{#each visibleSelected as tag (tag)}<span class="picked-tag"
 				><span>{tag}</span><button
 					type="button"
 					aria-label={`Remove ${tag}`}
@@ -93,6 +119,17 @@
 			>{/each}
 		{#if !selected.length}<small>No tags selected</small>{/if}
 	</div>
+	{#if !expanded && !suggestedView && selected.length > 2}<nav aria-label="Selected tags">
+			<button
+				type="button"
+				disabled={visibleSelectedPage === 0}
+				onclick={() => (selectedPage = visibleSelectedPage - 1)}>←</button
+			><span>{visibleSelectedPage + 1} / {Math.ceil(selected.length / 2)}</span><button
+				type="button"
+				disabled={(visibleSelectedPage + 1) * 2 >= selected.length}
+				onclick={() => (selectedPage = visibleSelectedPage + 1)}>→</button
+			>
+		</nav>{/if}
 	<div class="tag-input-row">
 		<input
 			{id}
@@ -111,6 +148,7 @@
 				error = '';
 				expanded = true;
 				cursor = 0;
+				matchPage = 0;
 			}}
 			onkeydown={handleKey}
 		/>
@@ -135,9 +173,31 @@
 				onclick={() => add(tag)}>{tag}</button
 			>{/each}
 	</div>
+	{#if expanded}<nav aria-label="Tag search pages">
+			<button
+				type="button"
+				onclick={() => {
+					expanded = false;
+					draft = '';
+				}}>Done searching</button
+			><button
+				type="button"
+				disabled={matchPage === 0}
+				onclick={() => {
+					matchPage--;
+					cursor = 0;
+				}}>←</button
+			><button
+				type="button"
+				disabled={(matchPage + 1) * 3 >= allMatches.length}
+				onclick={() => {
+					matchPage++;
+					cursor = 0;
+				}}>→</button
+			>
+		</nav>{/if}
 	{#if error}<p id={`${id}-error`} role="alert">{error}</p>{/if}
-	{#if recommendations.length}<div class="tag-recommendations">
-			<small>The Sage suggests</small>
+	{#if !expanded && suggestedView && recommendations.length}<div class="tag-recommendations">
 			{#each recommendations as tag (tag)}<span
 					><button type="button" onclick={() => add(tag)}>+ {tag}</button>{#if onDismiss}<button
 							type="button"
@@ -146,17 +206,42 @@
 						>{/if}</span
 				>{/each}
 		</div>{/if}
+	{#if !expanded && suggestedView && !recommendations.length}<small
+			>No more suggestions. Search above or choose your own tags.</small
+		>{/if}
 </div>
 
 <style>
+	[hidden] {
+		display: none !important;
+	}
+	nav {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	button:active {
+		transform: translateY(2px);
+	}
+	button:focus-visible {
+		outline: 3px solid #637d4c;
+		outline-offset: 2px;
+	}
+	.picked-tag {
+		max-width: 100%;
+	}
+	.picked-tag > span {
+		overflow-wrap: anywhere;
+	}
 	.tag-picker {
+		grid-template-columns: minmax(0, 1fr);
 		display: grid;
-		gap: 10px;
+		gap: 6px;
 		min-width: 0;
 	}
 	label {
 		color: #4f4437;
-		font: 24px/1.25 var(--game-font);
+		font: 20px/1.25 var(--game-font);
 	}
 	.picked-tags,
 	.tag-recommendations {
@@ -170,7 +255,7 @@
 	}
 	small {
 		color: #77634b;
-		font: 24px/1.25 var(--game-font);
+		font: 20px/1.25 var(--game-font);
 	}
 	.picked-tag {
 		display: inline-flex;
@@ -179,7 +264,7 @@
 		border: 2px solid #7b8e5d;
 		box-shadow: 2px 2px #b3bd95;
 		color: #37452d;
-		font: 24px/1.25 var(--game-font);
+		font: 20px/1.25 var(--game-font);
 	}
 	.picked-tag > span {
 		padding: 4px 8px;
@@ -193,7 +278,7 @@
 		background: #eadabd;
 		padding: 4px 10px;
 		color: #4f422f;
-		font: 24px/1.25 var(--game-font);
+		font: 20px/1.25 var(--game-font);
 	}
 	.picked-tag button {
 		align-self: stretch;
@@ -227,9 +312,6 @@
 	}
 	[role='option'][aria-selected='true'] {
 		background: #dce5be;
-	}
-	.tag-recommendations > small {
-		width: 100%;
 	}
 	.tag-recommendations > span {
 		display: inline-flex;

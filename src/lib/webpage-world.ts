@@ -471,6 +471,7 @@ export function createWebpageWorld() {
 			animated.push({ object: cup, kind: 'float', base: 4.8 });
 		}
 		if (index === 13) {
+			text(g, '404 - END OF THE INTERNET', 0, 6.5, 0.6, 18, 1.2, '#eadabd', '#3e364e');
 			for (const x of [-13, 13]) box(g, x, 3.3, -1, 0.15, 8.7, 0.5, purple, 'Empty tab frame');
 			box(g, 0, 7.7, -1, 26, 0.15, 0.5, purple, 'Empty tab header');
 			for (let i = 0; i < 5; i++) {

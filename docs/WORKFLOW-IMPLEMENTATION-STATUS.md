@@ -1,5 +1,7 @@
 # Workflow implementation and release record
 
+Current presentation follow-up: [RPG encounter and milestone progression](RPG-ENCOUNTER-PLAN.md) restores mandatory Sage dialogue, screen-fitting prompt pages and milestone-directed eras while retaining the workflow below.
+
 The approved W-01 through W-14 functional redesign is implemented. The September 13 release still had presentation regressions: disconnected Sage reactions, paused late-era travel, and media layers outside the pixel transition. See [presentation restoration](PRESENTATION-RESTORATION.md) for the correction and its verification. The visual correction follows the user's Webfishing direction: the existing low-poly Sage/world, Tomo bitmap lettering, stepped pixel frames, hard shadows and native-resolution sprites. This record separates observed behavior from generated estimates. The attached assignment is a rubric reference; this is not a completed student submission.
 
 Application revision `947e156` is deployed at `https://idea.battery.rip`. The public health/authentication/container verifier passes. Final browser evidence is recorded below. See [verification](WORKFLOW-VERIFICATION.md), [approved scope](WORKFLOW-REDESIGN-PROPOSAL.md), [asset credits](WORKFLOW-ASSET-SOURCES.md) and [deployment](DEPLOYMENT.md).

@@ -376,3 +376,166 @@ input:disabled {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
+
+/* Encounter pages retain the original frame, with bounded tasks and fixed navigation. */
+.encounter-problem {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-height: 100%;
+}
+.encounter-problem > .primary {
+	margin-top: auto;
+}
+.encounter-problem textarea {
+	min-height: 100px;
+	resize: none;
+}
+.encounter-note-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+.problem-review-copy {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	font: 22px/1.25 var(--game-font);
+	margin: 0;
+}
+@media (max-width: 760px) {
+	.sage-dialogue-stage .game-choice-list {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+	.sage-dialogue-stage .game-choice-list button {
+		font-size: 20px;
+		padding: 7px;
+	}
+	.sage-dialogue-stage .minor-answer-actions {
+		gap: 4px;
+		margin-top: 0;
+	}
+	.sage-dialogue-stage .minor-answer-actions button {
+		font-size: 18px;
+		padding: 4px;
+	}
+	.encounter-note-nav {
+		flex-wrap: wrap;
+	}
+	.encounter-note-nav .answer-button {
+		font-size: 20px;
+		padding: 7px;
+	}
+	.sage-dialogue-stage .compact-field > span {
+		font-size: 20px;
+	}
+}
+
+.encounter-handoff {
+	position: fixed;
+	inset: 65px 0 0;
+	z-index: 60;
+	background: #24211b55;
+}
+.encounter-handoff .sage-dialogue-stage {
+	height: min(340px, calc(100dvh - 110px));
+	z-index: 61;
+}
+.encounter-handoff .dialogue-responses {
+	display: flex;
+	align-items: flex-end;
+}
+@media (max-width: 760px) {
+	.encounter-handoff .sage-dialogue-stage {
+		height: min(480px, calc(100dvh - 110px));
+	}
+}
+
+.question-help {
+	width: min(600px, calc(100vw - 32px));
+	max-height: 85dvh;
+	background: #f3e7cc;
+	border: 6px solid #8d7c60;
+	color: #493e2f;
+	padding: 18px;
+}
+
+/* Compact answer rows keep the complete choice set and utility actions together. */
+.sage-dialogue-stage .interview-response {
+	gap: 8px;
+}
+.sage-dialogue-stage .interview-response .quiet-game-action {
+	font: 18px/1.15 var(--game-font);
+	min-height: 28px;
+	padding: 2px 4px;
+	align-self: flex-start;
+}
+@media (max-width: 760px) {
+	.sage-dialogue-stage .interview-response .game-choice-list button {
+		font: 18px/1.15 var(--game-font);
+		padding: 6px;
+	}
+	.sage-dialogue-stage .interview-response > .answer-button {
+		font: 20px/1.15 var(--game-font);
+		padding: 7px;
+	}
+	.sage-dialogue-stage .interview-response .minor-answer-actions button {
+		font: 16px/1.15 var(--game-font);
+		padding: 4px;
+		min-height: 32px;
+	}
+	.sage-dialogue-stage .interview-response .minor-answer-actions {
+		padding-top: 6px;
+	}
+}
+
+.sage-dialogue-stage .extended-choices button {
+	font: 16px/1.1 var(--game-font) !important;
+	padding: 4px !important;
+	min-height: 44px;
+}
+.extended-choices .option-label {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+}
+.extended-choices small {
+	display: block;
+	font: 12px/1.1 var(--game-font);
+}
+.sage-dialogue-stage .game-choice-list button .option-label {
+	width: auto;
+	margin: 0;
+	min-width: 0;
+}
+.sage-dialogue-stage .game-choice-list.multiple button:has(.option-label) {
+	display: grid;
+	grid-template-columns: 14px minmax(0, 1fr);
+	align-items: center;
+	gap: 4px;
+}
+.sage-dialogue-stage .game-choice-list.multiple button small {
+	grid-column: 1/-1;
+}
+.sage-dialogue-stage .interview-response {
+	gap: 6px;
+}
+@media (max-width: 760px) {
+	.extended-choices .option-label {
+		-webkit-line-clamp: 1;
+	}
+}
+.sage-dialogue-stage .extended-choices button .option-label {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	-webkit-line-clamp: 2;
+}
+@media (max-width: 760px) {
+	.sage-dialogue-stage .extended-choices button .option-label {
+		-webkit-line-clamp: 1;
+		max-height: 1.1em;
+	}
+}

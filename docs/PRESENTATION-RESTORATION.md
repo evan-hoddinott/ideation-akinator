@@ -1,5 +1,7 @@
 # Sage and internet journey restoration
 
+Superseded presentation: the [RPG encounter correction](RPG-ENCOUNTER-PLAN.md) removes the optional top Chat bar and timed era catch-up described below. This file preserves the earlier release evidence.
+
 The September 13 workflow release left the Sage's event dialogue undisplayed, froze era progression during concepts and finalization, and placed the newer media pages outside the pixel transition. The user requested these corrections while preserving the improved workflow and Webfishing presentation contract.
 
 ## Changes
