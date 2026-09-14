@@ -2573,7 +2573,6 @@
 				voicePulse={sageVoicePulse}
 				voiceEnergy={sageVoiceEnergy}
 				performance={sagePerformance}
-				resetSignal={resetWorldSignal}
 				allowPopup={!!project &&
 					project.stage !== 'welcome' &&
 					project.stage !== 'focused' &&

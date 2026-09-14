@@ -50,3 +50,14 @@ describe('Sage animation transitions', () => {
 		director.dispose();
 	});
 });
+
+it('replaces legacy fall requests with idle', () => {
+	const { director, actions } = setup();
+	director.play('talk');
+	director.play('drop', true);
+	director.update(0.3);
+	expect(director.current).toBe('idle');
+	expect(actions.idle.isRunning()).toBe(true);
+	expect(director.reacting).toBe(false);
+	director.dispose();
+});

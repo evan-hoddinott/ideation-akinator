@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, untrack } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import type { MagicBallFrame } from '$lib/magic-ball';
 	import type { AnimationAction, Object3D } from 'three';
 	import type { WorkstationView } from '$lib/workstation-3d';
@@ -29,7 +29,6 @@
 		voicePulse = 0,
 		voiceEnergy = 0.5,
 		performance = null,
-		resetSignal = 0,
 		allowPopup = true,
 		onAnchors = () => {},
 		onFallbackChange = () => {},
@@ -46,7 +45,6 @@
 		voicePulse?: number;
 		voiceEnergy?: number;
 		performance?: SageClip | null;
-		resetSignal?: number;
 		allowPopup?: boolean;
 		onAnchors?: (anchors: SageScreenAnchors) => void;
 		onFallbackChange?: (fallback: boolean) => void;
@@ -70,8 +68,6 @@
 		'hidden' | 'ignoring' | 'glance' | 'waiting' | 'comment' | 'anticipate' | 'swat';
 	let popupPhase = $state<PopupPhase>('hidden');
 	let popupTimers: number[] = [];
-	let resetting = $state(false);
-	let lastResetSignal = untrack(() => resetSignal);
 	let playClip: ((clip: SageClip, returnToIdle?: boolean) => void) | null = null;
 	let lastReactionCounter = -1;
 	let lastPerformance: SageClip | null = null;
@@ -82,16 +78,6 @@
 	let cleanupThree = () => {};
 	let cursorX = 0;
 	let cursorY = 0;
-
-	$effect(() => {
-		if (resetSignal <= lastResetSignal) return;
-		lastResetSignal = resetSignal;
-		resetting = true;
-		playClip?.('drop', false);
-		onEffect('sage-error', 0.34);
-		const timer = window.setTimeout(() => (resetting = false), 3_050);
-		return () => window.clearTimeout(timer);
-	});
 
 	$effect(() => {
 		const counter = personality.eventCounter;
@@ -1063,7 +1049,6 @@
 	data-magic-phase={magicBall?.phase}
 	data-magic-cycle={magicBall?.cycle}
 	class:concept-performance={workstation?.purpose === 'concepts'}
-	class:resetting
 	data-mood={personality.mood}
 	data-performance={performance ?? 'idle'}
 	data-active-clip={activeClip}
@@ -1218,38 +1203,6 @@
 	}
 	.ready .sage-motion canvas.hidden {
 		opacity: 0;
-	}
-
-	.resetting .sage-motion {
-		animation: sage-reset-fall 3s steps(28, end) both;
-	}
-
-	.resetting::before,
-	.resetting::after {
-		position: absolute;
-		z-index: 8;
-		left: 50%;
-		pointer-events: none;
-		font-family: 'Courier New', monospace;
-	}
-
-	.resetting::before {
-		content: 'POOF!';
-		top: 38%;
-		color: #fff06c;
-		font-size: 34px;
-		text-shadow: 4px 4px #ca35c5;
-		animation: reset-poof 650ms steps(6, end) both;
-	}
-
-	.resetting::after {
-		content: 'NEW CHAIR DEPLOYED';
-		bottom: 3%;
-		padding: 6px;
-		color: #7fffe4;
-		background: #08051ddd;
-		font-size: 8px;
-		animation: reset-chair-label 520ms steps(5, end) 2.45s both;
 	}
 
 	.sage-fallback {
@@ -1434,60 +1387,6 @@
 		100% {
 			transform: rotate(-14deg) scale(0.78);
 			opacity: 0;
-		}
-	}
-
-	@keyframes sage-reset-fall {
-		0%,
-		10% {
-			transform: translate(0, 0) rotate(0);
-			opacity: 1;
-		}
-		18% {
-			transform: translate(0, -4%) rotate(0) scale(0.96);
-			opacity: 0;
-		}
-		25% {
-			transform: translate(0, -22%) rotate(12deg) scale(0.78);
-			opacity: 1;
-		}
-		78% {
-			transform: translate(8%, 120vh) rotate(760deg) scale(0.42);
-			opacity: 1;
-		}
-		79% {
-			transform: translate(0, -120vh) rotate(0) scale(0.7);
-			opacity: 0;
-		}
-		100% {
-			transform: translate(0, 0) rotate(0) scale(1);
-			opacity: 1;
-		}
-	}
-
-	@keyframes reset-poof {
-		0% {
-			transform: translate(-50%, -50%) scale(0.2);
-			opacity: 0;
-		}
-		45% {
-			transform: translate(-50%, -50%) scale(1.5);
-			opacity: 1;
-		}
-		100% {
-			transform: translate(-50%, -50%) scale(2.2);
-			opacity: 0;
-		}
-	}
-
-	@keyframes reset-chair-label {
-		from {
-			transform: translate(-50%, 30px);
-			opacity: 0;
-		}
-		to {
-			transform: translate(-50%, 0);
-			opacity: 1;
 		}
 	}
 

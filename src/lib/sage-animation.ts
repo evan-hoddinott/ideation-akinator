@@ -27,6 +27,11 @@ export class SageAnimationDirector {
 	}
 
 	play(clip: SageClip, returnToRest = false): void {
+		// Retired animation: even legacy/debug callers cannot play the fall.
+		if (clip === 'drop') {
+			clip = 'idle';
+			returnToRest = false;
+		}
 		const next = this.actions[clip];
 		if (!next || (next === this.active && loops.has(clip))) return;
 		this.weights.clear();

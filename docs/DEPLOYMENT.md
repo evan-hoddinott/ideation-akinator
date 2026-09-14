@@ -130,3 +130,7 @@ See [paper and Purl encounters](PAPER-PURL-ENCOUNTERS.md) for implementation sco
 Deployed the approved presentation correction with the original pond MIDI, wider RPG frames, reset-event fix, rounded Purl, continuous monitor projection, restored virus entrance and direct ball-to-results ending. Generated reports and the token-free demo now include implementation steps and phase completion conditions.
 
 Image: `sha256:cb70a076c8cac7b3cb1da00336144585bf640f0686948b09dd0d0f29dd94b51b`. Previous image is preserved as `ideation-akinator:before-presentation-finish-20260914` (`sha256:e5775912a269d52619555a106e2ad2746b70115242eeaaa01e441ca9f9284253`). Build, container health and live deployment verification passed. The public browser replay observed shake/read/throw/chase, no premature throw, no final printer, and zero dialogue overflow. Public PDF export returned 23,720 bytes. See `docs/PRESENTATION-FINISH.md` for scope and evidence limits.
+
+## September 14 fall-animation removal
+
+Removed the Sage reset trigger, fall/spin keyframes and associated reset overlays at the user's request. Legacy `drop` animation requests now resolve to idle. Image `sha256:dec2e3ade68d61da83a89d7707cf359cd8c236d56afb97d9bafa71dab613497e` is live; the previous image is retained as `ideation-akinator:before-remove-fall-20260914`. Svelte check, scoped lint, 10 animation/stage tests and deployment verification passed. A fresh public demo and demo restart showed no reset class; the retired keyframes are absent from the page and browser errors were empty.
