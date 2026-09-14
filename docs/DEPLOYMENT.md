@@ -100,3 +100,9 @@ The September 4 visual pass previously ran in image `sha256:ee9ee5f40a7b9fc3fcc6
 Keep rollback narrow. If a newly built container does not become healthy, inspect its logs and return to the prior image tag or source commit. The old system service can run the Node build directly, but it should remain disabled while Compose owns port 4187. Never run both at once.
 
 After any rollback, check local health first, then the public hostname, then a fresh password session. Other tunnel hostnames and services should not need configuration changes for this app.
+
+## September 14 presentation correction
+
+Application commit `e1abd08` restores Sage conversations, late-stage era travel and pixel rendering/transitions for the media backgrounds. Deployed image: `sha256:4b63b550282ed0f0cabaebe8b8d8259aa914b1bf3a8cd608bc2f8349d33975fd`. Container health and `npm run deploy:verify` passed. Fresh public browser checks passed for results, Chat and the short-video background. See [presentation restoration](PRESENTATION-RESTORATION.md) for evidence and limits.
+
+Rollback tag: `ideation-akinator:before-sage-restoration-20260914`, image `sha256:873d49ae3405d0845f52351b76045d0f465a77a7b5e2c563f7a3c2bbadb2f41e`.

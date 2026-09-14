@@ -23,4 +23,4 @@ Local browser checks used the configured user-local agent-browser with sandboxed
 
 ## Release
 
-Publication is pending final container and public-browser verification. Rollback image: `ideation-akinator:before-sage-restoration-20260914`, image `sha256:873d49ae3405d0845f52351b76045d0f465a77a7b5e2c563f7a3c2bbadb2f41e`.
+Application commit `e1abd08` is deployed at `https://idea.battery.rip`, image `sha256:4b63b550282ed0f0cabaebe8b8d8259aa914b1bf3a8cd608bc2f8349d33975fd`. Container health and the public deployment verifier passed. Fresh authenticated public browser checks confirmed the restored results, responsive Chat on results and the short-video era, and the media pixel filter. Page-error logs were empty; the result check found no broken images or horizontal overflow. One earlier automation session stopped responding and was replaced; the fresh session passed. Public authentication used a short-lived signed test session, not a new password-entry test. Rollback image: `ideation-akinator:before-sage-restoration-20260914`, image `sha256:873d49ae3405d0845f52351b76045d0f465a77a7b5e2c563f7a3c2bbadb2f41e`.
